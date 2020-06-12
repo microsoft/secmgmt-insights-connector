@@ -8,13 +8,6 @@ logout_uri = "https://login.microsoftonline.com/logout.srf";
 redirect_uri = "https://oauth.powerbi.com/views/oauthredirect.html";
 token_uri = "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
 
-shared SecMgmtInsights.Contents = (optional message as text) =>
-    let
-        _message = if (message <> null) then message else "(no message)",
-        a = "Hello from SecMgmtInsights: " & _message
-    in
-        a;
-
 // Data Source Kind description
 
 SecMgmtInsights = [
@@ -334,6 +327,79 @@ shared SecMgmtInsights.ManagedDevices = () =>
         changedType;
 
 [DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.MobileAppDeviceStatuses = () =>
+    let
+        GetData = (mobileAppId as text, tenantId as text) =>
+            let
+                accessToken = Helper.GetAccessToken(tenantId),
+                data = MicrosoftGraph.GetPagedContent("deviceAppManagement/mobileApps/" & mobileAppId & "/deviceStatuses", accessToken)
+            in 
+                data,
+
+        source = SecMgmtInsights.MobileApps(),
+        filteredRows = Table.SelectRows(source, each [isAssigned] = true),
+        mobileApps = Table.SelectColumns(filteredRows, {"customerId", "id"}),
+        renamedColumns = Table.RenameColumns(mobileApps, {{"id", "mobileAppId"}}),
+        deviceStatuses = Table.AddColumn(renamedColumns, "Custom", each try GetData([mobileAppId], [customerId]) otherwise null),
+        expandedCustom = Table.ExpandListColumn(deviceStatuses, "Custom"),
+        expandedList = Table.ExpandListColumn(expandedCustom, "Custom"),
+        expandedRecord = Table.ExpandRecordColumn(expandedList, "Custom", {"id", "deviceName", "deviceId", "lastSyncDateTime", "mobileAppInstallStatusValue", "installState", "installStateDetail", "errorCode", "osVersion", "osDescription", "userName", "userPrincipalName", "displayVersion"}, {"id", "deviceName", "deviceId", "lastSyncDateTime", "mobileAppInstallStatusValue", "installState", "installStateDetail", "errorCode", "osVersion", "osDescription", "userName", "userPrincipalName", "displayVersion"}),
+        changedType = Table.TransformColumnTypes(expandedRecord, {{"lastSyncDateTime", type datetimezone}})
+    in 
+        changedType;
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.MobileAppInstallSummary = () =>
+    let
+        GetData = (mobileAppId as text, tenantId as text) =>
+            let
+                accessToken = Helper.GetAccessToken(tenantId),
+                data = MicrosoftGraph.GetContent("deviceAppManagement/mobileApps/" & mobileAppId & "/installSummary", accessToken)
+            in 
+                data,
+
+        source = SecMgmtInsights.MobileApps(),
+        filteredRows = Table.SelectRows(source, each [isAssigned] = true),
+        mobileApps = Table.SelectColumns(filteredRows, {"customerId", "id"}),
+        renamedColumns = Table.RenameColumns(mobileApps, {{"id", "mobileAppId"}}),
+        installSummary = Table.AddColumn(renamedColumns, "Custom", each try GetData([mobileAppId], [customerId]) otherwise null),
+        expandedCustom = Table.ExpandRecordColumn(installSummary, "Custom", {"id", "installedDeviceCount", "failedDeviceCount", "notApplicableDeviceCount", "notInstalledDeviceCount", "pendingInstallDeviceCount", "installedUserCount", "failedUserCount", "notApplicableUserCount", "notInstalledUserCount", "pendingInstallUserCount"}, {"id", "installedDeviceCount", "failedDeviceCount", "notApplicableDeviceCount", "notInstalledDeviceCount", "pendingInstallDeviceCount", "installedUserCount", "failedUserCount", "notApplicableUserCount", "notInstalledUserCount", "pendingInstallUserCount"}),
+        changedType = Table.TransformColumnTypes(expandedCustom, {{"installedDeviceCount", Int64.Type}, {"failedDeviceCount", Int64.Type}, {"notApplicableDeviceCount", Int64.Type}, {"notInstalledDeviceCount", Int64.Type}, {"pendingInstallDeviceCount", Int64.Type}, {"installedUserCount", Int64.Type}, {"failedUserCount", Int64.Type}, {"notApplicableUserCount", Int64.Type}, {"notInstalledUserCount", Int64.Type}, {"pendingInstallUserCount", Int64.Type}})
+    in 
+        changedType;
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.MobileAppUserStatuses = () =>
+    let
+        GetData = (mobileAppId as text, tenantId as text) =>
+            let
+                accessToken = Helper.GetAccessToken(tenantId),
+                data = MicrosoftGraph.GetPagedContent("deviceAppManagement/mobileApps/" & mobileAppId & "/userStatuses", accessToken)
+            in 
+                data,
+
+        source = SecMgmtInsights.MobileApps(),
+        filteredRows = Table.SelectRows(source, each [isAssigned] = true),
+        mobileApps = Table.SelectColumns(filteredRows, {"customerId", "id"}),
+        renamedColumns = Table.RenameColumns(mobileApps, {{"id", "mobileAppId"}}),
+        userStatuses = Table.AddColumn(renamedColumns, "Custom", each try GetData([mobileAppId], [customerId]) otherwise null),
+        expandedCustom = Table.ExpandListColumn(userStatuses, "Custom"),
+        expandedList = Table.ExpandListColumn(expandedCustom, "Custom"),
+        expandedRecord = Table.ExpandRecordColumn(expandedList, "Custom", {"id", "userName", "userPrincipalName", "installedDeviceCount", "failedDeviceCount", "notInstalledDeviceCount"}, {"id", "userName", "userPrincipalName", "installedDeviceCount", "failedDeviceCount", "notInstalledDeviceCount"}),
+        changedType = Table.TransformColumnTypes(expandedRecord, {{"installedDeviceCount", Int64.Type}, {"failedDeviceCount", Int64.Type}, {"notInstalledDeviceCount", Int64.Type}})
+    in 
+        changedType;
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.MobileApps = () =>
+    let 
+        data = Helper.GetPagedDataForAllCustomers("deviceAppManagement/mobileApps"),
+        expandedRecord = Table.ExpandRecordColumn(data, "Custom", {"id", "displayName", "description", "publisher", "largeIcon", "createdDateTime", "lastModifiedDateTime", "isFeatured", "privacyInformationUrl", "informationUrl", "owner", "developer", "notes", "uploadState", "publishingState", "isAssigned", "roleScopeTagIds", "dependentAppCount", "appAvailability", "version", "packageId", "appStoreUrl", "minimumSupportedOperatingSystem", "bundleId", "applicableDeviceType", "committedContentVersion", "fileName", "size", "commandLine", "productCode", "productVersion", "ignoreVersionDetection", "identityVersion", "useDeviceContext"}, {"id", "displayName", "description", "publisher", "largeIcon", "createdDateTime", "lastModifiedDateTime", "isFeatured", "privacyInformationUrl", "informationUrl", "owner", "developer", "notes", "uploadState", "publishingState", "isAssigned", "roleScopeTagIds", "dependentAppCount", "appAvailability", "version", "packageId", "appStoreUrl", "minimumSupportedOperatingSystem", "bundleId", "applicableDeviceType", "committedContentVersion", "fileName", "size", "commandLine", "productCode", "productVersion", "ignoreVersionDetection", "identityVersion", "useDeviceContext"}),
+        changedType = Table.TransformColumnTypes(expandedRecord, {{"createdDateTime", type datetimezone}, {"lastModifiedDateTime", type datetimezone}, {"isFeatured", type logical}, {"uploadState", Int64.Type}, {"isAssigned", type logical}, {"dependentAppCount", Int64.Type}, {"size", Int64.Type}})
+    in 
+        changedType;
+
+[DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SecurityBaselineSettingStates = () =>
     let
         GetData = (deviceId as text, templateId as text, tenantId as text) => 
@@ -372,6 +438,15 @@ shared SecMgmtInsights.SecurityBaselineStates = () =>
         expandedRecord = Table.ExpandRecordColumn(expandedCustom, "Custom", {"id", "securityBaselineTemplateId", "displayName"}, {"id", "securityBaselineTemplateId", "displayName"})
     in 
         expandedRecord;
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.SoftwareUpdateStatusSummary = () =>
+    let
+        data = Helper.GetDataForAllCustomers("deviceManagement/softwareUpdateStatusSummary"),
+        expandedRecord = Table.ExpandRecordColumn(data, "Custom", {"id", "displayName", "compliantDeviceCount", "nonCompliantDeviceCount", "remediatedDeviceCount", "errorDeviceCount", "unknownDeviceCount", "conflictDeviceCount", "notApplicableDeviceCount", "compliantUserCount", "nonCompliantUserCount", "remediatedUserCount", "errorUserCount", "unknownUserCount", "conflictUserCount", "notApplicableUserCount"}, {"id", "displayName", "compliantDeviceCount", "nonCompliantDeviceCount", "remediatedDeviceCount", "errorDeviceCount", "unknownDeviceCount", "conflictDeviceCount", "notApplicableDeviceCount", "compliantUserCount", "nonCompliantUserCount", "remediatedUserCount", "errorUserCount", "unknownUserCount", "conflictUserCount", "notApplicableUserCount"}),
+        changedType = Table.TransformColumnTypes(expandedRecord, {{"compliantDeviceCount", Int64.Type}, {"nonCompliantDeviceCount", Int64.Type}, {"remediatedDeviceCount", Int64.Type}, {"errorDeviceCount", Int64.Type}, {"unknownDeviceCount", Int64.Type}, {"conflictDeviceCount", Int64.Type}, {"notApplicableDeviceCount", Int64.Type}, {"compliantUserCount", Int64.Type}, {"nonCompliantUserCount", Int64.Type}, {"remediatedUserCount", Int64.Type}, {"errorUserCount", Int64.Type}, {"unknownUserCount", Int64.Type}, {"conflictUserCount", Int64.Type}, {"notApplicableUserCount", Int64.Type}})
+    in 
+        changedType;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.UserExperienceAnalyticsDevicePerformance = () =>
@@ -531,7 +606,7 @@ shared SecMgmtInsights.DetectedMalwareState = () =>
         data = Table.AddColumn(renamedColumn, "Custom", each try GetData([deviceId], [customerId]) otherwise null),
         expandedCustom = Table.ExpandListColumn(data, "Custom"),
         expandedList = Table.ExpandListColumn(expandedCustom, "Custom"),
-        expandedRecord = Table.ExpandRecordColumn(expandedList, "Custom", {"id", "displayName", "additionalInformationUrl", "severity", "catetgory", "executionState", "state", "threatState", "initialDetectionDateTime", "lastStateChangeDateTime", "detectionCount", "category"}, {"id", "displayName", "additionalInformationUrl", "severity", "catetgory", "executionState", "state", "threatState", "initialDetectionDateTime", "lastStateChangeDateTime", "detectionCount", "category"}),
+        expandedRecord = Table.ExpandRecordColumn(expandedList, "Custom", {"id", "displayName", "additionalInformationUrl", "severity", "catetgory", "executionState", "state", "threatState", "initialDetectionDateTime", "lastStateChangeDateTime", "detectionCount"}, {"id", "displayName", "additionalInformationUrl", "severity", "catetgory", "executionState", "state", "threatState", "initialDetectionDateTime", "lastStateChangeDateTime", "detectionCount"}),
         changedType = Table.TransformColumnTypes(expandedRecord, {{"initialDetectionDateTime", type datetimezone}, {"lastStateChangeDateTime", type datetimezone}, {"detectionCount", Int64.Type}})
     in 
         changedType;
