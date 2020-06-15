@@ -1,0 +1,69 @@
+{
+    "data": [
+        {
+            "expectedValue": "true",
+            "info": "https://docs.microsoft.com/microsoft-365/security/office-365-security/recommended-settings-for-eop-and-office365-atp",
+            "name": "EnableAntispoofEnforcement",
+            "resource": "AntiPhishPolicy",
+            "type": "data"
+        }, 
+        {
+            "expectedValue": "false",
+            "info": "https://docs.microsoft.com/microsoft-365/security/office-365-security/recommended-settings-for-eop-and-office365-atp",
+            "name": "EnableInternalSenderNotifications",
+            "resource": "MalwareFilterPolicy",
+            "type": "data" 
+        },
+        {
+            "expectedValue": "true",
+            "info": "https://docs.microsoft.com/microsoft-365/security/office-365-security/recommended-settings-for-eop-and-office365-atp",
+            "name": "ZapEnabled",
+            "resource": "MalwareFilterPolicy",
+            "type": "data"
+        },
+        {
+            "expectedValue": "true",
+            "info": "https://docs.microsoft.com/microsoft-365/security/office-365-security/recommended-settings-for-eop-and-office365-atp",
+            "name": "EnableTargetedUserProtection",
+            "resource": "AntiPhishPolicy",
+            "type": "data"
+        },
+        {
+            "expectedValue": "true",
+            "info": "https://docs.microsoft.com/microsoft-365/compliance/turn-audit-log-search-on-or-off",
+            "name": "UnifiedAuditLogIngestionEnabled",
+            "resource": "AdminAuditLogConfig",
+            "type": "data"
+        }
+    ],
+    "device": [
+        {
+            "expectedValue": "true",
+            "info": "https://aka.ms/placeholder",
+            "name": "Windows10CompliancePolicy.SecureBootEnabled",
+            "resource": "DeviceCompliancePolicy",
+            "type": "deviceManagement"
+        },
+        {
+            "expectedValue": "true",
+            "info": "https://docs.microsoft.com/en-us/mem/intune/protect/device-compliance-get-started",
+            "name": "Windows10CompliancePolicy.StorageRequireEncryption",
+            "resource": "DeviceCompliancePolicy",
+            "type": "deviceManagement"
+        },
+        {
+            "expectedValue": "2",
+            "info": "https://aka.ms/placeholder",
+            "name": "Windows10GeneralConfiguration.DefenderPromptForSampleSubmission",
+            "resource": "DeviceConfigurationPolicy",
+            "type": "deviceManagement"
+        },
+        {
+            "expectedValue": "true",
+            "info": "https://github.com/isaiahwilliams/partner-insights-connector/docs/devices/Windows10EndpointProtectionConfiguration.BitLockerEncryptDevice.md",
+            "name": "Windows10EndpointProtectionConfiguration.BitLockerEncryptDevice",
+            "resource": "DeviceConfigurationPolicy",
+            "type": "deviceManagement"
+        }
+    ]
+}

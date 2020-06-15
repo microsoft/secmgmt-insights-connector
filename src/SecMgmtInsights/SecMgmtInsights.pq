@@ -455,6 +455,15 @@ shared SecMgmtInsights.WindowsProtectionState = (optional tenants as list) as ta
     in 
         changedType;
 
+// GitHub
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.Controls = (optional tenants as list) as table =>
+    let
+        source = Json.Document(GitHub.GetContent(""))
+    in 
+        source;
+
 // Helper
 
 Request.GetData = (relativeUrl as text, optional tenants as list) as table =>
@@ -533,6 +542,23 @@ shared SecMgmtInsights.InformationProtectionPolicyLabels = (optional tenants as 
         data;
 
 // Network
+
+GitHub.GetContent = (url as text) =>
+    let
+        source = Web.Contents(url,
+            [
+                Headers = [
+                    #"Accept" = "application/json",
+                    #"Accept-encoding" = "gzip"
+                ], 
+                ManualCredentials = true,
+                ManualStatusHandling = {401, 403}
+            ]),
+        buffered = Binary.Buffer(source),
+        status = Value.Metadata(source)[Response.Status],
+        result = if status = 401 then Json.Document(buffered)[error][message] else Json.Document(buffered)
+    in 
+        result;
 
 MicrosoftGraph.GetContent = (url as text, token as text) =>
     let
