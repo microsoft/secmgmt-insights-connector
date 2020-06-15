@@ -119,45 +119,45 @@ SecMgmtInsights.PowerShell.Request = (tenantId as text) =>
 // Office 365
 
 [DataSource.Kind="SecMgmtInsights.PowerShell"]
-shared SecMgmtInsights.PowerShell.Office365AtpPolicies = (customers as table) =>
+shared SecMgmtInsights.PowerShell.Office365AtpPolicies = (optional tenants as list) as table =>
     let
-        configs = SecMgmtInsights.PowerShell.Office365Configs(customers),
-        data = Table.SelectColumns(configs, {"customerId", "AtpPolicyForO365"}),
+        configs = SecMgmtInsights.PowerShell.Office365Configs(tenants),
+        data = Table.SelectColumns(configs, {"tenantId", "AtpPolicyForO365"}),
         expandedRecord = Table.ExpandRecordColumn(data, "AtpPolicyForO365", {"AdminDisplayName", "TrackClicks", "AllowClickThrough", "EnableSafeLinksForClients", "EnableSafeLinksForWebAccessCompanion", "EnableSafeLinksForO365Clients", "BlockUrls", "EnableATPForSPOTeamsODB", "EnableSafeDocs", "AllowSafeDocsOpen", "Identity", "Id", "IsValid", "Name", "WhenChanged", "WhenCreated", "WhenChangedUTC", "WhenCreatedUTC", "ExchangeObjectId", "Guid", "ObjectState"}, {"AdminDisplayName", "TrackClicks", "AllowClickThrough", "EnableSafeLinksForClients", "EnableSafeLinksForWebAccessCompanion", "EnableSafeLinksForO365Clients", "BlockUrls", "EnableATPForSPOTeamsODB", "EnableSafeDocs", "AllowSafeDocsOpen", "Identity", "Id", "IsValid", "Name", "WhenChanged", "WhenCreated", "WhenChangedUTC", "WhenCreatedUTC", "ExchangeObjectId", "Guid", "ObjectState"}),
         changedType = Table.TransformColumnTypes(expandedRecord, {{"TrackClicks", type logical}, {"AllowClickThrough", type logical}, {"EnableSafeLinksForClients", type logical}, {"EnableSafeLinksForWebAccessCompanion", type logical}, {"EnableSafeLinksForO365Clients", type logical}, {"EnableATPForSPOTeamsODB", type logical}, {"EnableSafeDocs", type logical}, {"AllowSafeDocsOpen", type logical}, {"IsValid", type logical}, {"WhenChanged", type datetimezone}, {"WhenCreated", type datetimezone}, {"WhenChangedUTC", type datetimezone}, {"WhenCreatedUTC", type datetimezone}})
     in
         changedType;
 
 [DataSource.Kind="SecMgmtInsights.PowerShell", Publish="SecMgmtInsights.PowerShell.Publish"]
-shared SecMgmtInsights.PowerShell.Office365Configs = (customers as table) =>
+shared SecMgmtInsights.PowerShell.Office365Configs = (optional tenants as list) as table =>
     let 
         GetData = (tenantId as text) => 
             let 
-                source = SecMgmtInsights.PowerShell.Request("tenant/" & tenantId & "/office365data")
+                data = SecMgmtInsights.PowerShell.Request("tenant/" & tenantId & "/office365data")
             in 
-                source,
+                data,
 
-        columnsRemoved = Table.RemoveColumns(customers, {"id", "deletedDateTime", "contractType", "defaultDomainName", "displayName"}),
-        data = Table.AddColumn(columnsRemoved, "Custom", each try GetData([customerId]) otherwise null),
+        source = Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}), 
+        data = Table.AddColumn(source, "Custom", each try GetData([tenantId]) otherwise null),
         expandedCustom = Table.ExpandRecordColumn(data, "Custom", {"MailDetailAtpReport", "MailTrafficAtpReport", "AtpPolicyForO365", "MalwareFilterPolicy", "AdminAuditLogConfig", "AntiPhishPolicy"}, {"MailDetailAtpReport", "MailTrafficAtpReport", "AtpPolicyForO365", "MalwareFilterPolicy", "AdminAuditLogConfig", "AntiPhishPolicy"})
     in 
         expandedCustom;
 
 [DataSource.Kind="SecMgmtInsights.PowerShell"]
-shared SecMgmtInsights.PowerShell.AdminAuditLogConfigs = (customers as table) =>
+shared SecMgmtInsights.PowerShell.AdminAuditLogConfigs = (optional tenants as list) as table =>
     let
-        configs = SecMgmtInsights.PowerShell.Office365Configs(customers),
-        data = Table.SelectColumns(configs, {"customerId", "AdminAuditLogConfig"}),
+        configs = SecMgmtInsights.PowerShell.Office365Configs(tenants),
+        data = Table.SelectColumns(configs, {"tenantId", "AdminAuditLogConfig"}),
         expandedRecord = Table.ExpandRecordColumn(data, "AdminAuditLogConfig", {"AdminAuditLogEnabled", "LogLevel", "TestCmdletLoggingEnabled", "AdminAuditLogCmdlets", "AdminAuditLogParameters", "AdminAuditLogExcludedCmdlets", "AdminAuditLogAgeLimit", "LoadBalancerCount", "RefreshInterval", "PartitionInfo", "UnifiedAuditLogIngestionEnabled", "UnifiedAuditLogFirstOptInDate", "AdminDisplayName", "Name", "Identity", "WhenChanged", "WhenCreated", "WhenChangedUTC", "WhenCreatedUTC", "ExchangeObjectId", "Id", "Guid", "IsValid", "ObjectState"}, {"AdminAuditLogEnabled", "LogLevel", "TestCmdletLoggingEnabled", "AdminAuditLogCmdlets", "AdminAuditLogParameters", "AdminAuditLogExcludedCmdlets", "AdminAuditLogAgeLimit", "LoadBalancerCount", "RefreshInterval", "PartitionInfo", "UnifiedAuditLogIngestionEnabled", "UnifiedAuditLogFirstOptInDate", "AdminDisplayName", "Name", "Identity", "WhenChanged", "WhenCreated", "WhenChangedUTC", "WhenCreatedUTC", "ExchangeObjectId", "Id", "Guid", "IsValid", "ObjectState"}),
         changedType = Table.TransformColumnTypes(expandedRecord, {{"AdminAuditLogEnabled", type logical}, {"LoadBalancerCount", Int64.Type}, {"RefreshInterval", Int64.Type}, {"UnifiedAuditLogIngestionEnabled", type logical}, {"UnifiedAuditLogFirstOptInDate", type datetimezone}, {"WhenChanged", type datetimezone}, {"WhenCreated", type datetimezone}, {"WhenChangedUTC", type datetimezone}, {"WhenCreatedUTC", type datetimezone}, {"IsValid", type logical}})
     in
         changedType;
 
 [DataSource.Kind="SecMgmtInsights.PowerShell"]
-shared SecMgmtInsights.PowerShell.AntiPhishPolicies = (customers as table) =>
+shared SecMgmtInsights.PowerShell.AntiPhishPolicies = (optional tenants as list) as table =>
     let
-        configs = SecMgmtInsights.PowerShell.Office365Configs(customers),
-        data = Table.SelectColumns(configs, {"customerId", "AntiPhishPolicy"}),
+        configs = SecMgmtInsights.PowerShell.Office365Configs(tenants),
+        data = Table.SelectColumns(configs, {"tenantId", "AntiPhishPolicy"}),
         expandedList = Table.ExpandListColumn(data, "AntiPhishPolicy"),
         expandedRecord = Table.ExpandRecordColumn(expandedList, "AntiPhishPolicy", {"Enabled", "ImpersonationProtectionState", "EnableTargetedUserProtection", "EnableMailboxIntelligenceProtection", "EnableTargetedDomainsProtection", "EnableOrganizationDomainsProtection", "EnableMailboxIntelligence", "EnableSimilarUsersSafetyTips", "EnableSimilarDomainsSafetyTips", "EnableUnusualCharactersSafetyTips", "TargetedUserProtectionAction", "MailboxIntelligenceProtectionAction", "TargetedDomainProtectionAction", "AuthenticationFailAction", "EnableAntiSpoofEnforcement", "EnableUnauthenticatedSender", "EnableSuspiciousSafetyTip", "PhishThresholdLevel", "TargetedUsersToProtect", "TargetedUserActionRecipients", "MailboxIntelligenceProtectionActionRecipients", "TargetedDomainsToProtect", "TargetedDomainActionRecipients", "ExcludedDomains", "ExcludedSenders", "IsDefault", "AdminDisplayName", "PolicyTag", "RecommendedPolicyType", "Identity", "Id", "IsValid", "Name", "WhenChanged", "WhenCreated", "WhenChangedUTC", "WhenCreatedUTC", "ExchangeObjectId", "Guid", "ObjectState"}, {"Enabled", "ImpersonationProtectionState", "EnableTargetedUserProtection", "EnableMailboxIntelligenceProtection", "EnableTargetedDomainsProtection", "EnableOrganizationDomainsProtection", "EnableMailboxIntelligence", "EnableSimilarUsersSafetyTips", "EnableSimilarDomainsSafetyTips", "EnableUnusualCharactersSafetyTips", "TargetedUserProtectionAction", "MailboxIntelligenceProtectionAction", "TargetedDomainProtectionAction", "AuthenticationFailAction", "EnableAntiSpoofEnforcement", "EnableUnauthenticatedSender", "EnableSuspiciousSafetyTip", "PhishThresholdLevel", "TargetedUsersToProtect", "TargetedUserActionRecipients", "MailboxIntelligenceProtectionActionRecipients", "TargetedDomainsToProtect", "TargetedDomainActionRecipients", "ExcludedDomains", "ExcludedSenders", "IsDefault", "AdminDisplayName", "PolicyTag", "RecommendedPolicyType", "Identity", "Id", "IsValid", "Name", "WhenChanged", "WhenCreated", "WhenChangedUTC", "WhenCreatedUTC", "ExchangeObjectId", "Guid", "ObjectState"}),
         changedType = Table.TransformColumnTypes(expandedRecord,{{"Enabled", type logical}, {"EnableTargetedUserProtection", type logical}, {"EnableMailboxIntelligenceProtection", type logical}, {"EnableTargetedDomainsProtection", type logical}, {"EnableOrganizationDomainsProtection", type logical}, {"EnableMailboxIntelligence", type logical}, {"EnableSimilarUsersSafetyTips", type logical}, {"EnableSimilarDomainsSafetyTips", type logical}, {"EnableUnusualCharactersSafetyTips", type logical}, {"EnableAntiSpoofEnforcement", type logical}, {"EnableUnauthenticatedSender", type logical}, {"EnableSuspiciousSafetyTip", type logical}, {"PhishThresholdLevel", Int64.Type}, {"IsDefault", type logical}, {"IsValid", type logical}, {"WhenChanged", type datetimezone}, {"WhenCreated", type datetimezone}, {"WhenChangedUTC", type datetimezone}, {"WhenCreatedUTC", type datetimezone}})
@@ -165,19 +165,19 @@ shared SecMgmtInsights.PowerShell.AntiPhishPolicies = (customers as table) =>
         changedType;
 
 [DataSource.Kind="SecMgmtInsights.PowerShell"]
-shared SecMgmtInsights.PowerShell.MailDetailAtpReport = (customers as table) =>
+shared SecMgmtInsights.PowerShell.MailDetailAtpReport = (optional tenants as list) as table =>
     let 
-        configs = SecMgmtInsights.PowerShell.Office365Configs(customers),
-        data = Table.SelectColumns(configs, {"customerId", "MailDetailAtpReport"}),
+        configs = SecMgmtInsights.PowerShell.Office365Configs(tenants),
+        data = Table.SelectColumns(configs, {"tenantId", "MailDetailAtpReport"}),
         expandedList = Table.ExpandListColumn(data, "MailDetailAtpReport")
     in
         expandedList;
 
 [DataSource.Kind="SecMgmtInsights.PowerShell"]
-shared SecMgmtInsights.PowerShell.MailTrafficAtpReport = (customers as table) =>
+shared SecMgmtInsights.PowerShell.MailTrafficAtpReport = (optional tenants as list) as table =>
     let 
-        configs = SecMgmtInsights.PowerShell.Office365Configs(customers),
-        data = Table.SelectColumns(configs, {"customerId", "MailTrafficAtpReport"}),
+        configs = SecMgmtInsights.PowerShell.Office365Configs(tenants),
+        data = Table.SelectColumns(configs, {"tenantId", "MailTrafficAtpReport"}),
         expandedList = Table.ExpandListColumn(data, "MailTrafficAtpReport"),
         expandedColumn = Table.ExpandRecordColumn(expandedList, "MailTrafficAtpReport", {"Domain", "Date", "EventType", "Direction", "Action", "MessageCount", "SubType", "PolicySource", "VerdictSource", "DeliveryStatus", "SummarizeBy", "PivotBy", "StartDate", "EndDate", "AggregateBy", "Index"}, {"Domain", "Date", "EventType", "Direction", "Action", "MessageCount", "SubType", "PolicySource", "VerdictSource", "DeliveryStatus", "SummarizeBy", "PivotBy", "StartDate", "EndDate", "AggregateBy", "Index"}),
         changedType = Table.TransformColumnTypes(expandedColumn, {{"Date", type datetimezone}, {"MessageCount", Int64.Type}, {"StartDate", type datetimezone}, {"EndDate", type datetimezone}, {"Index", Int64.Type}})
@@ -185,10 +185,10 @@ shared SecMgmtInsights.PowerShell.MailTrafficAtpReport = (customers as table) =>
         changedType;
 
 [DataSource.Kind="SecMgmtInsights.PowerShell"]
-shared SecMgmtInsights.PowerShell.MalwareFilterPolicies = (customers as table) =>
+shared SecMgmtInsights.PowerShell.MalwareFilterPolicies = (optional tenants as list) as table =>
     let
-        configs = SecMgmtInsights.PowerShell.Office365Configs(customers),
-        data = Table.SelectColumns(configs, {"customerId", "MalwareFilterPolicy"}),
+        configs = SecMgmtInsights.PowerShell.Office365Configs(tenants),
+        data = Table.SelectColumns(configs, {"tenantId", "MalwareFilterPolicy"}),
         expandedList = Table.ExpandListColumn(data, "MalwareFilterPolicy"),
         expandedRecord = Table.ExpandRecordColumn(expandedList, "MalwareFilterPolicy", {"CustomAlertText", "AdminDisplayName", "CustomInternalSubject", "CustomInternalBody", "CustomExternalSubject", "CustomExternalBody", "CustomFromName", "CustomFromAddress", "InternalSenderAdminAddress", "ExternalSenderAdminAddress", "BypassInboundMessages", "BypassOutboundMessages", "Action", "IsDefault", "CustomNotifications", "EnableInternalSenderNotifications", "EnableExternalSenderNotifications", "EnableInternalSenderAdminNotifications", "EnableExternalSenderAdminNotifications", "EnableFileFilter", "FileTypes", "ZapEnabled", "RecommendedPolicyType", "Name", "Identity", "WhenChanged", "WhenCreated", "WhenChangedUTC", "WhenCreatedUTC", "Id", "Guid", "IsValid", "ObjectState"}, {"CustomAlertText", "AdminDisplayName", "CustomInternalSubject", "CustomInternalBody", "CustomExternalSubject", "CustomExternalBody", "CustomFromName", "CustomFromAddress", "InternalSenderAdminAddress", "ExternalSenderAdminAddress", "BypassInboundMessages", "BypassOutboundMessages", "Action", "IsDefault", "CustomNotifications", "EnableInternalSenderNotifications", "EnableExternalSenderNotifications", "EnableInternalSenderAdminNotifications", "EnableExternalSenderAdminNotifications", "EnableFileFilter", "FileTypes", "ZapEnabled", "RecommendedPolicyType", "Name", "Identity", "WhenChanged", "WhenCreated", "WhenChangedUTC", "WhenCreatedUTC", "Id", "Guid", "IsValid", "ObjectState"}),
         changedType = Table.TransformColumnTypes(expandedRecord, {{"EnableInternalSenderNotifications", type logical}, {"EnableExternalSenderNotifications", type logical}, {"EnableInternalSenderAdminNotifications", type logical}, {"EnableExternalSenderAdminNotifications", type logical}, {"EnableFileFilter", type logical}, {"IsDefault", type logical}, {"BypassInboundMessages", type logical}, {"BypassOutboundMessages", type logical}, {"ZapEnabled", type logical}, {"WhenChanged", type datetimezone}, {"WhenCreated", type datetimezone}, {"WhenChangedUTC", type datetimezone}, {"WhenCreatedUTC", type datetimezone}, {"IsValid", type logical}})

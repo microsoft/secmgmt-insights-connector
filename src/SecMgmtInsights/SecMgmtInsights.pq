@@ -102,31 +102,6 @@ TokenMethod = (tokenUri, grantType, tokenField, parameter, optional scope as tex
     in 
         result;
 
-//Debug 
-
-[DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.Contents = (optional tenants as list) =>
-    let
-        data = MicrosoftGraph.GetPagedContent(graph_endpoint & "/organization", Extension.CurrentCredential()[access_token]),
-        expandList = Table.ExpandListColumn(data, "Column1"),
-        expandRecord = Table.ExpandRecordColumn(expandList, "Column1", {"id", "deletedDateTime", "businessPhones", "city", "country", "countryLetterCode", "createdDateTime", "displayName", "marketingNotificationEmails", "isMultipleDataLocationsForServicesEnabled", "onPremisesLastSyncDateTime", "onPremisesLastPasswordSyncDateTime", "onPremisesSyncEnabled", "postalCode", "preferredLanguage", "securityComplianceNotificationMails", "securityComplianceNotificationPhones", "state", "street", "technicalNotificationMails", "tenantType", "privacyProfile", "assignedPlans", "provisionedPlans", "directorySizeQuota", "verifiedDomains"}, {"id", "deletedDateTime", "businessPhones", "city", "country", "countryLetterCode", "createdDateTime", "displayName", "marketingNotificationEmails", "isMultipleDataLocationsForServicesEnabled", "onPremisesLastSyncDateTime", "onPremisesLastPasswordSyncDateTime", "onPremisesSyncEnabled", "postalCode", "preferredLanguage", "securityComplianceNotificationMails", "securityComplianceNotificationPhones", "state", "street", "technicalNotificationMails", "tenantType", "privacyProfile", "assignedPlans", "provisionedPlans", "directorySizeQuota", "verifiedDomains"})
-    in 
-        expandRecord;
-
-[DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.CurrentApplication = (optional tenants as list) =>
-    let
-        source = Extension.CurrentApplication()
-    in 
-        source;
-
-[DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.CurrentCredential = (optional tenants as list) =>
-    let
-        source = Extension.CurrentCredential()
-    in 
-        source;
-
 // Azure Active Directory
 
 [DataSource.Kind="SecMgmtInsights"]
@@ -145,7 +120,7 @@ shared SecMgmtInsights.Contracts = (optional tenants as list) as table =>
     let
         data = Request.GetPagedData("contracts", tenants),
         removeColumn = Table.RemoveColumns(data, "tenantId"),
-        expandRecord = Table.ExpandRecordColumn(removeColumn, "Column1", {"id", "deletedDateTime", "contractType", "customerId", "defaultDomainName", "displayName"}, {"id", "deletedDateTime", "contractType", "customerId", "defaultDomainName", "displayName"}),
+        expandRecord = Table.ExpandRecordColumn(removeColumn, "Column1", {"id", "deletedDateTime", "contractType", "customerId", "defaultDomainName", "displayName"}, {"id", "deletedDateTime", "contractType", "tenantId", "defaultDomainName", "displayName"}),
         changeType = Table.TransformColumnTypes(expandRecord, {{"deletedDateTime", type datetime}})
     in
         changeType;
@@ -153,7 +128,7 @@ shared SecMgmtInsights.Contracts = (optional tenants as list) as table =>
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.CredentialUserRegistrationDetails = (optional tenants as list) as table =>
     let 
-        data = Request.GetPagedData("reports/credentialUserRegistrationDetails?$format=application/json", tenants),
+        data = Request.GetPagedData("reports/credentialUserRegistrationDetails", tenants),
         expandedCustom = Table.ExpandRecordColumn(data, "Column1", {"id", "userPrincipalName", "userDisplayName", "isRegistered", "isEnabled", "isCapable", "isMfaRegistered", "authMethods"}, {"id", "userPrincipalName", "userDisplayName", "isRegistered", "isEnabled", "isCapable", "isMfaRegistered", "authMethods"}),
         expandedAuthMethods = Table.ExpandListColumn(expandedCustom, "authMethods"),
         changeType = Table.TransformColumnTypes(expandedAuthMethods, {{"isRegistered", type logical}, {"isEnabled", type logical}, {"isCapable", type logical}, {"isMfaRegistered", type logical}})
@@ -547,6 +522,15 @@ Token.GetAccessToken = (optional tenantId as text) =>
             TokenMethod(token_uri, "refresh_token", "refresh_token", Extension.CurrentCredential()[refresh_token])
     in 
         authResult[access_token];
+
+// Information Protection
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.InformationProtectionPolicyLabels = (optional tenants as list) as table =>
+    let 
+        data = Request.GetPagedData("informationprotection/policy/labels", tenants)
+    in
+        data;
 
 // Network
 
