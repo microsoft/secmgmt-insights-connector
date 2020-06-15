@@ -107,10 +107,11 @@ TokenMethod = (tokenUri, grantType, tokenField, parameter, optional scope as tex
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.Contents = (optional tenants as list) =>
     let
-        data = Request.GetPagedData("organization", tenants),
-        source = Extension.Contents()
+        data = MicrosoftGraph.GetPagedContent(graph_endpoint & "/organization", Extension.CurrentCredential()[access_token]),
+        expandList = Table.ExpandListColumn(data, "Column1"),
+        expandRecord = Table.ExpandRecordColumn(expandList, "Column1", {"id", "deletedDateTime", "businessPhones", "city", "country", "countryLetterCode", "createdDateTime", "displayName", "marketingNotificationEmails", "isMultipleDataLocationsForServicesEnabled", "onPremisesLastSyncDateTime", "onPremisesLastPasswordSyncDateTime", "onPremisesSyncEnabled", "postalCode", "preferredLanguage", "securityComplianceNotificationMails", "securityComplianceNotificationPhones", "state", "street", "technicalNotificationMails", "tenantType", "privacyProfile", "assignedPlans", "provisionedPlans", "directorySizeQuota", "verifiedDomains"}, {"id", "deletedDateTime", "businessPhones", "city", "country", "countryLetterCode", "createdDateTime", "displayName", "marketingNotificationEmails", "isMultipleDataLocationsForServicesEnabled", "onPremisesLastSyncDateTime", "onPremisesLastPasswordSyncDateTime", "onPremisesSyncEnabled", "postalCode", "preferredLanguage", "securityComplianceNotificationMails", "securityComplianceNotificationPhones", "state", "street", "technicalNotificationMails", "tenantType", "privacyProfile", "assignedPlans", "provisionedPlans", "directorySizeQuota", "verifiedDomains"})
     in 
-        source;
+        expandRecord;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.CurrentApplication = (optional tenants as list) =>
@@ -481,7 +482,7 @@ shared SecMgmtInsights.WindowsProtectionState = (optional tenants as list) as ta
 
 // Helper
 
-Request.GetData = (relativeUrl as text, tenants as list) as table =>
+Request.GetData = (relativeUrl as text, optional tenants as list) as table =>
     let
         GetData = (tenantId as text) =>
             let
@@ -490,12 +491,12 @@ Request.GetData = (relativeUrl as text, tenants as list) as table =>
             in 
                 record,
 
-        source = Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
+        source = if(tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
         data = Table.AddColumn(source, "Column1", each try GetData([tenantId]) otherwise null)
     in
         data;
 
-Request.GetPagedData = (relativeUrl as text, tenants as list) as table =>
+Request.GetPagedData = (relativeUrl as text, optional tenants as list) as table =>
     let      
         GetData = (tenantId as text) =>
             let
@@ -505,12 +506,20 @@ Request.GetPagedData = (relativeUrl as text, tenants as list) as table =>
             in 
                 data,
 
-        source = Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
+        source = if (tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
         data = Table.AddColumn(source, "Custom", each try GetData([tenantId]) otherwise null),
         expandColumn = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
         expandList = Table.ExpandListColumn(expandColumn, "Column1")
     in
         expandList;
+
+Request.GetTenant = () =>
+    let
+        data = MicrosoftGraph.GetPagedContent(graph_endpoint & "/organization", Extension.CurrentCredential()[access_token]),
+        expandList = Table.ExpandListColumn(data, "Column1"),
+        expandRecord = Table.ExpandRecordColumn(expandList, "Column1", {"id"}, {"tenantId"})
+    in
+        expandRecord;
 
 Table.GenerateByPage = (getNextPage as function) as table =>
     let        
