@@ -102,6 +102,30 @@ TokenMethod = (tokenUri, grantType, tokenField, parameter, optional scope as tex
     in 
         result;
 
+//Debug 
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.Contents = (optional tenants as list) =>
+    let
+        data = Request.GetPagedData("organization", tenants),
+        source = Extension.Contents()
+    in 
+        source;
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.CurrentApplication = (optional tenants as list) =>
+    let
+        source = Extension.CurrentApplication()
+    in 
+        source;
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.CurrentCredential = (optional tenants as list) =>
+    let
+        source = Extension.CurrentCredential()
+    in 
+        source;
+
 // Azure Active Directory
 
 [DataSource.Kind="SecMgmtInsights"]
@@ -196,6 +220,19 @@ shared SecMgmtInsights.DetectedApps= (optional tenants as list) as table =>
         expandRecord = Table.ExpandRecordColumn(expandValue, "Column1", {"id", "displayName", "version", "sizeInByte", "deviceCount"}, {"id", "displayName", "version", "sizeInByte", "deviceCount"}),
         changedType = Table.TransformColumnTypes(expandRecord, {{"sizeInByte", Int64.Type}, {"deviceCount", Int64.Type}})
     in
+        changedType;
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.DetectedMalwareState = (optional tenants as list) as table =>
+    let 
+        source = SecMgmtInsights.ManagedDevices(tenants),
+        managedDevices = Table.SelectColumns(source, {"tenantId", "id"}),
+        renamedColumn = Table.RenameColumns(managedDevices, {{"id", "deviceId"}}),
+        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState/detectedMalwareState", {[tenantId]}) otherwise null),
+        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
+        expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "displayName", "additionalInformationUrl", "severity", "catetgory", "executionState", "state", "threatState", "initialDetectionDateTime", "lastStateChangeDateTime", "detectionCount"}, {"id", "displayName", "additionalInformationUrl", "severity", "catetgory", "executionState", "state", "threatState", "initialDetectionDateTime", "lastStateChangeDateTime", "detectionCount"}),
+        changedType = Table.TransformColumnTypes(expandedRecord, {{"initialDetectionDateTime", type datetimezone}, {"lastStateChangeDateTime", type datetimezone}, {"detectionCount", Int64.Type}})
+    in 
         changedType;
 
 [DataSource.Kind="SecMgmtInsights"]
@@ -372,7 +409,7 @@ shared SecMgmtInsights.SoftwareUpdateStatusSummary = (optional tenants as list) 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.UserExperienceAnalyticsDevicePerformance = (optional tenants as list) as table =>
     let
-        data = Request.GetPagedData("deviceManagement/userExperienceAnalyticsDevicePerformance"),
+        data = Request.GetPagedData("deviceManagement/userExperienceAnalyticsDevicePerformance", tenants),
         expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "deviceName", "model", "manufacturer", "diskType", "operatingSystemVersion", "bootScore", "coreBootTimeInMs", "groupPolicyBootTimeInMs", "operatingSystem", "healthStatus", "complianceState", "loginScore", "coreLoginTimeInMs", "groupPolicyLoginTimeInMs", "deviceCount", "responsiveDesktopTimeInMs"}, {"id", "deviceName", "model", "manufacturer", "diskType", "operatingSystemVersion", "bootScore", "coreBootTimeInMs", "groupPolicyBootTimeInMs", "operatingSystem", "healthStatus", "complianceState", "loginScore", "coreLoginTimeInMs", "groupPolicyLoginTimeInMs", "deviceCount", "responsiveDesktopTimeInMs"})
     in 
         expandedRecord;
@@ -413,10 +450,20 @@ shared SecMgmtInsights.WindowsAutopilotProfiles = (optional tenants as list) as 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.WindowsAutopilotSettings = (optional tenants as list) as table =>
     let 
-        data = Request.GetPagedData("deviceManagement/windowsAutopilotSettings", tenants),
+        data = Request.GetData("deviceManagement/windowsAutopilotSettings", tenants),
+        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
         expandedCustom = Table.ExpandRecordColumn(data, "Column1", {"id", "lastSyncDateTime", "lastManualSyncTriggerDateTime", "syncStatus"}, {"id", "lastSyncDateTime", "lastManualSyncTriggerDateTime", "syncStatus"}),
         changedType = Table.TransformColumnTypes(expandedCustom, {{"lastSyncDateTime", type datetimezone}, {"lastManualSyncTriggerDateTime", type datetimezone}})
     in 
+        changedType;
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.WindowsMalwareInformation = (optional tenants as list) as table =>
+    let 
+        data = Request.GetPagedData("deviceManagement/windowsMalwareInformation", tenants),
+        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "displayName", "additionalInformationUrl", "severity", "category", "lastDetectionDateTime"}, {"id", "displayName", "additionalInformationUrl", "severity", "category", "lastDetectionDateTime"}),
+        changedType = Table.TransformColumnTypes(expandedRecord,{{"lastDetectionDateTime", type datetimezone}})
+    in
         changedType;
 
 [DataSource.Kind="SecMgmtInsights"]
