@@ -1,68 +1,78 @@
 {
-    "data": [
+    "id": "recommended", 
+    "description": "Recommended controls for SMB customers", 
+    "version": "1.0.0",
+    "controls": [
         {
             "expectedValue": "true",
+            "id": "EnableAntispoofEnforcement",
             "info": "https://docs.microsoft.com/microsoft-365/security/office-365-security/recommended-settings-for-eop-and-office365-atp",
-            "name": "EnableAntispoofEnforcement",
-            "resource": "AntiPhishPolicy",
+            "resource": "antiPhishPolicy",
+            "tenantFilter": [], 
             "type": "data"
         }, 
         {
             "expectedValue": "false",
+            "id": "EnableInternalSenderNotifications",
             "info": "https://docs.microsoft.com/microsoft-365/security/office-365-security/recommended-settings-for-eop-and-office365-atp",
-            "name": "EnableInternalSenderNotifications",
-            "resource": "MalwareFilterPolicy",
+            "resource": "malwareFilterPolicy",
+            "tenantFilter": [], 
             "type": "data" 
         },
         {
             "expectedValue": "true",
+            "id": "ZapEnabled",
             "info": "https://docs.microsoft.com/microsoft-365/security/office-365-security/recommended-settings-for-eop-and-office365-atp",
-            "name": "ZapEnabled",
-            "resource": "MalwareFilterPolicy",
+            "resource": "malwareFilterPolicy",
+            "tenantFilter": [], 
             "type": "data"
         },
         {
             "expectedValue": "true",
+            "id": "EnableTargetedUserProtection",
             "info": "https://docs.microsoft.com/microsoft-365/security/office-365-security/recommended-settings-for-eop-and-office365-atp",
-            "name": "EnableTargetedUserProtection",
-            "resource": "AntiPhishPolicy",
+            "resource": "antiPhishPolicy",
+            "tenantFilter": [], 
             "type": "data"
         },
         {
             "expectedValue": "true",
+            "id": "UnifiedAuditLogIngestionEnabled",
             "info": "https://docs.microsoft.com/microsoft-365/compliance/turn-audit-log-search-on-or-off",
-            "name": "UnifiedAuditLogIngestionEnabled",
-            "resource": "AdminAuditLogConfig",
+            "resource": "adminAuditLogConfig",
+            "tenantFilter": [], 
             "type": "data"
-        }
-    ],
-    "device": [
+        },
         {
             "expectedValue": "true",
+            "id": "Windows10CompliancePolicy.SecureBootEnabled",
             "info": "https://aka.ms/placeholder",
-            "name": "Windows10CompliancePolicy.SecureBootEnabled",
-            "resource": "DeviceCompliancePolicy",
+            "resource": "deviceCompliancePolicy",
+            "tenantFilter": [], 
             "type": "deviceManagement"
         },
         {
             "expectedValue": "true",
+            "id": "Windows10CompliancePolicy.StorageRequireEncryption",
             "info": "https://docs.microsoft.com/en-us/mem/intune/protect/device-compliance-get-started",
-            "name": "Windows10CompliancePolicy.StorageRequireEncryption",
-            "resource": "DeviceCompliancePolicy",
+            "resource": "deviceCompliancePolicy",
+            "tenantFilter": [], 
             "type": "deviceManagement"
         },
         {
             "expectedValue": "2",
+            "id": "Windows10GeneralConfiguration.DefenderPromptForSampleSubmission",
             "info": "https://aka.ms/placeholder",
-            "name": "Windows10GeneralConfiguration.DefenderPromptForSampleSubmission",
-            "resource": "DeviceConfigurationPolicy",
+            "resource": "deviceConfigurationPolicy",
+            "tenantFilter": [], 
             "type": "deviceManagement"
         },
         {
             "expectedValue": "true",
-            "info": "https://github.com/isaiahwilliams/partner-insights-connector/docs/devices/Windows10EndpointProtectionConfiguration.BitLockerEncryptDevice.md",
-            "name": "Windows10EndpointProtectionConfiguration.BitLockerEncryptDevice",
-            "resource": "DeviceConfigurationPolicy",
+            "id": "Windows10EndpointProtectionConfiguration.BitLockerEncryptDevice",
+            "info": "https://aka.ms/placeholder",
+            "resource": "deviceConfigurationPolicy",
+            "tenantFilter": [], 
             "type": "deviceManagement"
         }
     ]

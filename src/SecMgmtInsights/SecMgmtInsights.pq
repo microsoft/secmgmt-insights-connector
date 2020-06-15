@@ -451,18 +451,30 @@ shared SecMgmtInsights.WindowsProtectionState = (optional tenants as list) as ta
         data = Table.AddColumn(renamedColumn, "Custom", each try Request.GetData("deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState", {[tenantId]}) otherwise null),
         expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
         expandRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"malwareProtectionEnabled", "deviceState", "realTimeProtectionEnabled", "networkInspectionSystemEnabled", "quickScanOverdue", "fullScanOverdue", "signatureUpdateOverdue", "rebootRequired", "fullScanRequired", "engineVersion", "signatureVersion", "antiMalwareVersion", "lastQuickScanDateTime", "lastFullScanDateTime", "lastQuickScanSignatureVersion", "lastFullScanSignatureVersion", "lastReportedDateTime"}, {"malwareProtectionEnabled", "deviceState", "realTimeProtectionEnabled", "networkInspectionSystemEnabled", "quickScanOverdue", "fullScanOverdue", "signatureUpdateOverdue", "rebootRequired", "fullScanRequired", "engineVersion", "signatureVersion", "antiMalwareVersion", "lastQuickScanDateTime", "lastFullScanDateTime", "lastQuickScanSignatureVersion", "lastFullScanSignatureVersion", "lastReportedDateTime"}),
-        changedType = Table.TransformColumnTypes(expandRecord ,{{"malwareProtectionEnabled", type logical}, {"realTimeProtectionEnabled", type logical}, {"networkInspectionSystemEnabled", type logical}, {"quickScanOverdue", type logical}, {"fullScanOverdue", type logical}, {"signatureUpdateOverdue", type logical}, {"rebootRequired", type logical}, {"fullScanRequired", type logical}, {"lastQuickScanDateTime", type datetimezone}, {"lastFullScanDateTime", type datetimezone}, {"lastReportedDateTime", type datetimezone}})
+        changedType = Table.TransformColumnTypes(expandRecord, {{"malwareProtectionEnabled", type logical}, {"realTimeProtectionEnabled", type logical}, {"networkInspectionSystemEnabled", type logical}, {"quickScanOverdue", type logical}, {"fullScanOverdue", type logical}, {"signatureUpdateOverdue", type logical}, {"rebootRequired", type logical}, {"fullScanRequired", type logical}, {"lastQuickScanDateTime", type datetimezone}, {"lastFullScanDateTime", type datetimezone}, {"lastReportedDateTime", type datetimezone}})
     in 
         changedType;
 
 // GitHub
 
 [DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.Controls = (optional tenants as list) as table =>
+shared SecMgmtInsights.Controls = (optional tenants as list) =>
     let
-        source = Json.Document(GitHub.GetContent(""))
+        source = if (tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
+        data = GitHub.GetContent(""),
+        controls = Table.FromList(data[Controls]), 
+        expandRecord = Table.ExpandRecordColumn(controls, "Column1", {"expectedValue", "id", "info", "resource", "tenantFilter", "type"}, {"expectedValue", "id", "info", "resource", "tenantFilter", "type"}),
+
+        GetControls = (tenantId as text) => 
+            let 
+                source = Table.SelectRows(expandRecord, each (List.Contains([tenantFilter], tenantId) = false))
+            in 
+                source,
+
+       appliedControls = Table.AddColumn(source, "Custom", each GetControls([tenantId])),
+       expandcustom = Table.ExpandTableColumn(appliedControls, "Custom", {"expectedValue", "id", "info", "resource", "type"}, {"expectedValue", "id", "info", "resource", "type"})
     in 
-        source;
+        expandcustom;
 
 // Helper
 
