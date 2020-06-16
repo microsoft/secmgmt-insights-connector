@@ -458,11 +458,10 @@ shared SecMgmtInsights.WindowsProtectionState = (optional tenants as list) as ta
 // GitHub
 
 [DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.Controls = (optional tenants as list) =>
+shared SecMgmtInsights.Controls = (optional tenants as list, optional jsonText as text) =>
     let
-        source = if (tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
-        data = GitHub.GetContent(""),
-        controls = Table.FromList(data[Controls]), 
+        data = if(jsonText = null or jsonText = "") then GitHub.GetContent("https://raw.githubusercontent.com/microsoft/secmgmt-insights-connector/master/controls/recommended.json") else Json.Document(jsonText),
+        controls = Table.FromList(data[controls], Splitter.SplitByNothing(), null, null, ExtraValues.Error),
         expandRecord = Table.ExpandRecordColumn(controls, "Column1", {"expectedValue", "id", "info", "resource", "tenantFilter", "type"}, {"expectedValue", "id", "info", "resource", "tenantFilter", "type"}),
 
         GetControls = (tenantId as text) => 
@@ -471,10 +470,41 @@ shared SecMgmtInsights.Controls = (optional tenants as list) =>
             in 
                 source,
 
+       source = if (tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
        appliedControls = Table.AddColumn(source, "Custom", each GetControls([tenantId])),
        expandcustom = Table.ExpandTableColumn(appliedControls, "Custom", {"expectedValue", "id", "info", "resource", "type"}, {"expectedValue", "id", "info", "resource", "type"})
     in 
         expandcustom;
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.DeviceActions = (optional tenants as list, optional jsonText as text) =>
+    let
+        GetActions = (func as function, expectedValue as text, id as text, resource as text, tenantId as text) => 
+            let
+                source = Table.SelectColumns(func(tenants), {"tenantId", "deviceId", "policyId", "setting", "state", "currentValue"}),
+                filterRows = Table.SelectRows(source, each ([setting] = id and [state] <> "compliant" and [tenantId] = tenantId))
+            in
+                filterRows, 
+
+        GetPortalLink = (resource as text, tenantId as text) =>
+            let 
+                source = if resource = "deviceCompliancePolicy" then "https://endpoint.microsoft.com/" & tenantId & "/#blade/Microsoft_Intune_DeviceSettings/DevicesComplianceMenu/policies" else "https://endpoint.microsoft.com/" & tenantId & "/#blade/Microsoft_Intune_DeviceSettings/DevicesMenu/configurationProfiles"
+            in 
+                source,
+
+        source = SecMgmtInsights.Controls(tenants, jsonText), 
+        
+        deviceComplianceRecords = Table.SelectRows(source, each [resource] = "deviceCompliancePolicy"),
+        deviceComplianceActions = Table.AddColumn(deviceComplianceRecords, "action", each GetActions(SecMgmtInsights.DeviceCompliancePolicySettingStates, [expectedValue], [id], [resource], [tenantId])),
+
+        deviceConfigurationRecords = Table.SelectRows(source, each [resource] = "deviceConfigurationPolicy"),
+        deviceConfigurationActions = Table.AddColumn(deviceComplianceRecords, "action", each GetActions(SecMgmtInsights.DeviceConfigurationPolicySettingStates, [expectedValue], [id], [resource], [tenantId])),
+    
+        combineTables = Table.Combine({deviceComplianceActions, deviceConfigurationActions}),
+        expandTable = Table.ExpandTableColumn(combineTables, "action", {"deviceId", "policyId", "state", "currentValue"}, {"deviceId", "policyId", "state", "currentValue"}),
+        addPortalColumn = Table.AddColumn(expandTable, "portal", each GetPortalLink([resource], [tenantId]))
+    in 
+        addPortalColumn;
 
 // Helper
 
@@ -482,7 +512,7 @@ Request.GetData = (relativeUrl as text, optional tenants as list) as table =>
     let
         GetData = (tenantId as text) =>
             let
-                data = MicrosoftGraph.GetContent(graph_endpoint & "/" & relativeUrl, Token.GetAccessToken(tenantId)),
+                data = Microsoft.GetContent(graph_endpoint & "/" & relativeUrl, Token.GetAccessToken(tenantId)),
                 record = Record.FromTable(data)
             in 
                 record,
@@ -496,7 +526,24 @@ Request.GetPagedData = (relativeUrl as text, optional tenants as list) as table 
     let      
         GetData = (tenantId as text) =>
             let
-                data = MicrosoftGraph.GetPagedContent(graph_endpoint & "/" & relativeUrl, Token.GetAccessToken(tenantId)),
+                data = Microsoft.GetPagedContent(graph_endpoint & "/" & relativeUrl, Token.GetAccessToken(tenantId)),
+                expandedList = Table.ExpandListColumn(data, "Column1"),
+                filteredRows = Table.SelectRows(expandedList, each [Column1] <> null)
+            in 
+                data,
+
+        source = if (tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
+        data = Table.AddColumn(source, "Custom", each try GetData([tenantId]) otherwise null),
+        expandColumn = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
+        expandList = Table.ExpandListColumn(expandColumn, "Column1")
+    in
+        expandList;
+
+Request.GetServiceCommData = (relativeUrl as text, optional tenants as list) =>
+    let 
+        GetData = (tenantId as text) =>
+            let
+                data = Microsoft.GetPagedContent("https://manage.office.com/api/v1.0/" & tenantId & "/" & relativeUrl, Token.GetAccessToken(tenantId, "https://manage.office.com/.default")),
                 expandedList = Table.ExpandListColumn(data, "Column1"),
                 filteredRows = Table.SelectRows(expandedList, each [Column1] <> null)
             in 
@@ -511,7 +558,7 @@ Request.GetPagedData = (relativeUrl as text, optional tenants as list) as table 
 
 Request.GetTenant = () =>
     let
-        data = MicrosoftGraph.GetPagedContent(graph_endpoint & "/organization", Extension.CurrentCredential()[access_token]),
+        data = Microsoft.GetPagedContent(graph_endpoint & "/organization", Extension.CurrentCredential()[access_token]),
         expandList = Table.ExpandListColumn(data, "Column1"),
         expandRecord = Table.ExpandRecordColumn(expandList, "Column1", {"id"}, {"tenantId"})
     in
@@ -535,23 +582,14 @@ Table.GenerateByPage = (getNextPage as function) as table =>
                 Value.Type(firstRow[Column1])
             );
 
-Token.GetAccessToken = (optional tenantId as text) =>
+Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
     let 
         authResult = if (tenantId <> null) then 
-            TokenMethod("https://login.microsoftonline.com/" & tenantId & "/oauth2/v2.0/token", "refresh_token", "refresh_token", Extension.CurrentCredential()[refresh_token])
+            TokenMethod("https://login.microsoftonline.com/" & tenantId & "/oauth2/v2.0/token", "refresh_token", "refresh_token", Extension.CurrentCredential()[refresh_token], scope)
         else
-            TokenMethod(token_uri, "refresh_token", "refresh_token", Extension.CurrentCredential()[refresh_token])
+            TokenMethod(token_uri, "refresh_token", "refresh_token", Extension.CurrentCredential()[refresh_token], scope)
     in 
         authResult[access_token];
-
-// Information Protection
-
-[DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.InformationProtectionPolicyLabels = (optional tenants as list) as table =>
-    let 
-        data = Request.GetPagedData("informationprotection/policy/labels", tenants)
-    in
-        data;
 
 // Network
 
@@ -572,7 +610,7 @@ GitHub.GetContent = (url as text) =>
     in 
         result;
 
-MicrosoftGraph.GetContent = (url as text, token as text) =>
+Microsoft.GetContent = (url as text, token as text) =>
     let
         source = Web.Contents(url,
             [
@@ -591,7 +629,7 @@ MicrosoftGraph.GetContent = (url as text, token as text) =>
     in 
         Record.ToTable(result) meta [Next=link];
 
-MicrosoftGraph.GetPagedContent = (url as text, token as text) => Table.GenerateByPage((previous) =>
+Microsoft.GetPagedContent = (url as text, token as text) => Table.GenerateByPage((previous) =>
     let
         // If we have a previous page, get its Next link from metadata on the page.
         next = if (previous <> null) then try Value.Metadata(previous)[Next] otherwise null else null,
@@ -599,7 +637,7 @@ MicrosoftGraph.GetPagedContent = (url as text, token as text) => Table.GenerateB
         urlToUse = if (next <> null) then next else url,
         // If we have a previous page, but don't have a next link, then we're done paging.
         // Otherwise retrieve the next page.
-        current = if (previous <> null and next = null) then null else MicrosoftGraph.GetContent(urlToUse, token),
+        current = if (previous <> null and next = null) then null else Microsoft.GetContent(urlToUse, token),
         // If we got data back from the current page, get the link for the next page
         link = if (current <> null) then Value.Metadata(current)[Next] else null,
         // Microsoft Graph utilizes OData, so the value needs to be extracted
@@ -697,4 +735,24 @@ shared SecMgmtInsights.YammerActivityUserDetail = (optional tenants as list) as 
         expandRecord = Table.ExpandRecordColumn(data, "Column1", {"userPrincipalName", "displayName", "userState", "stateChangeDate", "lastActivityDate", "postedCount", "readCount", "likedCount", "assignedProducts"}, {"userPrincipalName", "displayName", "userState", "stateChangeDate", "lastActivityDate", "postedCount", "readCount", "likedCount", "assignedProducts"}),
         changeType = Table.TransformColumnTypes(expandRecord, {{"stateChangeDate", type date}, {"lastActivityDate", type date}, {"postedCount", Int64.Type}, {"readCount", Int64.Type}, {"likedCount", Int64.Type}})
     in 
+        changeType;
+
+// Office 365 Service Communication
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.ServiceCurrentStatus = (optional tenants as list) as table =>
+    let
+        source = Request.GetServiceCommData("ServiceComms/CurrentStatus", tenants),
+        expandRecord = Table.ExpandRecordColumn(source, "Column1", {"FeatureStatus", "Id", "IncidentIds", "Status", "StatusDisplayName", "StatusTime", "Workload", "WorkloadDisplayName"}, {"FeatureStatus", "Id", "IncidentIds", "Status", "StatusDisplayName", "StatusTime", "Workload", "WorkloadDisplayName"}),
+        changeType = Table.TransformColumnTypes(expandRecord, {{"StatusTime", type datetimezone}})
+    in
+        changeType;
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.ServiceHistoricalStatus = (optional tenants as list) as table =>
+    let
+        source = Request.GetServiceCommData("ServiceComms/HistoricalStatus", tenants),
+        expandRecord = Table.ExpandRecordColumn(source, "Column1", {"FeatureStatus", "Id", "IncidentIds", "Status", "StatusDisplayName", "StatusTime", "Workload", "WorkloadDisplayName"}, {"FeatureStatus", "Id", "IncidentIds", "Status", "StatusDisplayName", "StatusTime", "Workload", "WorkloadDisplayName"}),
+        changeType = Table.TransformColumnTypes(expandRecord, {{"StatusTime", type datetimezone}})
+    in
         changeType;

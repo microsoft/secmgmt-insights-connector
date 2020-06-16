@@ -54,7 +54,7 @@
         {
             "expectedValue": "true",
             "id": "Windows10CompliancePolicy.StorageRequireEncryption",
-            "info": "https://docs.microsoft.com/en-us/mem/intune/protect/device-compliance-get-started",
+            "info": "https://docs.microsoft.com/mem/intune/protect/device-compliance-get-started",
             "resource": "deviceCompliancePolicy",
             "tenantFilter": [], 
             "type": "deviceManagement"
