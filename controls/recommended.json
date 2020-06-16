@@ -60,20 +60,68 @@
             "type": "deviceManagement"
         },
         {
+            "expectedValue": "true",
+            "id": "Windows10EndpointProtectionConfiguration.BitLockerEncryptDevice",
+            "info": "https://docs.microsoft.com/mem/intune/configuration/device-profile-create",
+            "resource": "deviceConfigurationPolicy",
+            "tenantFilter": [], 
+            "type": "deviceManagement"
+        },
+        {
+            "expectedValue": "2",
+            "id": "Windows10EndpointProtectionConfiguration.DefenderGuardMyFoldersType",
+            "info": "https://docs.microsoft.com/mem/intune/configuration/device-profile-create",
+            "resource": "deviceConfigurationPolicy",
+            "tenantFilter": [], 
+            "type": "deviceManagement"
+        },
+        {
+            "expectedValue": "2",
+            "id": "Windows10EndpointProtectionConfiguration.DefenderNetworkProtectionType",
+            "info": "https://docs.microsoft.com/mem/intune/configuration/device-profile-create",
+            "resource": "deviceConfigurationPolicy",
+            "tenantFilter": [], 
+            "type": "deviceManagement"
+        },
+        {
             "expectedValue": "2",
             "id": "Windows10GeneralConfiguration.DefenderPromptForSampleSubmission",
-            "info": "https://aka.ms/placeholder",
+            "info": "https://docs.microsoft.com/mem/intune/configuration/device-profile-create",
             "resource": "deviceConfigurationPolicy",
             "tenantFilter": [], 
             "type": "deviceManagement"
         },
         {
             "expectedValue": "true",
-            "id": "Windows10EndpointProtectionConfiguration.BitLockerEncryptDevice",
-            "info": "https://aka.ms/placeholder",
+            "id": "Windows10GeneralConfiguration.DefenderRequireCloudProtection",
+            "info": "https://docs.microsoft.com/mem/intune/configuration/device-profile-create",
             "resource": "deviceConfigurationPolicy",
             "tenantFilter": [], 
             "type": "deviceManagement"
-        }
+        },        
+        {
+            "expectedValue": "true",
+            "id": "Windows10GeneralConfiguration.DefenderRequireRealTimeMonitoring",
+            "info": "https://docs.microsoft.com/mem/intune/configuration/device-profile-create",
+            "resource": "deviceConfigurationPolicy",
+            "tenantFilter": [], 
+            "type": "deviceManagement"
+        },
+        {
+            "expectedValue": "true",
+            "id": "Windows10GeneralConfiguration.EdgeRequireSmartScreen",
+            "info": "https://docs.microsoft.com/mem/intune/configuration/device-profile-create",
+            "resource": "deviceConfigurationPolicy",
+            "tenantFilter": [], 
+            "type": "deviceManagement"
+        },
+        {
+            "expectedValue": "5",
+            "id": "Windows10GeneralConfiguration.PasswordMinutesOfInactivityBeforeScreenTimeout",
+            "info": "https://docs.microsoft.com/mem/intune/configuration/device-profile-create",
+            "resource": "deviceConfigurationPolicy",
+            "tenantFilter": [], 
+            "type": "deviceManagement"
+        }        
     ]
 }
