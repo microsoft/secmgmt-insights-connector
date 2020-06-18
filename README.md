@@ -4,8 +4,6 @@ This connector is still under development, which mean function signatures could 
 
 ## Getting Started
 
-### Deploying the connector
-
 ## Prerequisite
 
 This connector utilizes Microsoft Graph and the Office 365 Management API to surface management and security insights for Microsoft 365. Interacting with these APIs requires a native Azure Active Directory application configured with the following permissions

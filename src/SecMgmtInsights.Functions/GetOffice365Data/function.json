@@ -1,0 +1,19 @@
+{
+  "bindings": [
+    {
+      "authLevel": "anonymous",
+      "type": "httpTrigger",
+      "direction": "in",
+      "name": "Request",
+      "methods": [
+        "get"
+      ],
+      "route": "tenant/{tenant}/office365data"
+    },
+    {
+      "type": "http",
+      "direction": "out",
+      "name": "Response"
+    }
+  ]
+}
