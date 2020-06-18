@@ -1,10 +1,25 @@
 # Security and Management Insights Connector
 
-This connector is still under development, which mean function signatures could change without notice. As work continues additional documentation and features will be added. 
+Microsoft 365 provides several advanced security and management features that empower you to improve your, or your customers, security posture. Knowing what features are configured and whether they adhere to the recommended configurations is challenging. Using this connector, you will be able gain insights what components have been adopted and how they are configured.  
+
+## Architecture
+
+Most of the information required to understand what is configured and the current settings is obtained using Microsoft Graph. However, there is some data that is currently only available through Exchange Online PowerShell. Considering this two Power BI connectors were built for this solution. The `SecMgmtInsights` connector communicates directly with Microsoft Graph and can gather configuration and usage information. Through the `SecMgmtInsights.PowerShell` connector Office 365 ATP information from Exchange Online PowerShell is exposed through an Azure Functions app.
+
+<p align="center">
+    <img alt="solution architecture" src="docs/media/architecture.png" />
+</p>
 
 ## Getting Started
 
-## Prerequisite
+### Prerequisites
+
+To leverage each feature available through this solution you will need the following 
+
+- An active Azure subscription for the Azure Functions app
+- Privileges to create an Azure Active Directory application
+
+#### Azure Active Directory 
 
 This connector utilizes Microsoft Graph and the Office 365 Management API to surface management and security insights for Microsoft 365. Interacting with these APIs requires a native Azure Active Directory application configured with the following permissions
 
@@ -38,7 +53,7 @@ If you are involved with the Cloud Solution Provider program, and you are lookin
 PS C:\> .\Create-AzureAdApplication.ps1 -ConfigurePreconsent:$true -DisplayName 'Security and Management Insights'
 ```
 
-## Extension configuration
+#### Extension configuration
 
 Prior to using the connector you will need to modify the client identifier used for authentication. Perform the following to update the value
 
