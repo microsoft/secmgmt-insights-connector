@@ -112,10 +112,16 @@
     <Copy SourceFiles="@(PQFiles)" DestinationFiles="@(PQFiles->'$(IntermediateOutputPath)%(RecursiveDir)%(FileName).m')" />
     <BuildExtension InputDirectory="$(IntermediateOutputPath)" OutputFile="$(OutputPath)\$(ProjectName).mez" />
   </Target>
+  <Target Name="Clean">
+    <!-- Remove obj folder -->
+    <RemoveDir Directories="$(BaseIntermediateOutputPath)" />
+    <!-- Remove bin folder -->
+    <Delete Files="$(OutputPath)$(ProjectName).mez" />
+  </Target>
   <Target Name="ExtensionClean">
     <!-- Remove obj folder -->
     <RemoveDir Directories="$(BaseIntermediateOutputPath)" />
     <!-- Remove bin folder -->
-    <RemoveDir Directories="$(OutputPath)" />
+    <Delete Files="$(OutputPath)$(ProjectName).mez" />
   </Target>
 </Project>
