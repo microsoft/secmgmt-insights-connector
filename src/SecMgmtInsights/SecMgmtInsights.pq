@@ -617,7 +617,8 @@ Microsoft.GetContent = (url as text, token as text) =>
                 Headers = [
                     #"Accept" = "application/json",
                     #"Accept-encoding" = "gzip",
-                    #"Authorization" = "Bearer " & token 
+                    #"Authorization" = "Bearer " & token,
+                    #"User-Agent" = "secmgmt-insights-connector"
                 ], 
                 ManualCredentials = true,
                 ManualStatusHandling = {401, 403}
