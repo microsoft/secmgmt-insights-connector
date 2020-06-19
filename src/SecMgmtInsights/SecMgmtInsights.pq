@@ -190,10 +190,9 @@ shared SecMgmtInsights.DetectedApps= (optional tenants as list) as table =>
         source = SecMgmtInsights.ManagedDevices(tenants),
         managedDevices = Table.SelectColumns(source, {"tenantId", "id"}),
         renameColumn = Table.RenameColumns(managedDevices, {{"id", "deviceId"}}),
-        data = Table.AddColumn(renameColumn, "Custom", each try Request.GetPagedData(Text.Format("deviceManagement/managedDevices/#{0}/detectedApps", {[deviceId]}), {[tenantId]})),
-        expandCustom = Table.ExpandRecordColumn(data, "Custom", {"Value"}, {"Value"}),
-        expandValue = Table.ExpandTableColumn(expandCustom, "Value", {"Column1"}, {"Column1"}),
-        expandRecord = Table.ExpandRecordColumn(expandValue, "Column1", {"id", "displayName", "version", "sizeInByte", "deviceCount"}, {"id", "displayName", "version", "sizeInByte", "deviceCount"}),
+        data = Table.AddColumn(renameColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId]  & "/detectedApps", {[tenantId]}) otherwise null),
+        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
+        expandRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "displayName", "version", "sizeInByte", "deviceCount"}, {"id", "displayName", "version", "sizeInByte", "deviceCount"}),
         changedType = Table.TransformColumnTypes(expandRecord, {{"sizeInByte", Int64.Type}, {"deviceCount", Int64.Type}})
     in
         changedType;
@@ -591,6 +590,45 @@ Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
     in 
         authResult[access_token];
 
+// Information Protection 
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.UserInformationProtectionLabels = (optional tenants as list) as table =>
+    let
+        source = SecMgmtInsights.Users(tenants), 
+        filterColumns = Table.SelectColumns(source, {"tenantId", "id"}), 
+        renameColumn = Table.RenameColumns(filterColumns, {{"id", "userId"}}),
+        data = Table.AddColumn(renameColumn, "Custom", each try Request.GetPagedData("users/" & [userId] & "/informationProtection/policy/labels", {[tenantId]}) otherwise null)
+    in 
+        data;
+
+// Intelligent Security Graph
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.Alerts = (optional tenants as list) as table =>
+    let 
+        // TODO - Need to get a customer with test data
+        data = Request.GetPagedData("security/alerts", tenants)
+    in 
+        data;
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.SecureScore = (optional tenants as list) as table =>
+    let 
+        data = Request.GetPagedData("security/secureScores", tenants),
+        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "azureTenantId", "activeUserCount", "createdDateTime", "currentScore", "enabledServices", "licensedUserCount", "maxScore", "vendorInformation", "averageComparativeScores", "controlScores"}, {"id", "azureTenantId", "activeUserCount", "createdDateTime", "currentScore", "enabledServices", "licensedUserCount", "maxScore", "vendorInformation", "averageComparativeScores", "controlScores"}),
+        changedType = Table.TransformColumnTypes(expandedRecord, {{"activeUserCount", Int64.Type}, {"createdDateTime", type datetimezone}, {"currentScore", Int64.Type}, {"licensedUserCount", Int64.Type}, {"maxScore", Int64.Type}})
+    in 
+        changedType;
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.SecureScoreControlProfiles = (optional tenants as list) as table =>
+    let 
+        data = Request.GetPagedData("security/secureScoreControlProfiles", tenants),
+        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "azureTenantId", "actionType", "actionUrl", "controlCategory", "title", "deprecated", "implementationCost", "lastModifiedDateTime", "maxScore", "rank", "remediation", "remediationImpact", "service", "threats", "tier", "userImpact", "vendorInformation", "complianceInformation", "controlStateUpdates"}, {"id", "azureTenantId", "actionType", "actionUrl", "controlCategory", "title", "deprecated", "implementationCost", "lastModifiedDateTime", "maxScore", "rank", "remediation", "remediationImpact", "service", "threats", "tier", "userImpact", "vendorInformation", "complianceInformation", "controlStateUpdates"})
+    in
+        expandedRecord;
+
 // Network
 
 GitHub.GetContent = (url as text) =>
@@ -645,33 +683,6 @@ Microsoft.GetPagedContent = (url as text, token as text) => Table.GenerateByPage
         data = if(current <> null) then Table.FromList(Table.SelectRows(current, each ([Name] = "value"))[Value], Splitter.SplitByNothing()) else null
     in
         data meta [Next=link]);
-
-// Intelligent Security Graph
-
-[DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.Alerts = (optional tenants as list) as table =>
-    let 
-        // TODO - Need to get a customer with test data
-        data = Request.GetPagedData("security/alerts", tenants)
-    in 
-        data;
-
-[DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.SecureScore = (optional tenants as list) as table =>
-    let 
-        data = Request.GetPagedData("security/secureScores", tenants),
-        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "azureTenantId", "activeUserCount", "createdDateTime", "currentScore", "enabledServices", "licensedUserCount", "maxScore", "vendorInformation", "averageComparativeScores", "controlScores"}, {"id", "azureTenantId", "activeUserCount", "createdDateTime", "currentScore", "enabledServices", "licensedUserCount", "maxScore", "vendorInformation", "averageComparativeScores", "controlScores"}),
-        changedType = Table.TransformColumnTypes(expandedRecord, {{"activeUserCount", Int64.Type}, {"createdDateTime", type datetimezone}, {"currentScore", Int64.Type}, {"licensedUserCount", Int64.Type}, {"maxScore", Int64.Type}})
-    in 
-        changedType;
-
-[DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.SecureScoreControlProfiles = (optional tenants as list) as table =>
-    let 
-        data = Request.GetPagedData("security/secureScoreControlProfiles", tenants),
-        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "azureTenantId", "actionType", "actionUrl", "controlCategory", "title", "deprecated", "implementationCost", "lastModifiedDateTime", "maxScore", "rank", "remediation", "remediationImpact", "service", "threats", "tier", "userImpact", "vendorInformation", "complianceInformation", "controlStateUpdates"}, {"id", "azureTenantId", "actionType", "actionUrl", "controlCategory", "title", "deprecated", "implementationCost", "lastModifiedDateTime", "maxScore", "rank", "remediation", "remediationImpact", "service", "threats", "tier", "userImpact", "vendorInformation", "complianceInformation", "controlStateUpdates"})
-    in
-        expandedRecord;
 
 // Office 365
 
