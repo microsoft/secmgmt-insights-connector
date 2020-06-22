@@ -66,7 +66,7 @@ StartLogin = (resourceUrl, state, display) =>
             response_type = "code",
             response_mode = "query",
             login = "login",
-            amr_values = "mfa"
+            acr_values = "urn:microsoft:policies:mfa"
         ])
     in
         [
