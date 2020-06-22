@@ -57,7 +57,7 @@ PS C:\> .\Create-AzureAdApplication.ps1 -ConfigurePreconsent:$true -DisplayName 
 
 Prior to using the connector you will need to modify the client identifier used for authentication. Perform the following to update the value
 
-1. Download the latest release available [here](https://github.com/microsoft/secmgmt-insights-connector/releases/download/1.0/secmgmt-insights-connector.zip)
+1. Download the latest release available [here](https://aka.ms/secmgmt-insights-connector/latest)
 2. Unblock the zip file and extract the contents
 3. Replace the GUID in the *client_id* with the application identifier
 4. Add the *client_id* file to the *SecMgmtInsights.zip* archive
