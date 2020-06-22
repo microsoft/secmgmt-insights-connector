@@ -65,7 +65,8 @@ StartLogin = (resourceUrl, state, display) =>
             scope = "offline_access https://graph.microsoft.com/.default",
             response_type = "code",
             response_mode = "query",
-            login = "login"
+            login = "login",
+            amr_values = "mfa"
         ])
     in
         [
