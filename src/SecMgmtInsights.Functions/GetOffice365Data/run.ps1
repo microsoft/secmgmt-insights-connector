@@ -17,8 +17,8 @@ if ($null -eq $tenantId) {
     exit
 }
 
-$refreshToken = ''
-$upn = ''
+$refreshToken = $env:RefreshTokenValue
+$upn = $env:RefreshTokenUpn
 
 $token = New-PartnerAccessToken -Module ExchangeOnline -RefreshToken $refreshToken -Tenant $tenant
 
