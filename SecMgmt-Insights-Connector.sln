@@ -6,10 +6,19 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{406D48B9-EC36-49F3-A89F-761926CB5AA1}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{1A657FB5-C08A-42EC-9966-C0605A99684C}"
+	ProjectSection(SolutionItems) = preProject
+		azuredeploy.json = azuredeploy.json
+		azuredeploy.parameters.json = azuredeploy.parameters.json
+		CODE_OF_CONDUCT.md = CODE_OF_CONDUCT.md
+		CONTRIBUTING.md = CONTRIBUTING.md
+		LICENSE = LICENSE
+		README.md = README.md
+		SECURITY.md = SECURITY.md
+	EndProjectSection
 EndProject
 Project("{4DF76451-A46A-4C0B-BE03-459FAAFA07E6}") = "SecMgmtInsights", "src\SecMgmtInsights\SecMgmtInsights.mproj", "{A7D11851-1E6A-4C9E-9E63-D007A50CD38B}"
 EndProject
-Project("{4DF76451-A46A-4C0B-BE03-459FAAFA07E6}") = "SecMgmtInsights.PowerShell", "src\SecMgmtInsights.PowerShell\SecMgmtInsights.PowerShell.mproj", "{B35ED3A4-09B3-48FC-BBCE-4A1FD36A0571}"
+Project("{4DF76451-A46A-4C0B-BE03-459FAAFA07E6}") = "SecMgmtInsights.PowerShell", "src\SecMgmtInsights.PowerShell\SecMgmtInsights.PowerShell.mproj", "{ECBF8DD8-8465-4246-9878-515606889DD7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,17 +30,17 @@ Global
 		{A7D11851-1E6A-4C9E-9E63-D007A50CD38B}.Debug|x86.Build.0 = Debug|x86
 		{A7D11851-1E6A-4C9E-9E63-D007A50CD38B}.Release|x86.ActiveCfg = Release|x86
 		{A7D11851-1E6A-4C9E-9E63-D007A50CD38B}.Release|x86.Build.0 = Release|x86
-		{B35ED3A4-09B3-48FC-BBCE-4A1FD36A0571}.Debug|x86.ActiveCfg = Debug|x86
-		{B35ED3A4-09B3-48FC-BBCE-4A1FD36A0571}.Debug|x86.Build.0 = Debug|x86
-		{B35ED3A4-09B3-48FC-BBCE-4A1FD36A0571}.Release|x86.ActiveCfg = Release|x86
-		{B35ED3A4-09B3-48FC-BBCE-4A1FD36A0571}.Release|x86.Build.0 = Release|x86
+		{ECBF8DD8-8465-4246-9878-515606889DD7}.Debug|x86.ActiveCfg = Debug|x86
+		{ECBF8DD8-8465-4246-9878-515606889DD7}.Debug|x86.Build.0 = Debug|x86
+		{ECBF8DD8-8465-4246-9878-515606889DD7}.Release|x86.ActiveCfg = Release|x86
+		{ECBF8DD8-8465-4246-9878-515606889DD7}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{A7D11851-1E6A-4C9E-9E63-D007A50CD38B} = {406D48B9-EC36-49F3-A89F-761926CB5AA1}
-		{B35ED3A4-09B3-48FC-BBCE-4A1FD36A0571} = {406D48B9-EC36-49F3-A89F-761926CB5AA1}
+		{ECBF8DD8-8465-4246-9878-515606889DD7} = {406D48B9-EC36-49F3-A89F-761926CB5AA1}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {826393DF-0200-4655-BBC5-16A88740CF8B}
