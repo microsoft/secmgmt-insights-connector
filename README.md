@@ -19,6 +19,27 @@ To leverage each feature available through this solution you will need the follo
 - An active Azure subscription for the Azure Functions app
 - Privileges to create an Azure Active Directory application
 
+### Installing the module
+
+To simplify the process of creating and configuring the dependent resources for the connect, the [Install-SecMgmtInsightsConnector](https://github.com/microsoft/secmgmt-open-powershell/blob/master/docs/help/Install-SecMgmtInsightsConnector.md) cmdlet has been added to the [Security and Management Open PowerShell module](https://www.powershellgallery.com/packages/SecMgmt). You can leverage the following PowerShell to install the connector on the device invoking the command
+
+```powershell
+Install-Module SecMgmt
+
+# When prompt for credentials you will need to specify an account that has the ability to create an Azure Active Directory application.
+Connect-SecMgmtAccount
+
+# Use the following if you are planning to gain insights for a single tenant.
+Install-SecMgmtInsightsConnector -ApplicationDisplayName 'Security and Management Insights'
+
+# Use the following line if you plan to use the connector to gain insights for customers you have through the Cloud Solution Provider program.
+Install-SecMgmtInsightsConnector -ApplicationDisplayName 'Security and Management Insights' -ConfigurePreconsent:$true
+```
+
+> When you invoke the above a new Azure Active Directory application will be created, for use with the Security and Management Insights Power BI connector. Then the latest version of the connector is downloaded, configured, and installed on the local device.
+
+The following sections provide details on how to configure and install the connector manually. No further action is required if you invoked the above PowerShell.
+
 #### Azure Active Directory 
 
 This connector utilizes Microsoft Graph and the Office 365 Management API to surface management and security insights for Microsoft 365. Interacting with these APIs requires a native Azure Active Directory application configured with the following permissions
@@ -40,18 +61,6 @@ This connector utilizes Microsoft Graph and the Office 365 Management API to sur
 | Office 365 Management API | ActivityFeed.Read | Delegated | Read activity data for your organization |
 | Office 365 Management API | ActivityFeed.ReadDlp | Delegated | Read DLP policy events including detected sensitive data |
 | Office 365 Management API | ServiceHealth.Read | Delegated | Read service health information for your organization |
-
-You can use the [Create-AzureAdApplication.ps1](scripts/Create-AzureAdApplication.ps1) to create and configure the application. The following is an example of how the script can be invoked
-
-```powershell
-PS C:\> .\Create-AzureAdApplication.ps1 -DisplayName 'Security and Management Insights'
-```
-
-If you are involved with the Cloud Solution Provider program, and you are looking to get insights for your customers, then you will want to create the Azure Active Directory application and configure it for pre-consent. This can be accomplished by running [Create-AzureAdApplication.ps1](scripts/Create-AzureAdApplication.ps1) as follows
-
-```powershell
-PS C:\> .\Create-AzureAdApplication.ps1 -ConfigurePreconsent:$true -DisplayName 'Security and Management Insights'
-```
 
 #### Extension configuration
 
