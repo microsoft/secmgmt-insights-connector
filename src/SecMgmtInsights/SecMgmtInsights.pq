@@ -391,20 +391,6 @@ shared SecMgmtInsights.UserExperienceAnalyticsDevicePerformance = (optional tena
         expandedRecord;
 
 [DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.UserExperienceAnalyticsDeviceStartupHistory = (optional tenants as list) as table =>
-    let
-        data = Request.GetPagedData("deviceManagement/userExperienceAnalyticsDeviceStartupHistory", tenants)
-    in 
-        data;
-
-[DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.UserExperienceAnalyticsDeviceStartupProcessPerformance = (optional tenants as list) as table =>
-    let
-        data = Request.GetPagedData("deviceManagement/userExperienceAnalyticsDeviceStartupProcessPerformance", tenants)
-    in 
-        data;
-
-[DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.WindowsAutopilotDeviceIdentities = (optional tenants as list) as table =>
     let
         data = Request.GetPagedData("deviceManagement/windowsAutopilotDeviceIdentities", tenants),
