@@ -116,7 +116,7 @@ shared SecMgmtInsights.ConditionalAccessPolicies = (optional tenants as list) as
     in 
         expandedGrantControls;
 
-[DataSource.Kind="SecMgmtInsights", Publish="SecMgmtInsights.Publish"]
+[DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.Contracts = (optional tenants as list) as table =>
     let
         data = Request.GetPagedData("contracts", tenants),
@@ -568,6 +568,29 @@ Table.GenerateByPage = (getNextPage as function) as table =>
                 Value.Type(firstRow[Column1])
             );
 
+Table.ToNavigationTable = (
+    table as table,
+    keyColumns as list,
+    nameColumn as text,
+    dataColumn as text,
+    itemKindColumn as text,
+    itemNameColumn as text,
+    isLeafColumn as text
+) as table =>
+    let
+        tableType = Value.Type(table),
+        newTableType = Type.AddTableKey(tableType, keyColumns, true) meta 
+        [
+            NavigationTable.NameColumn = nameColumn, 
+            NavigationTable.DataColumn = dataColumn,
+            NavigationTable.ItemKindColumn = itemKindColumn, 
+            Preview.DelayColumn = itemNameColumn, 
+            NavigationTable.IsLeafColumn = isLeafColumn
+        ],
+        navigationTable = Value.ReplaceType(table, newTableType)
+    in
+        navigationTable;
+
 Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
     let 
         authResult = if (tenantId <> null) then 
@@ -616,6 +639,60 @@ shared SecMgmtInsights.SecureScoreControlProfiles = (optional tenants as list) a
     in
         expandedRecord;
 
+// Navigation 
+
+[DataSource.Kind="SecMgmtInsights", Publish="SecMgmtInsights.Publish"]
+shared SecMgmtInsights.Contents = (optional tenants as list) as table =>
+    let 
+        source = #table({"Name", "Data"}, {
+            { "Alerts", SecMgmtInsights.Alerts(tenants) },
+            { "ConditionalAccessPolicies", SecMgmtInsights.ConditionalAccessPolicies(tenants) },
+            { "Contracts", SecMgmtInsights.Contracts(tenants) },
+            { "Controls", SecMgmtInsights.Controls(tenants) },
+            { "CredentialUserRegistrationDetails", SecMgmtInsights.CredentialUserRegistrationDetails(tenants) },
+            { "DetectApps", SecMgmtInsights.DetectedApps(tenants) },
+            { "DetectedMalwareState", SecMgmtInsights.DetectedMalwareState(tenants) },
+            { "DeviceActions", SecMgmtInsights.DeviceActions(tenants) },
+            { "DeviceCompliancePolicySettingStates", SecMgmtInsights.DeviceCompliancePolicySettingStates(tenants) },
+            { "DeviceCompliancePolicies", SecMgmtInsights.DeviceCompliancePolicies(tenants) },
+            { "DeviceCompliancePolicyStates", SecMgmtInsights.DeviceCompliancePolicyStates(tenants) },
+            { "DeviceConfigurationPolicies", SecMgmtInsights.DeviceConfigurationPolicies(tenants) },
+            { "DeviceConfigurationPolicySettingStates", SecMgmtInsights.DeviceConfigurationPolicySettingStates(tenants) },
+            { "DeviceConfigurationPolicyStates", SecMgmtInsights.DeviceConfigurationPolicyStates(tenants) },
+            { "Devices", SecMgmtInsights.Devices(tenants) },
+            { "IdentitySecurityDefaultsEnforcementPolicy", SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy(tenants) },
+            { "Intents", SecMgmtInsights.Intents(tenants) },
+            { "MailboxUsageDetail", SecMgmtInsights.MailboxUsageDetail(tenants) },
+            { "ManagedDevices", SecMgmtInsights.ManagedDevices(tenants) },
+            { "MobileAppDeviceStatuses", SecMgmtInsights.MobileAppDeviceStatuses(tenants) },
+            { "MobileAppInstallSummary", SecMgmtInsights.MobileAppInstallSummary(tenants) },
+            { "MobileAppUserStatuses", SecMgmtInsights.MobileAppUserStatuses(tenants) },
+            { "Office365ActiveUserDetails", SecMgmtInsights.Office365ActiveUserDetails(tenants) },
+            { "Office365ServicesUserCounts", SecMgmtInsights.Office365ServicesUserCounts(tenants) },
+            { "OneDriveUsageAccountDetail", SecMgmtInsights.OneDriveUsageAccountDetail(tenants) },
+            { "RiskyUsers", SecMgmtInsights.RiskyUsers(tenants) },
+            { "SecureScore", SecMgmtInsights.SecureScore(tenants) },
+            { "SecureScoreControlProfiles", SecMgmtInsights.SecureScoreControlProfiles(tenants) },
+            { "SecurityBaselineSettingStates", SecMgmtInsights.SecurityBaselineSettingStates(tenants) },
+            { "SecurityBaselineStates", SecMgmtInsights.SecurityBaselineStates(tenants) },
+            { "ServiceCurrentStatus", SecMgmtInsights.ServiceCurrentStatus(tenants) },
+            { "ServiceHistoricalStatus", SecMgmtInsights.ServiceHistoricalStatus(tenants) },
+            { "SharePointSiteUsageDetail", SecMgmtInsights.SharePointSiteUsageDetail(tenants) },
+            { "SignIns", SecMgmtInsights.SignIns(tenants) },
+            { "SoftwareUpdateStatusSummary", SecMgmtInsights.SoftwareUpdateStatusSummary(tenants) },
+            { "TeamsUserActivityUserDetail", SecMgmtInsights.TeamsUserActivityUserDetail(tenants) },
+            { "Users", SecMgmtInsights.Users(tenants) },
+            { "WindowsAutopilotDeviceIdentities", SecMgmtInsights.WindowsAutopilotDeviceIdentities(tenants) },
+            { "WindowsAutopilotProfiles", SecMgmtInsights.WindowsAutopilotProfiles(tenants) },
+            { "WindowsAutopilotSettings", SecMgmtInsights.WindowsAutopilotSettings(tenants) },
+            { "WindowsMalwareInformation", SecMgmtInsights.WindowsMalwareInformation(tenants) }, 
+            { "WindowsProtectionState", SecMgmtInsights.WindowsProtectionState(tenants) },
+            { "YammerActivityUserDetail", SecMgmtInsights.YammerActivityUserDetail(tenants) }
+        }),
+        navTable = Table.ToNavigationTable(source, {"Name"}, "Name", "Data", "ItemKind", "ItemName", "IsLeaf")
+    in 
+        navTable;
+  
 // Network
 
 GitHub.GetContent = (url as text) =>
