@@ -603,14 +603,17 @@ Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
 // Information Protection 
 
 [DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.UserInformationProtectionLabels = (optional tenants as list) as table =>
+shared SecMgmtInsights.UserSensitivityLabels = (optional tenants as list) as table =>
     let
         source = SecMgmtInsights.Users(tenants), 
         filterColumns = Table.SelectColumns(source, {"tenantId", "id"}), 
         renameColumn = Table.RenameColumns(filterColumns, {{"id", "userId"}}),
-        data = Table.AddColumn(renameColumn, "Custom", each try Request.GetPagedData("users/" & [userId] & "/informationProtection/policy/labels", {[tenantId]}) otherwise null)
+        data = Table.AddColumn(renameColumn, "Custom", each try Request.GetPagedData("users/" & [userId] & "/informationProtection/sensitivityLabels", {[tenantId]}) otherwise null),
+        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
+        expandColumn = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "name", "displayName", "description", "toolTip", "isEndpointProtectionEnabled", "isDefault", "applicationMode", "priority", "autoLabeling", "applicableTo", "labelActions", "assignedPolicies", "sublabels"}, {"id", "name", "displayName", "description", "toolTip", "isEndpointProtectionEnabled", "isDefault", "applicationMode", "priority", "autoLabeling", "applicableTo", "labelActions", "assignedPolicies", "sublabels"}),
+        changeType = Table.TransformColumnTypes(expandColumn, {{"isEndpointProtectionEnabled", type logical}, {"isDefault", type logical}, {"priority", Int64.Type}})
     in 
-        data;
+        changeType;
 
 // Intelligent Security Graph
 
@@ -681,6 +684,7 @@ shared SecMgmtInsights.Contents = (optional tenants as list) as table =>
             { "SignIns", SecMgmtInsights.SignIns(tenants) },
             { "SoftwareUpdateStatusSummary", SecMgmtInsights.SoftwareUpdateStatusSummary(tenants) },
             { "TeamsUserActivityUserDetail", SecMgmtInsights.TeamsUserActivityUserDetail(tenants) },
+            { "UserSensitivityLabels", SecMgmtInsights.UserSensitivityLabels(tenants) },
             { "Users", SecMgmtInsights.Users(tenants) },
             { "WindowsAutopilotDeviceIdentities", SecMgmtInsights.WindowsAutopilotDeviceIdentities(tenants) },
             { "WindowsAutopilotProfiles", SecMgmtInsights.WindowsAutopilotProfiles(tenants) },
