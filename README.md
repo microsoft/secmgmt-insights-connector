@@ -2,37 +2,48 @@
 
 Microsoft 365 provides several advanced security and management features that empower you to improve your, or your customers, security posture. Knowing what features are configured and whether they adhere to the recommended configurations is challenging. Using this connector, you will be able gain insights what components have been adopted and how they are configured.  
 
-To get started with this connect check out the [getting started](https://github.com/microsoft/secmgmt-insights-connector/wiki/getting-started) section of the wiki.
+## Getting Started
 
-## Architecture
+Prior to utilizing this connector to gain insights from your, or your customers, environment there are some required actions that need to be taken. The remaining sections of this article will guide you through fulfilling the prerequisites, installing the connector, and how to leverage on the templates. If you have any questions about this process please open an [issue](https://github.com/microsoft/secmgmt-insights-connector/issues/new/choose) for help.
 
-Most of the information required to understand what is configured and the current settings is obtained using Microsoft Graph. However, there is some data that is currently only available through Exchange Online PowerShell. Considering this two Power BI connectors were built for this solution. The `SecMgmtInsights` connector communicates directly with Microsoft Graph and can gather configuration and usage information. Through the `SecMgmtInsights.PowerShell` connector Office 365 ATP information from Exchange Online PowerShell is exposed through an Azure Functions app.
+### Prerequisites
 
-<p align="center">
-    <img alt="solution architecture" src="docs/media/architecture.png" />
-</p>
+If you do not already have Power BI Desktop installed, then [download](https://powerbi.microsoft.com/downloads/) and install it. Once installed you will want to perform the perform the following
 
-## Azure AD App Permissions
+1. Start Power BI Desktop on the device where you plan to install the connector
+2. Click file -> options and settings -> options
+3. Click security under the global section
+4. Click (Not Recommended) Allow any extension to load without validation or warning
 
-This connector utilizes Microsoft Graph and the Office 365 Management API to surface management and security insights for Microsoft 365. Interacting with these APIs requires a native Azure Active Directory application configured with the following permissions
+> This step is required because by default the connector that will be installed is not digitally signed. It is not signed because during the installation process an application identifier value will be injected that is unique for your environment. See [handling Power Query Connector signing](https://docs.microsoft.com/power-query/HandlingConnectorSigning) for details on the signing the connector if you are interested.
 
-| API | Permissions | Type | Description |
-|-----|-------------|------|-------------|
-| Microsoft Graph | AuditLog.Read.All | Delegated | Read audit log data |
-| Microsoft Graph | DeviceManagementApps.Read.All | Delegated | Read Microsoft Intune apps |
-| Microsoft Graph | DeviceManagementConfiguration.Read.All | Delegated | Read Microsoft Intune Device Configuration and Policies |
-| Microsoft Graph | DeviceManagementManagedDevices.Read.All | Delegated | Read Microsoft Intune devices |
-| Microsoft Graph | DeviceManagementServiceConfig.Read.All | Delegated | Read Microsoft Intune configuration |
-| Microsoft Graph | Directory.Read.All | Delegated | Read directory data |
-| Microsoft Graph | IdentityRiskyUser.Read.All | Delegated | Read identity risky user information |
-| Microsoft Graph | InformationProtectionPolicy.Read | Delegated | Read user sensitivity labels and label policies |
-| Microsoft Graph | Policy.Read.All | Delegated | Read your organization's policies |
-| Microsoft Graph | Reports.Read.All | Delegated | Read all usage reports |
-| Microsoft Graph | SecurityEvents.Read.All | Delegated | Read your organization’s security events |
-| Microsoft Graph | User.Read | Delegated |  Sign in and read user profile |
-| Office 365 Management API | ActivityFeed.Read | Delegated | Read activity data for your organization |
-| Office 365 Management API | ActivityFeed.ReadDlp | Delegated | Read DLP policy events including detected sensitive data |
-| Office 365 Management API | ServiceHealth.Read | Delegated | Read service health information for your organization |
+### Installation
+
+To simplify the process of creating and configuring the dependent resources for the connect, the [Install-SecMgmtInsightsConnector](https://github.com/microsoft/secmgmt-open-powershell/blob/master/docs/help/Install-SecMgmtInsightsConnector.md) cmdlet has been added to the [Security and Management Open PowerShell module](https://www.powershellgallery.com/packages/SecMgmt). You can leverage the following PowerShell to install the connector on the device invoking the command
+
+```powershell
+Install-Module SecMgmt
+
+# When prompt for credentials you will need to specify an account that has the ability to create an Azure Active Directory application.
+Connect-SecMgmtAccount
+
+# Use the following if you are planning to gain insights for a single tenant.
+Install-SecMgmtInsightsConnector -ApplicationDisplayName 'Security and Management Insights'
+
+# Use the following line if you plan to use the connector to gain insights for customers you have through the Cloud Solution Provider program.
+Install-SecMgmtInsightsConnector -ApplicationDisplayName 'Security and Management Insights' -ConfigurePreconsent:$true
+```
+
+> When you invoke the above a new Azure Active Directory application will be created, for use with the connector. Then the latest version of the connector is downloaded, configured, and installed on the local device.
+
+### Template
+
+Once the prerequisites have been fulfilled and the connector has be installed, you can start building reports that incorporate functionality from the connector. You can start from scratch or leverage one of the following templates
+
+| Name | Description |
+|------|-------------|
+| Customer template | *Coming soon* - Template that is intended to be used if you are looking to get insights for your own tenant  |
+| [Partner template](https://github.com/microsoft/secmgmt-insights-connector/raw/master/templates/secmgmt-insights-partner-standard.pbit) | Standard template that is intended to be used by partners to gain insights for their customers |
 
 ## Contributing
 
