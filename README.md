@@ -2,6 +2,8 @@
 
 Microsoft 365 provides several advanced security and management features that empower you to improve your, or your customers, security posture. Knowing what features are configured and whether they adhere to the recommended configurations is challenging. Using this connector, you will be able gain insights what components have been adopted and how they are configured.  
 
+To get started with this connect check out the [getting started](https://github.com/microsoft/secmgmt-insights-connector/wiki/getting-started) section of the wiki.
+
 ## Architecture
 
 Most of the information required to understand what is configured and the current settings is obtained using Microsoft Graph. However, there is some data that is currently only available through Exchange Online PowerShell. Considering this two Power BI connectors were built for this solution. The `SecMgmtInsights` connector communicates directly with Microsoft Graph and can gather configuration and usage information. Through the `SecMgmtInsights.PowerShell` connector Office 365 ATP information from Exchange Online PowerShell is exposed through an Azure Functions app.
@@ -10,37 +12,7 @@ Most of the information required to understand what is configured and the curren
     <img alt="solution architecture" src="docs/media/architecture.png" />
 </p>
 
-## Getting Started
-
-### Prerequisites
-
-To leverage each feature available through this solution you will need the following 
-
-- An active Azure subscription for the Azure Functions app
-- Privileges to create an Azure Active Directory application
-
-### Installing the module
-
-To simplify the process of creating and configuring the dependent resources for the connect, the [Install-SecMgmtInsightsConnector](https://github.com/microsoft/secmgmt-open-powershell/blob/master/docs/help/Install-SecMgmtInsightsConnector.md) cmdlet has been added to the [Security and Management Open PowerShell module](https://www.powershellgallery.com/packages/SecMgmt). You can leverage the following PowerShell to install the connector on the device invoking the command
-
-```powershell
-Install-Module SecMgmt
-
-# When prompt for credentials you will need to specify an account that has the ability to create an Azure Active Directory application.
-Connect-SecMgmtAccount
-
-# Use the following if you are planning to gain insights for a single tenant.
-Install-SecMgmtInsightsConnector -ApplicationDisplayName 'Security and Management Insights'
-
-# Use the following line if you plan to use the connector to gain insights for customers you have through the Cloud Solution Provider program.
-Install-SecMgmtInsightsConnector -ApplicationDisplayName 'Security and Management Insights' -ConfigurePreconsent:$true
-```
-
-> When you invoke the above a new Azure Active Directory application will be created, for use with the Security and Management Insights Power BI connector. Then the latest version of the connector is downloaded, configured, and installed on the local device.
-
-The following sections provide details on how to configure and install the connector manually. No further action is required if you invoked the above PowerShell.
-
-#### Azure Active Directory 
+## Azure AD App Permissions
 
 This connector utilizes Microsoft Graph and the Office 365 Management API to surface management and security insights for Microsoft 365. Interacting with these APIs requires a native Azure Active Directory application configured with the following permissions
 
@@ -61,26 +33,6 @@ This connector utilizes Microsoft Graph and the Office 365 Management API to sur
 | Office 365 Management API | ActivityFeed.Read | Delegated | Read activity data for your organization |
 | Office 365 Management API | ActivityFeed.ReadDlp | Delegated | Read DLP policy events including detected sensitive data |
 | Office 365 Management API | ServiceHealth.Read | Delegated | Read service health information for your organization |
-
-#### Extension configuration
-
-Prior to using the connector you will need to modify the client identifier used for authentication. Perform the following to update the value
-
-1. Download the latest release available [here](https://aka.ms/secmgmt-insights-connector/latest)
-2. Unblock the zip file and extract the contents
-3. Replace the GUID in the *client_id* with the application identifier
-4. Add the *client_id* file to the *SecMgmtInsights.zip* archive
-5. Rename the *SecMgmtInsights.zip* file to *SecMgmtInsights.mez*
-6. Copy the *SecMgmtInsights.mez* into the *[Documents]\Microsoft Power BI Desktop\Custom Connectors* directory
-
-
-The extension provided through the [releases](https://github.com/microsoft/secmgmt-insights-connector/releases) page, is not signed because you will need to insert the client identifier for the Azure Active Directory application create using the above process. To perform this process start Power BI Desktop and then perform the following
-
-1. Click file -> options and settings -> options
-2. Click security under the global section
-3. Click *(Not Recommended) Allow any extension to load without validation or warning*
-
-Once you have finished testing you can sign the extension and reset this configuration. See [handling Power Query connector signing](https://docs.microsoft.com/power-query/HandlingConnectorSigning) for more information.
 
 ## Contributing
 
