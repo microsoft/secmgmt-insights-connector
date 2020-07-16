@@ -383,6 +383,15 @@ shared SecMgmtInsights.SoftwareUpdateStatusSummary = (optional tenants as list) 
         changedType;
 
 [DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.SubscriptionState = (optional tenants as list) as table =>
+    let 
+        data = Request.GetData("deviceManagement/softwareUpdateStatusSummary", tenants),
+        expandRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "displayName", "compliantDeviceCount", "nonCompliantDeviceCount", "remediatedDeviceCount", "errorDeviceCount", "unknownDeviceCount", "conflictDeviceCount", "notApplicableDeviceCount", "compliantUserCount", "nonCompliantUserCount", "remediatedUserCount", "errorUserCount", "unknownUserCount", "conflictUserCount", "notApplicableUserCount"}, {"id", "displayName", "compliantDeviceCount", "nonCompliantDeviceCount", "remediatedDeviceCount", "errorDeviceCount", "unknownDeviceCount", "conflictDeviceCount", "notApplicableDeviceCount", "compliantUserCount", "nonCompliantUserCount", "remediatedUserCount", "errorUserCount", "unknownUserCount", "conflictUserCount", "notApplicableUserCount"}),
+        changeType = Table.TransformColumnTypes(expandRecord, {{"compliantDeviceCount", Int64.Type}, {"nonCompliantDeviceCount", Int64.Type}, {"remediatedDeviceCount", Int64.Type}, {"errorDeviceCount", Int64.Type}, {"unknownDeviceCount", Int64.Type}, {"conflictDeviceCount", Int64.Type}, {"notApplicableDeviceCount", Int64.Type}, {"compliantUserCount", Int64.Type}, {"nonCompliantUserCount", Int64.Type}, {"remediatedUserCount", Int64.Type}, {"unknownUserCount", Int64.Type}, {"errorUserCount", Int64.Type}, {"notApplicableUserCount", Int64.Type}, {"conflictUserCount", Int64.Type}})
+    in
+        changeType;
+
+[DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.UserExperienceAnalyticsDevicePerformance = (optional tenants as list) as table =>
     let
         data = Request.GetPagedData("deviceManagement/userExperienceAnalyticsDevicePerformance", tenants),
@@ -683,6 +692,8 @@ shared SecMgmtInsights.Contents = (optional tenants as list) as table =>
             { "SharePointSiteUsageDetail", SecMgmtInsights.SharePointSiteUsageDetail(tenants) },
             { "SignIns", SecMgmtInsights.SignIns(tenants) },
             { "SoftwareUpdateStatusSummary", SecMgmtInsights.SoftwareUpdateStatusSummary(tenants) },
+            { "SubscribedSkus", SecMgmtInsights.SubscribedSkus(tenants) }, 
+            { "SubscriptionState", SecMgmtInsights.SubscriptionState(tenants) },
             { "TeamsUserActivityUserDetail", SecMgmtInsights.TeamsUserActivityUserDetail(tenants) },
             { "UserSensitivityLabels", SecMgmtInsights.UserSensitivityLabels(tenants) },
             { "Users", SecMgmtInsights.Users(tenants) },
@@ -727,11 +738,11 @@ Microsoft.GetContent = (url as text, token as text) =>
                     #"User-Agent" = "secmgmt-insights-connector"
                 ], 
                 ManualCredentials = true,
-                ManualStatusHandling = {401, 403}
+                ManualStatusHandling = {400, 401, 403}
             ]),
         buffered = Binary.Buffer(source),
         status = Value.Metadata(source)[Response.Status],
-        result = if status = 401 then Json.Document(buffered)[error][message] else if status = 403 then Json.Document(buffered) else Json.Document(buffered),
+        result = if status = 400 then Json.Document(buffered)[error][message] else if status = 401 then Json.Document(buffered)[error][message] else if status = 403 then Json.Document(buffered) else Json.Document(buffered),
         link = try result[#"@odata.nextLink"] otherwise null
     in 
         Record.ToTable(result) meta [Next=link];
@@ -836,3 +847,16 @@ shared SecMgmtInsights.ServiceHistoricalStatus = (optional tenants as list) as t
         changeType = Table.TransformColumnTypes(expandRecord, {{"StatusTime", type datetimezone}})
     in
         changeType;
+
+// Tenant 
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.SubscribedSkus = (optional tenants as list) as table =>
+    let
+        source = Request.GetPagedData("subscribedSkus", tenants),
+        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"capabilityStatus", "consumedUnits", "id", "skuId", "skuPartNumber", "appliesTo", "prepaidUnits", "servicePlans"}, {"capabilityStatus", "consumedUnits", "id", "skuId", "skuPartNumber", "appliesTo", "prepaidUnits", "servicePlans"}),
+        expandServicePlans = Table.ExpandListColumn(expandColumn, "servicePlans"),
+        expandRecord = Table.ExpandRecordColumn(expandServicePlans, "servicePlans", {"servicePlanId", "servicePlanName", "provisioningStatus", "appliesTo"}, {"servicePlanId", "servicePlanName", "provisioningStatus", "servicePlans.appliesTo"}),
+        expandPrepaidUnits = Table.ExpandRecordColumn(expandRecord, "prepaidUnits", {"enabled", "suspended", "warning"}, {"prepaidUnits.enabled", "prepaidUnits.suspended", "prepaidUnits.warning"})
+    in
+        expandPrepaidUnits;
