@@ -1,7 +1,7 @@
 {
     "id": "recommended", 
     "description": "Recommended controls for SMB customers", 
-    "version": "1.0.0",
+    "version": "1.3",
     "controls": [
         {
             "expectedValue": "true",
@@ -46,7 +46,7 @@
         {
             "expectedValue": "true",
             "id": "Windows10CompliancePolicy.SecureBootEnabled",
-            "info": "https://aka.ms/placeholder",
+            "info": "https://docs.microsoft.com/mem/intune/protect/device-compliance-get-started",
             "resource": "deviceCompliancePolicy",
             "tenantFilter": [], 
             "type": "deviceManagement"
