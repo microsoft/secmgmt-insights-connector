@@ -385,11 +385,10 @@ shared SecMgmtInsights.SoftwareUpdateStatusSummary = (optional tenants as list) 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SubscriptionState = (optional tenants as list) as table =>
     let 
-        data = Request.GetData("deviceManagement/softwareUpdateStatusSummary", tenants),
-        expandRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "displayName", "compliantDeviceCount", "nonCompliantDeviceCount", "remediatedDeviceCount", "errorDeviceCount", "unknownDeviceCount", "conflictDeviceCount", "notApplicableDeviceCount", "compliantUserCount", "nonCompliantUserCount", "remediatedUserCount", "errorUserCount", "unknownUserCount", "conflictUserCount", "notApplicableUserCount"}, {"id", "displayName", "compliantDeviceCount", "nonCompliantDeviceCount", "remediatedDeviceCount", "errorDeviceCount", "unknownDeviceCount", "conflictDeviceCount", "notApplicableDeviceCount", "compliantUserCount", "nonCompliantUserCount", "remediatedUserCount", "errorUserCount", "unknownUserCount", "conflictUserCount", "notApplicableUserCount"}),
-        changeType = Table.TransformColumnTypes(expandRecord, {{"compliantDeviceCount", Int64.Type}, {"nonCompliantDeviceCount", Int64.Type}, {"remediatedDeviceCount", Int64.Type}, {"errorDeviceCount", Int64.Type}, {"unknownDeviceCount", Int64.Type}, {"conflictDeviceCount", Int64.Type}, {"notApplicableDeviceCount", Int64.Type}, {"compliantUserCount", Int64.Type}, {"nonCompliantUserCount", Int64.Type}, {"remediatedUserCount", Int64.Type}, {"unknownUserCount", Int64.Type}, {"errorUserCount", Int64.Type}, {"notApplicableUserCount", Int64.Type}, {"conflictUserCount", Int64.Type}})
+        data = Request.GetData("deviceManagement/subscriptionState", tenants),
+        expandRecord = Table.ExpandRecordColumn(data, "Column1", {"value"}, {"value"})
     in
-        changeType;
+        expandRecord;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.UserExperienceAnalyticsDevicePerformance = (optional tenants as list) as table =>
