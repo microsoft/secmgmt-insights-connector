@@ -148,7 +148,7 @@ shared SecMgmtInsights.Devices = (optional tenants as list) as table =>
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy = (optional tenants as list) as table =>
     let
-       data = Request.GetPagedData("policies/identitySecurityDefaultsEnforcementPolicy", tenants),
+       data = Request.GetData("policies/identitySecurityDefaultsEnforcementPolicy", tenants),
        expandedCustom = Table.ExpandRecordColumn(data, "Column1", {"id", "displayName", "description", "isEnabled"}, {"id", "displayName", "description", "isEnabled"}),
        changeType = Table.TransformColumnTypes(expandedCustom, {{"isEnabled", type logical}})
     in 
