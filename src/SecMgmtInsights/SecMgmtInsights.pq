@@ -155,15 +155,6 @@ shared SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy = (optional ten
         changeType;
 
 [DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.RiskyUsers = (optional tenants as list) as table =>
-    let
-        data = Request.GetPagedData("riskyUsers", tenants),
-        expandedCustom = Table.ExpandRecordColumn(data, "Column1", {"id", "riskLastUpdatedDateTime", "isGuest", "isProcessing", "isDeleted", "riskDetail", "riskLevel", "riskState", "userDisplayName", "userPrincipalName"}, {"id", "riskLastUpdatedDateTime", "isGuest", "isProcessing", "isDeleted", "riskDetail", "riskLevel", "riskState", "userDisplayName", "userPrincipalName"}),
-        changeType = Table.TransformColumnTypes(expandedCustom, {{"riskLastUpdatedDateTime", type datetimezone}, {"isGuest", type logical}, {"isProcessing", type logical}, {"isDeleted", type logical}})
-    in 
-        changeType;
-
-[DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SignIns = (optional tenants as list) as table =>
     let
         data = Request.GetPagedData("auditLogs/signIns", tenants),
@@ -608,7 +599,34 @@ Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
     in 
         authResult[access_token];
 
+// Identity Protection
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.RiskDetections = (optional tenants as list) as table =>
+    let
+        data = Request.GetPagedData("identityProtection/riskDetections", tenants),
+        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "requestId", "correlationId", "riskEventType", "riskState", "riskLevel", "riskDetail", "source", "detectionTimingType", "activity", "tokenIssuerType", "ipAddress", "activityDateTime", "detectedDateTime", "lastUpdatedDateTime", "userId", "userDisplayName", "userPrincipalName"}, {"id", "requestId", "correlationId", "riskEventType", "riskState", "riskLevel", "riskDetail", "source", "detectionTimingType", "activity", "tokenIssuerType", "ipAddress", "activityDateTime", "detectedDateTime", "lastUpdatedDateTime", "userId", "userDisplayName", "userPrincipalName"})
+    in 
+        expandedRecord;
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.RiskyUsers = (optional tenants as list) as table =>
+    let
+        data = Request.GetPagedData("identityProtection/riskyUsers", tenants)
+    in 
+        data;
+
 // Information Protection 
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.UserDataLossPreventionPolicies = (optional tenants as list) as table =>
+    let
+        source = SecMgmtInsights.Users(tenants), 
+        filterColumns = Table.SelectColumns(source, {"tenantId", "id"}), 
+        renameColumn = Table.RenameColumns(filterColumns, {{"id", "userId"}}),
+        data = Table.AddColumn(renameColumn, "Custom", each try Request.GetPagedData("users/" & [userId] & "/informationProtection/dataLossPreventionPolicies", {[tenantId]}) otherwise null)
+    in
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.UserSensitivityLabels = (optional tenants as list) as table =>
