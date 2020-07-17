@@ -612,9 +612,10 @@ shared SecMgmtInsights.RiskDetections = (optional tenants as list) as table =>
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.RiskyUsers = (optional tenants as list) as table =>
     let
-        data = Request.GetPagedData("identityProtection/riskyUsers", tenants)
+        data = Request.GetPagedData("identityProtection/riskyUsers", tenants),
+        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "isDeleted", "isProcessing", "riskLastUpdatedDateTime", "riskLevel", "riskState", "riskDetail", "userDisplayName", "userPrincipalName"}, {"id", "isDeleted", "isProcessing", "riskLastUpdatedDateTime", "riskLevel", "riskState", "riskDetail", "userDisplayName", "userPrincipalName"})
     in 
-        data;
+        expandedRecord;
 
 // Information Protection 
 
