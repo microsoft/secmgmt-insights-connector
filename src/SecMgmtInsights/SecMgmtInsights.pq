@@ -188,10 +188,9 @@ shared SecMgmtInsights.Users = (optional tenants as list) as table =>
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.DetectedApps= (optional tenants as list) as table =>
     let 
-        source = SecMgmtInsights.ManagedDevices(tenants),
-        managedDevices = Table.SelectColumns(source, {"tenantId", "id"}),
-        renameColumn = Table.RenameColumns(managedDevices, {{"id", "deviceId"}}),
-        data = Table.AddColumn(renameColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId]  & "/detectedApps", {[tenantId]}) otherwise null),
+        source = Request.GetPagedData("deviceManagement/managedDevices?$select=id", tenants),
+        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
+        data = Table.AddColumn(expandColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId]  & "/detectedApps", {[tenantId]}) otherwise null),
         expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
         expandRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "displayName", "version", "sizeInByte", "deviceCount"}, {"id", "displayName", "version", "sizeInByte", "deviceCount"}),
         changedType = Table.TransformColumnTypes(expandRecord, {{"sizeInByte", Int64.Type}, {"deviceCount", Int64.Type}})
@@ -201,10 +200,9 @@ shared SecMgmtInsights.DetectedApps= (optional tenants as list) as table =>
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.DetectedMalwareState = (optional tenants as list) as table =>
     let 
-        source = SecMgmtInsights.ManagedDevices(tenants),
-        managedDevices = Table.SelectColumns(source, {"tenantId", "id"}),
-        renamedColumn = Table.RenameColumns(managedDevices, {{"id", "deviceId"}}),
-        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState/detectedMalwareState", {[tenantId]}) otherwise null),
+        source = Request.GetPagedData("deviceManagement/managedDevices?$select=id", tenants),
+        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
+        data = Table.AddColumn(expandColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState/detectedMalwareState", {[tenantId]}) otherwise null),
         expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
         expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "displayName", "additionalInformationUrl", "severity", "catetgory", "executionState", "state", "threatState", "initialDetectionDateTime", "lastStateChangeDateTime", "detectionCount"}, {"id", "displayName", "additionalInformationUrl", "severity", "catetgory", "executionState", "state", "threatState", "initialDetectionDateTime", "lastStateChangeDateTime", "detectionCount"}),
         changedType = Table.TransformColumnTypes(expandedRecord, {{"initialDetectionDateTime", type datetimezone}, {"lastStateChangeDateTime", type datetimezone}, {"detectionCount", Int64.Type}})
@@ -237,10 +235,9 @@ shared SecMgmtInsights.DeviceCompliancePolicies = (optional tenants as list) as 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.DeviceCompliancePolicyStates = (optional tenants as list) as table =>
     let
-        source = SecMgmtInsights.ManagedDevices(tenants),
-        managedDevices = Table.SelectColumns(source, {"tenantId", "id"}),
-        renamedColumn = Table.RenameColumns(managedDevices, {{"id", "deviceId"}}),
-        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates", {[tenantId]}) otherwise null),
+        source = Request.GetPagedData("deviceManagement/managedDevices?$select=id", tenants),
+        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
+        data = Table.AddColumn(expandColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates", {[tenantId]}) otherwise null),
         expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
         expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "displayName", "version", "platformType", "state", "settingCount", "userId", "userPrincipalName", "settingStates"}, {"id", "displayName", "version", "platformType", "state", "settingCount", "userId", "userPrincipalName", "settingStates"})
     in 
@@ -271,10 +268,9 @@ shared SecMgmtInsights.DeviceConfigurationPolicySettingStates = (optional tenant
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.DeviceConfigurationPolicyStates = (optional tenants as list) as table =>
     let        
-        source = SecMgmtInsights.ManagedDevices(tenants),
-        managedDevices = Table.SelectColumns(source, {"tenantId", "id"}),
-        renamedColumn = Table.RenameColumns(managedDevices, {{"id", "deviceId"}}),
-        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates", {[tenantId]}) otherwise null),
+        source = Request.GetPagedData("deviceManagement/managedDevices?$select=id", tenants),
+        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
+        data = Table.AddColumn(expandColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates", {[tenantId]}) otherwise null),
         expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
         expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "displayName", "version", "platformType", "state", "settingCount", "userId", "userPrincipalName", "settingStates"}, {"id", "displayName", "version", "platformType", "state", "settingCount", "userId", "userPrincipalName", "settingStates"})
     in 
@@ -364,10 +360,9 @@ shared SecMgmtInsights.SecurityBaselineSettingStates = (optional tenants as list
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SecurityBaselineStates = (optional tenants as list) as table =>
     let        
-        source = SecMgmtInsights.ManagedDevices(tenants),
-        managedDevices = Table.SelectColumns(source, {"tenantId", "id"}),
-        renamedColumn = Table.RenameColumns(managedDevices, {{"id", "deviceId"}}),
-        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates", {[tenantId]}) otherwise null),
+        source = Request.GetPagedData("deviceManagement/managedDevices?$select=id", tenants),
+        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
+        data = Table.AddColumn(expandColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates", {[tenantId]}) otherwise null),
         expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
         expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "securityBaselineTemplateId", "displayName"}, {"id", "securityBaselineTemplateId", "displayName"})
     in 
@@ -439,10 +434,9 @@ shared SecMgmtInsights.WindowsMalwareInformation = (optional tenants as list) as
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.WindowsProtectionState = (optional tenants as list) as table =>
     let 
-        source = SecMgmtInsights.ManagedDevices(tenants),
-        managedDevices = Table.SelectColumns(source, {"tenantId", "id"}),
-        renamedColumn = Table.RenameColumns(managedDevices, {{"id", "deviceId"}}),
-        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GetData("deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState", {[tenantId]}) otherwise null),
+        source = Request.GetPagedData("deviceManagement/managedDevices?$select=id", tenants),
+        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
+        data = Table.AddColumn(expandColumn, "Custom", each try Request.GetData("deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState", {[tenantId]}) otherwise null),
         expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
         expandRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"malwareProtectionEnabled", "deviceState", "realTimeProtectionEnabled", "networkInspectionSystemEnabled", "quickScanOverdue", "fullScanOverdue", "signatureUpdateOverdue", "rebootRequired", "fullScanRequired", "engineVersion", "signatureVersion", "antiMalwareVersion", "lastQuickScanDateTime", "lastFullScanDateTime", "lastQuickScanSignatureVersion", "lastFullScanSignatureVersion", "lastReportedDateTime"}, {"malwareProtectionEnabled", "deviceState", "realTimeProtectionEnabled", "networkInspectionSystemEnabled", "quickScanOverdue", "fullScanOverdue", "signatureUpdateOverdue", "rebootRequired", "fullScanRequired", "engineVersion", "signatureVersion", "antiMalwareVersion", "lastQuickScanDateTime", "lastFullScanDateTime", "lastQuickScanSignatureVersion", "lastFullScanSignatureVersion", "lastReportedDateTime"}),
         changedType = Table.TransformColumnTypes(expandRecord, {{"malwareProtectionEnabled", type logical}, {"realTimeProtectionEnabled", type logical}, {"networkInspectionSystemEnabled", type logical}, {"quickScanOverdue", type logical}, {"fullScanOverdue", type logical}, {"signatureUpdateOverdue", type logical}, {"rebootRequired", type logical}, {"fullScanRequired", type logical}, {"lastQuickScanDateTime", type datetimezone}, {"lastFullScanDateTime", type datetimezone}, {"lastReportedDateTime", type datetimezone}})
@@ -613,13 +607,12 @@ Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.UserSensitivityLabels = (optional tenants as list) as table =>
     let
-        source = SecMgmtInsights.Users(tenants), 
-        filterColumns = Table.SelectColumns(source, {"tenantId", "id"}), 
-        renameColumn = Table.RenameColumns(filterColumns, {{"id", "userId"}}),
-        data = Table.AddColumn(renameColumn, "Custom", each try Request.GetPagedData("users/" & [userId] & "/informationProtection/sensitivityLabels", {[tenantId]}) otherwise null),
+        source = Request.GetPagedData("users?$select=id", tenants),
+        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"userId"}),
+        data = Table.AddColumn(expandColumn, "Custom", each try Request.GetPagedData("users/" & [userId] & "/informationProtection/sensitivityLabels", {[tenantId]}) otherwise null),
         expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandColumn = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "name", "displayName", "description", "toolTip", "isEndpointProtectionEnabled", "isDefault", "applicationMode", "priority", "autoLabeling", "applicableTo", "labelActions", "assignedPolicies", "sublabels"}, {"id", "name", "displayName", "description", "toolTip", "isEndpointProtectionEnabled", "isDefault", "applicationMode", "priority", "autoLabeling", "applicableTo", "labelActions", "assignedPolicies", "sublabels"}),
-        changeType = Table.TransformColumnTypes(expandColumn, {{"isEndpointProtectionEnabled", type logical}, {"isDefault", type logical}, {"priority", Int64.Type}})
+        expandRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "name", "displayName", "description", "toolTip", "isEndpointProtectionEnabled", "isDefault", "applicationMode", "priority", "autoLabeling", "applicableTo", "labelActions", "assignedPolicies", "sublabels"}, {"id", "name", "displayName", "description", "toolTip", "isEndpointProtectionEnabled", "isDefault", "applicationMode", "priority", "autoLabeling", "applicableTo", "labelActions", "assignedPolicies", "sublabels"}),
+        changeType = Table.TransformColumnTypes(expandRecord, {{"isEndpointProtectionEnabled", type logical}, {"isDefault", type logical}, {"priority", Int64.Type}})
     in 
         changeType;
 
