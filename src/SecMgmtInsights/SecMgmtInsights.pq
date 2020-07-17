@@ -203,10 +203,12 @@ shared SecMgmtInsights.DetectedMalwareState = (optional tenants as list) as tabl
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.DeviceCompliancePolicySettingStates = (optional tenants as list) as table => 
     let
-        source = SecMgmtInsights.DeviceCompliancePolicyStates(tenants),
-        policyStates = Table.SelectColumns(source, {"tenantId", "deviceId", "id"}),
-        renamedColumn =  Table.RenameColumns(policyStates, {{"id", "policyId"}}),
-        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates/" & [policyId] & "/settingStates", {[tenantId]}) otherwise null),
+        source = Request.GetPagedData("deviceManagement/managedDevices?$select=id", tenants),
+        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
+        policies = Table.AddColumn(expandColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates?$select=id", {[tenantId]}) otherwise null), 
+        expandPolicies  = Table.ExpandTableColumn(policies, "Custom", {"Column1"}, {"Column1"}),
+        expandRecord = Table.ExpandRecordColumn(expandPolicies, "Column1", {"id"}, {"policyId"}),
+        data = Table.AddColumn(expandRecord, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates/" & [policyId] & "/settingStates", {[tenantId]}) otherwise null),
         expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
         expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"setting", "settingName", "instanceDisplayName", "state", "errorCode", "errorDescription", "userId", "userName", "userEmail", "userPrincipalName", "currentValue", "settingInstanceId", "sources"}, {"setting", "settingName", "instanceDisplayName", "state", "errorCode", "errorDescription", "userId", "userName", "userEmail", "userPrincipalName", "currentValue", "settingInstanceId", "sources"}),
         expandedSources = Table.ExpandListColumn(expandedRecord, "sources"),
@@ -245,10 +247,12 @@ shared SecMgmtInsights.DeviceConfigurationPolicies = (optional tenants as list) 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.DeviceConfigurationPolicySettingStates = (optional tenants as list) as table =>
     let
-        source = SecMgmtInsights.DeviceConfigurationPolicyStates(tenants),
-        policyStates = Table.SelectColumns(source, {"tenantId", "deviceId", "id"}),
-        renamedColumn =  Table.RenameColumns(policyStates, {{"id", "policyId"}}),
-        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates/" & [policyId] & "/settingStates", {[tenantId]}) otherwise null),
+        source = Request.GetPagedData("deviceManagement/managedDevices?$select=id", tenants),
+        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
+        policies = Table.AddColumn(expandColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates?$select=id", {[tenantId]}) otherwise null), 
+        expandPolicies  = Table.ExpandTableColumn(policies, "Custom", {"Column1"}, {"Column1"}),
+        expandRecord = Table.ExpandRecordColumn(expandPolicies, "Column1", {"id"}, {"policyId"}),
+        data = Table.AddColumn(expandRecord, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates/" & [policyId] & "/settingStates", {[tenantId]}) otherwise null),
         expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
         expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"setting", "settingName", "instanceDisplayName", "state", "errorCode", "errorDescription", "userId", "userName", "userEmail", "userPrincipalName", "currentValue", "settingInstanceId", "sources"}, {"setting", "settingName", "instanceDisplayName", "state", "errorCode", "errorDescription", "userId", "userName", "userEmail", "userPrincipalName", "currentValue", "settingInstanceId", "sources"}),
         expandedSourcesList = Table.ExpandListColumn(expandedRecord, "sources"),
@@ -616,10 +620,9 @@ shared SecMgmtInsights.RiskyUsers = (optional tenants as list) as table =>
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.UserDataLossPreventionPolicies = (optional tenants as list) as table =>
     let
-        source = SecMgmtInsights.Users(tenants), 
-        filterColumns = Table.SelectColumns(source, {"tenantId", "id"}), 
-        renameColumn = Table.RenameColumns(filterColumns, {{"id", "userId"}}),
-        data = Table.AddColumn(renameColumn, "Custom", each try Request.GetPagedData("users/" & [userId] & "/informationProtection/dataLossPreventionPolicies", {[tenantId]}) otherwise null)
+        source = Request.GetPagedData("users?$select=id", tenants),
+        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"userId"}),
+        data = Table.AddColumn(expandColumn, "Custom", each try Request.GetPagedData("users/" & [userId] & "/informationProtection/dataLossPreventionPolicies", {[tenantId]}) otherwise null)
     in
         data;
 
@@ -693,6 +696,7 @@ shared SecMgmtInsights.Contents = (optional tenants as list) as table =>
             { "Office365ActiveUserDetails", SecMgmtInsights.Office365ActiveUserDetails(tenants) },
             { "Office365ServicesUserCounts", SecMgmtInsights.Office365ServicesUserCounts(tenants) },
             { "OneDriveUsageAccountDetail", SecMgmtInsights.OneDriveUsageAccountDetail(tenants) },
+            { "RiskDetections", SecMgmtInsights.RiskDetections(tenants) },
             { "RiskyUsers", SecMgmtInsights.RiskyUsers(tenants) },
             { "SecureScore", SecMgmtInsights.SecureScore(tenants) },
             { "SecureScoreControlProfiles", SecMgmtInsights.SecureScoreControlProfiles(tenants) },
