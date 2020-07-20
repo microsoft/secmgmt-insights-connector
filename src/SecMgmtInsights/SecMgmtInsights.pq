@@ -461,12 +461,22 @@ Request.GraphFeed = (relativeUrl as text, optional tenants as list) as table =>
 
         source = if (tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
         data = Table.AddColumn(source, "Custom", each GetData([tenantId])),
-        expandColumn = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandList = Table.ExpandListColumn(expandColumn, "Column1"),
-        listOfColumns = Record.FieldNames(expandList{0}[Column1]),
-        expandedColumn = Table.ExpandRecordColumn(expandList, "Column1", listOfColumns, listOfColumns)
+        expandedValue = if(Type.Is(Value.Type(Record.Field(data{0}[Custom]{0}, Table.ColumnNames(data{0}[Custom]){0})), type list)) then 
+                let 
+                    source = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
+                    expandedList = Table.ExpandListColumn(source, "Column1"),
+                    listOfColumns = Record.FieldNames(expandedList{0}[Column1]),
+                    expandedColumn = Table.ExpandRecordColumn(expandedList, "Column1", listOfColumns, listOfColumns)
+                in 
+                    expandedColumn
+            else 
+                let 
+                     listOfColumns = Table.ColumnNames(data{0}[Custom]), 
+                     expandedTable = Table.ExpandTableColumn(data, "Custom", listOfColumns, listOfColumns)
+                in
+                    expandedTable
     in
-        data;
+        expandedValue;
 
 Request.GetServiceCommData = (relativeUrl as text, optional tenants as list) =>
     let 
