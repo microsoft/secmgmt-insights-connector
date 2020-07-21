@@ -162,24 +162,18 @@ shared SecMgmtInsights.DetectedApps= (optional tenants as list) as table =>
     let 
         source = Request.GraphFeed("deviceManagement/managedDevices?$select=id", tenants),
         expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
-        data = Table.AddColumn(expandColumn, "Custom", each try Request.GraphFeed("deviceManagement/managedDevices/" & [deviceId]  & "/detectedApps", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "displayName", "version", "sizeInByte", "deviceCount"}, {"id", "displayName", "version", "sizeInByte", "deviceCount"}),
-        changedType = Table.TransformColumnTypes(expandRecord, {{"sizeInByte", Int64.Type}, {"deviceCount", Int64.Type}})
+        data = Table.AddColumn(expandColumn, "Custom", each try Request.GraphFeed("deviceManagement/managedDevices/" & [deviceId]  & "/detectedApps", {[tenantId]}) otherwise null)
     in
-        changedType;
+        Table.ExpandData(data, {"@odata.context", "tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.DetectedMalwareState = (optional tenants as list) as table =>
     let 
         source = Request.GraphFeed("deviceManagement/managedDevices?$select=id", tenants),
         expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
-        data = Table.AddColumn(expandColumn, "Custom", each try Request.GraphFeed("deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState/detectedMalwareState", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "displayName", "additionalInformationUrl", "severity", "catetgory", "executionState", "state", "threatState", "initialDetectionDateTime", "lastStateChangeDateTime", "detectionCount"}, {"id", "displayName", "additionalInformationUrl", "severity", "catetgory", "executionState", "state", "threatState", "initialDetectionDateTime", "lastStateChangeDateTime", "detectionCount"}),
-        changedType = Table.TransformColumnTypes(expandedRecord, {{"initialDetectionDateTime", type datetimezone}, {"lastStateChangeDateTime", type datetimezone}, {"detectionCount", Int64.Type}})
+        data = Table.AddColumn(expandColumn, "Custom", each try Request.GraphFeed("deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState/detectedMalwareState", {[tenantId]}) otherwise null)
     in 
-        changedType;
+        Table.ExpandData(data, {"@odata.context", "tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.DeviceCompliancePolicySettingStates = (optional tenants as list) as table => 
@@ -209,11 +203,9 @@ shared SecMgmtInsights.DeviceCompliancePolicyStates = (optional tenants as list)
     let
         source = Request.GraphFeed("deviceManagement/managedDevices?$select=id", tenants),
         expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
-        data = Table.AddColumn(expandColumn, "Custom", each try Request.GraphFeed("deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "displayName", "version", "platformType", "state", "settingCount", "userId", "userPrincipalName", "settingStates"}, {"id", "displayName", "version", "platformType", "state", "settingCount", "userId", "userPrincipalName", "settingStates"})
+        data = Table.AddColumn(expandColumn, "Custom", each try Request.GraphFeed("deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates", {[tenantId]}) otherwise null)
     in 
-        expandedRecord;
+        Table.ExpandData(data, {"@odata.context", "tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.DeviceConfigurationPolicies = (optional tenants as list) as table =>
@@ -243,11 +235,9 @@ shared SecMgmtInsights.DeviceConfigurationPolicyStates = (optional tenants as li
     let        
         source = Request.GraphFeed("deviceManagement/managedDevices?$select=id", tenants),
         expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
-        data = Table.AddColumn(expandColumn, "Custom", each try Request.GraphFeed("deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "displayName", "version", "platformType", "state", "settingCount", "userId", "userPrincipalName", "settingStates"}, {"id", "displayName", "version", "platformType", "state", "settingCount", "userId", "userPrincipalName", "settingStates"})
+        data = Table.AddColumn(expandColumn, "Custom", each try Request.GraphFeed("deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates", {[tenantId]}) otherwise null)
     in 
-        expandedRecord;
+        Table.ExpandData(data, {"@odata.context", "tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.Intents = (optional tenants as list) as table =>
@@ -308,11 +298,9 @@ shared SecMgmtInsights.MobileAppUserStatuses = (optional tenants as list) as tab
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.MobileApps = (optional tenants as list) as table =>
     let 
-        data = Request.GraphFeed("deviceAppManagement/mobileApps", tenants),
-        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "displayName", "description", "publisher", "largeIcon", "createdDateTime", "lastModifiedDateTime", "isFeatured", "privacyInformationUrl", "informationUrl", "owner", "developer", "notes", "uploadState", "publishingState", "isAssigned", "roleScopeTagIds", "dependentAppCount", "appAvailability", "version", "packageId", "appStoreUrl", "minimumSupportedOperatingSystem", "bundleId", "applicableDeviceType", "committedContentVersion", "fileName", "size", "commandLine", "productCode", "productVersion", "ignoreVersionDetection", "identityVersion", "useDeviceContext"}, {"id", "displayName", "description", "publisher", "largeIcon", "createdDateTime", "lastModifiedDateTime", "isFeatured", "privacyInformationUrl", "informationUrl", "owner", "developer", "notes", "uploadState", "publishingState", "isAssigned", "roleScopeTagIds", "dependentAppCount", "appAvailability", "version", "packageId", "appStoreUrl", "minimumSupportedOperatingSystem", "bundleId", "applicableDeviceType", "committedContentVersion", "fileName", "size", "commandLine", "productCode", "productVersion", "ignoreVersionDetection", "identityVersion", "useDeviceContext"}),
-        changedType = Table.TransformColumnTypes(expandedRecord, {{"createdDateTime", type datetimezone}, {"lastModifiedDateTime", type datetimezone}, {"isFeatured", type logical}, {"uploadState", Int64.Type}, {"isAssigned", type logical}, {"dependentAppCount", Int64.Type}, {"size", Int64.Type}})
+        data = Request.GraphFeed("deviceAppManagement/mobileApps", tenants)
     in 
-        changedType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SecurityBaselineSettingStates = (optional tenants as list) as table =>
@@ -331,11 +319,9 @@ shared SecMgmtInsights.SecurityBaselineStates = (optional tenants as list) as ta
     let        
         source = Request.GraphFeed("deviceManagement/managedDevices?$select=id", tenants),
         expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
-        data = Table.AddColumn(expandColumn, "Custom", each try Request.GraphFeed("deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "securityBaselineTemplateId", "displayName"}, {"id", "securityBaselineTemplateId", "displayName"})
+        data = Table.AddColumn(expandColumn, "Custom", each try Request.GraphFeed("deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates", {[tenantId]}) otherwise null)
     in 
-        expandedRecord;
+        Table.ExpandData(data, {"@odata.context", "tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SoftwareUpdateStatusSummary = (optional tenants as list) as table =>
@@ -391,7 +377,7 @@ shared SecMgmtInsights.WindowsProtectionState = (optional tenants as list) as ta
     let 
         source = Request.GraphFeed("deviceManagement/managedDevices?$select=id", tenants),
         expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
-        data = Table.AddColumn(expandColumn, "Custom", each try Request.GraphFeed("deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState", {[tenantId]}) otherwise null),
+        data = Table.AddColumn(expandColumn, "Custom", each try Request.GraphFeed("deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState", {[tenantId]}) otherwise null)
     in
         Table.ExpandData(data, {"@odata.context", "tenantId"});
 
@@ -562,18 +548,16 @@ Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.RiskDetections = (optional tenants as list) as table =>
     let
-        data = Request.GraphFeed("identityProtection/riskDetections", tenants),
-        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "requestId", "correlationId", "riskEventType", "riskState", "riskLevel", "riskDetail", "source", "detectionTimingType", "activity", "tokenIssuerType", "ipAddress", "activityDateTime", "detectedDateTime", "lastUpdatedDateTime", "userId", "userDisplayName", "userPrincipalName"}, {"id", "requestId", "correlationId", "riskEventType", "riskState", "riskLevel", "riskDetail", "source", "detectionTimingType", "activity", "tokenIssuerType", "ipAddress", "activityDateTime", "detectedDateTime", "lastUpdatedDateTime", "userId", "userDisplayName", "userPrincipalName"})
+        data = Request.GraphFeed("identityProtection/riskDetections", tenants)
     in 
-        expandedRecord;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.RiskyUsers = (optional tenants as list) as table =>
     let
-        data = Request.GraphFeed("identityProtection/riskyUsers", tenants),
-        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "isDeleted", "isProcessing", "riskLastUpdatedDateTime", "riskLevel", "riskState", "riskDetail", "userDisplayName", "userPrincipalName"}, {"id", "isDeleted", "isProcessing", "riskLastUpdatedDateTime", "riskLevel", "riskState", "riskDetail", "userDisplayName", "userPrincipalName"})
+        data = Request.GraphFeed("identityProtection/riskyUsers", tenants)
     in 
-        expandedRecord;
+        data;
 
 // Information Protection 
 
@@ -584,26 +568,22 @@ shared SecMgmtInsights.UserDataLossPreventionPolicies = (optional tenants as lis
         expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"userId"}),
         data = Table.AddColumn(expandColumn, "Custom", each try Request.GraphFeed("users/" & [userId] & "/informationProtection/dataLossPreventionPolicies", {[tenantId]}) otherwise null)
     in
-        data;
+        Table.ExpandData(data, {"@odata.context", "tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.UserSensitivityLabels = (optional tenants as list) as table =>
     let
         source = Request.GraphFeed("users?$select=id", tenants),
         expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"userId"}),
-        data = Table.AddColumn(expandColumn, "Custom", each try Request.GraphFeed("users/" & [userId] & "/informationProtection/sensitivityLabels", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "name", "displayName", "description", "toolTip", "isEndpointProtectionEnabled", "isDefault", "applicationMode", "priority", "autoLabeling", "applicableTo", "labelActions", "assignedPolicies", "sublabels"}, {"id", "name", "displayName", "description", "toolTip", "isEndpointProtectionEnabled", "isDefault", "applicationMode", "priority", "autoLabeling", "applicableTo", "labelActions", "assignedPolicies", "sublabels"}),
-        changeType = Table.TransformColumnTypes(expandRecord, {{"isEndpointProtectionEnabled", type logical}, {"isDefault", type logical}, {"priority", Int64.Type}})
+        data = Table.AddColumn(expandColumn, "Custom", each try Request.GraphFeed("users/" & [userId] & "/informationProtection/sensitivityLabels", {[tenantId]}) otherwise null)
     in 
-        changeType;
+        Table.ExpandData(data, {"@odata.context", "tenantId"});
 
 // Intelligent Security Graph
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.Alerts = (optional tenants as list) as table =>
     let 
-        // TODO - Need to get a customer with test data
         data = Request.GraphFeed("security/alerts", tenants)
     in 
         data;
@@ -611,19 +591,16 @@ shared SecMgmtInsights.Alerts = (optional tenants as list) as table =>
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SecureScore = (optional tenants as list) as table =>
     let 
-        data = Request.GraphFeed("security/secureScores", tenants),
-        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "azureTenantId", "activeUserCount", "createdDateTime", "currentScore", "enabledServices", "licensedUserCount", "maxScore", "vendorInformation", "averageComparativeScores", "controlScores"}, {"id", "azureTenantId", "activeUserCount", "createdDateTime", "currentScore", "enabledServices", "licensedUserCount", "maxScore", "vendorInformation", "averageComparativeScores", "controlScores"}),
-        changedType = Table.TransformColumnTypes(expandedRecord, {{"activeUserCount", Int64.Type}, {"createdDateTime", type datetimezone}, {"currentScore", Int64.Type}, {"licensedUserCount", Int64.Type}, {"maxScore", Int64.Type}})
+        data = Request.GraphFeed("security/secureScores", tenants)
     in 
-        changedType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SecureScoreControlProfiles = (optional tenants as list) as table =>
     let 
-        data = Request.GraphFeed("security/secureScoreControlProfiles", tenants),
-        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "azureTenantId", "actionType", "actionUrl", "controlCategory", "title", "deprecated", "implementationCost", "lastModifiedDateTime", "maxScore", "rank", "remediation", "remediationImpact", "service", "threats", "tier", "userImpact", "vendorInformation", "complianceInformation", "controlStateUpdates"}, {"id", "azureTenantId", "actionType", "actionUrl", "controlCategory", "title", "deprecated", "implementationCost", "lastModifiedDateTime", "maxScore", "rank", "remediation", "remediationImpact", "service", "threats", "tier", "userImpact", "vendorInformation", "complianceInformation", "controlStateUpdates"})
+        data = Request.GraphFeed("security/secureScoreControlProfiles", tenants)
     in
-        expandedRecord;
+        data;
 
 // Navigation 
 
@@ -795,20 +772,16 @@ shared SecMgmtInsights.YammerActivityUserDetail = (optional tenants as list) as 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.ServiceCurrentStatus = (optional tenants as list) as table =>
     let
-        source = Request.GetServiceCommData("ServiceComms/CurrentStatus", tenants),
-        expandRecord = Table.ExpandRecordColumn(source, "Column1", {"FeatureStatus", "Id", "IncidentIds", "Status", "StatusDisplayName", "StatusTime", "Workload", "WorkloadDisplayName"}, {"FeatureStatus", "Id", "IncidentIds", "Status", "StatusDisplayName", "StatusTime", "Workload", "WorkloadDisplayName"}),
-        changeType = Table.TransformColumnTypes(expandRecord, {{"StatusTime", type datetimezone}})
+        data = Request.GetServiceCommData("ServiceComms/CurrentStatus", tenants)
     in
-        changeType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.ServiceHistoricalStatus = (optional tenants as list) as table =>
     let
-        source = Request.GetServiceCommData("ServiceComms/HistoricalStatus", tenants),
-        expandRecord = Table.ExpandRecordColumn(source, "Column1", {"FeatureStatus", "Id", "IncidentIds", "Status", "StatusDisplayName", "StatusTime", "Workload", "WorkloadDisplayName"}, {"FeatureStatus", "Id", "IncidentIds", "Status", "StatusDisplayName", "StatusTime", "Workload", "WorkloadDisplayName"}),
-        changeType = Table.TransformColumnTypes(expandRecord, {{"StatusTime", type datetimezone}})
+        data = Request.GetServiceCommData("ServiceComms/HistoricalStatus", tenants)
     in
-        changeType;
+        data;
 
 // Tenant 
 
