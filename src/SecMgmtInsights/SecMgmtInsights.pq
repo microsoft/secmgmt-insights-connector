@@ -438,7 +438,7 @@ Request.GraphFeed = (relativeUrl as text, optional tenants as list) as table =>
     let      
         GetData = (tenantId as text) =>
             let
-                data = MicrosoftGraph.Feed(graph_endpoint & "/" & relativeUrl, Token.GetAccessToken(tenantId))
+                data = Rest.Feed(graph_endpoint & "/" & relativeUrl, Token.GetAccessToken(tenantId))
             in 
                 data,
 
@@ -451,26 +451,20 @@ Request.GetServiceCommData = (relativeUrl as text, optional tenants as list) =>
     let 
         GetData = (tenantId as text) =>
             let
-                data = Microsoft.GetPagedContent("https://manage.office.com/api/v1.0/" & tenantId & "/" & relativeUrl, Token.GetAccessToken(tenantId, "https://manage.office.com/.default")),
-                expandedList = Table.ExpandListColumn(data, "Column1"),
-                filteredRows = Table.SelectRows(expandedList, each [Column1] <> null)
+                data = Rest.Feed("https://manage.office.com/api/v1.0/" & tenantId & "/" & relativeUrl, Token.GetAccessToken(tenantId, "https://manage.office.com/.default"))
             in 
                 data,
 
         source = if (tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
-        data = Table.AddColumn(source, "Custom", each try GetData([tenantId]) otherwise null),
-        expandColumn = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandList = Table.ExpandListColumn(expandColumn, "Column1")
+        data = Table.AddColumn(source, "Custom", each try GetData([tenantId]) otherwise null)
     in
-        expandList;
+        Table.ExpandData(data);
 
 Request.GetTenant = () =>
     let
-        data = Microsoft.GetPagedContent(graph_endpoint & "/organization", Extension.CurrentCredential()[access_token]),
-        expandList = Table.ExpandListColumn(data, "Column1"),
-        expandRecord = Table.ExpandRecordColumn(expandList, "Column1", {"id"}, {"tenantId"})
+        data = Rest.Feed(graph_endpoint & "/organization", Extension.CurrentCredential()[access_token])
     in
-        expandRecord;
+        data;
 
 Table.ExpandData = (data as table, optional columnsToRemove as list) =>
     let 
@@ -679,7 +673,7 @@ GitHub.GetContent = (url as text) =>
     in 
         result;
 
-MicrosoftGraph.Contents = (url as text, token as text) =>
+Rest.Contents = (url as text, token as text) =>
     let
         source = Web.Contents(url,
             [
@@ -699,19 +693,19 @@ MicrosoftGraph.Contents = (url as text, token as text) =>
     in 
          Record.ToTable(result) meta [Next = link];
 
-MicrosoftGraph.Feed = (url as text, token as text) => Table.GenerateByPage((previous) =>
+Rest.Feed = (url as text, token as text) => Table.GenerateByPage((previous) =>
     let
         // If we have a previous page, get its Next link from metadata on the page.
         next = if (previous <> null) then try Value.Metadata(previous)[Next] otherwise null else null,
         // If we have a next link, use it, otherwise use the original URL that was passed in.
         urlToUse = if (next <> null) then next else url,
         // If we have a previous page, but don't have a next link, then we're done paging. Otherwise retrieve the next page.
-        current = if (previous <> null and next = null) then null else MicrosoftGraph.Contents(urlToUse, token),
+        current = if (previous <> null and next = null) then null else Rest.Contents(urlToUse, token),
         // If we got data back from the current page, get the link for the next page
         link = if (current <> null) then Value.Metadata(current)[Next] else null,
         // Check if the table has the value column
         flag = if(current <> null) then Table.Contains(current, [Name = "value"]) else null,
-        // Microsoft Graph utilizes OData, so the value needs to be extracted
+        // Data sources being used utilize OData so the value needs to be extracted
         data = if(flag = true) then Table.FromList(Table.SelectRows(current, each ([Name] = "value"))[Value], Splitter.SplitByNothing()) else if(flag = false) then Table.FromList({Record.FromList(current[Value], current[Name])}, Record.FieldValues, current[Name]) else null
     in
         data meta [Next=link]);
