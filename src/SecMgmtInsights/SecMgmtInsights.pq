@@ -392,11 +392,8 @@ shared SecMgmtInsights.WindowsProtectionState = (optional tenants as list) as ta
         source = Request.GraphFeed("deviceManagement/managedDevices?$select=id", tenants),
         expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
         data = Table.AddColumn(expandColumn, "Custom", each try Request.GraphFeed("deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"malwareProtectionEnabled", "deviceState", "realTimeProtectionEnabled", "networkInspectionSystemEnabled", "quickScanOverdue", "fullScanOverdue", "signatureUpdateOverdue", "rebootRequired", "fullScanRequired", "engineVersion", "signatureVersion", "antiMalwareVersion", "lastQuickScanDateTime", "lastFullScanDateTime", "lastQuickScanSignatureVersion", "lastFullScanSignatureVersion", "lastReportedDateTime"}, {"malwareProtectionEnabled", "deviceState", "realTimeProtectionEnabled", "networkInspectionSystemEnabled", "quickScanOverdue", "fullScanOverdue", "signatureUpdateOverdue", "rebootRequired", "fullScanRequired", "engineVersion", "signatureVersion", "antiMalwareVersion", "lastQuickScanDateTime", "lastFullScanDateTime", "lastQuickScanSignatureVersion", "lastFullScanSignatureVersion", "lastReportedDateTime"}),
-        changedType = Table.TransformColumnTypes(expandRecord, {{"malwareProtectionEnabled", type logical}, {"realTimeProtectionEnabled", type logical}, {"networkInspectionSystemEnabled", type logical}, {"quickScanOverdue", type logical}, {"fullScanOverdue", type logical}, {"signatureUpdateOverdue", type logical}, {"rebootRequired", type logical}, {"fullScanRequired", type logical}, {"lastQuickScanDateTime", type datetimezone}, {"lastFullScanDateTime", type datetimezone}, {"lastReportedDateTime", type datetimezone}})
-    in 
-        changedType;
+    in
+        Table.ExpandData(data, {"@odata.context", "tenantId"});
 
 // GitHub
 
@@ -460,23 +457,9 @@ Request.GraphFeed = (relativeUrl as text, optional tenants as list) as table =>
                 data,
 
         source = if (tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
-        data = Table.AddColumn(source, "Custom", each GetData([tenantId])),
-        expandedValue = if(Type.Is(Value.Type(Record.Field(data{0}[Custom]{0}, Table.ColumnNames(data{0}[Custom]){0})), type list)) then 
-                let 
-                    source = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-                    expandedList = Table.ExpandListColumn(source, "Column1"),
-                    listOfColumns = Record.FieldNames(expandedList{0}[Column1]),
-                    expandedColumn = Table.ExpandRecordColumn(expandedList, "Column1", listOfColumns, listOfColumns)
-                in 
-                    expandedColumn
-            else 
-                let 
-                     listOfColumns = Table.ColumnNames(data{0}[Custom]), 
-                     expandedTable = Table.ExpandTableColumn(data, "Custom", listOfColumns, listOfColumns)
-                in
-                    expandedTable
+        data = Table.AddColumn(source, "Custom", each GetData([tenantId]))
     in
-        expandedValue;
+        Table.ExpandData(data);
 
 Request.GetServiceCommData = (relativeUrl as text, optional tenants as list) =>
     let 
@@ -502,6 +485,27 @@ Request.GetTenant = () =>
         expandRecord = Table.ExpandRecordColumn(expandList, "Column1", {"id"}, {"tenantId"})
     in
         expandRecord;
+
+Table.ExpandData = (data as table, optional columnsToRemove as list) =>
+    let 
+        expandedValue = if(Type.Is(Value.Type(Record.Field(data{0}[Custom]{0}, Table.ColumnNames(data{0}[Custom]){0})), type list)) then 
+        let 
+            source = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
+            expandedList = Table.ExpandListColumn(source, "Column1"),
+            removedColumns = if(columnsToRemove <> null) then Table.RemoveColumns(expandedList{0}[Column1], columnsToRemove) else expandedList{0}[Column1],
+            listOfColumns = Record.FieldNames(removedColumns),
+            expandedColumn = Table.ExpandRecordColumn(expandedList, "Column1", listOfColumns, listOfColumns)
+        in 
+            expandedColumn
+    else 
+        let
+            removedColumns = if(columnsToRemove <> null) then Table.RemoveColumns(data{0}[Custom], columnsToRemove) else data{0}[Custom],
+            listOfColumns = Table.ColumnNames(removedColumns), 
+            expandedTable = Table.ExpandTableColumn(data, "Custom", listOfColumns, listOfColumns)
+        in
+            expandedTable
+    in
+        expandedValue;
 
 Table.GenerateByPage = (getNextPage as function) as table =>
     let        
