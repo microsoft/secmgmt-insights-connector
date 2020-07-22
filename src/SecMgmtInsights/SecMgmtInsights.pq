@@ -248,12 +248,10 @@ shared SecMgmtInsights.MobileAppDeviceStatuses = (optional tenants as list) as t
     let
         source = Request.GraphFeed("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
         renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
-        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GraphFeed("/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/deviceStatuses", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "deviceName", "deviceId", "lastSyncDateTime", "mobileAppInstallStatusValue", "installState", "installStateDetail", "errorCode", "osVersion", "osDescription", "userName", "userPrincipalName", "displayVersion"}, {"id", "deviceName", "deviceId", "lastSyncDateTime", "mobileAppInstallStatusValue", "installState", "installStateDetail", "errorCode", "osVersion", "osDescription", "userName", "userPrincipalName", "displayVersion"}),
-        changedType = Table.TransformColumnTypes(expandedRecord, {{"lastSyncDateTime", type datetimezone}})
+        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GraphFeed("/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/deviceStatuses", {[tenantId]}) otherwise null)
     in 
-        changedType;
+        Table.ExpandData(data, {"tenantId"});
+
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.MobileAppInstallSummary = (optional tenants as list) as table =>
@@ -269,12 +267,9 @@ shared SecMgmtInsights.MobileAppUserStatuses = (optional tenants as list) as tab
     let
         source = Request.GraphFeed("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
         renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
-        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GraphFeed("/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/userStatuses", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "userName", "userPrincipalName", "installedDeviceCount", "failedDeviceCount", "notInstalledDeviceCount"}, {"id", "userName", "userPrincipalName", "installedDeviceCount", "failedDeviceCount", "notInstalledDeviceCount"}),
-        changedType = Table.TransformColumnTypes(expandedRecord, {{"installedDeviceCount", Int64.Type}, {"failedDeviceCount", Int64.Type}, {"notInstalledDeviceCount", Int64.Type}})
+        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GraphFeed("/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/userStatuses", {[tenantId]}) otherwise null)
     in 
-        changedType;
+        Table.ExpandData(data, {"tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.MobileApps = (optional tenants as list) as table =>
@@ -544,7 +539,7 @@ shared SecMgmtInsights.UserDataLossPreventionPolicies = (optional tenants as lis
         renamedColumns = Table.RenameColumns(source, {"id", "userId"}), 
         data = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/beta/users/" & [userId] & "/informationProtection/dataLossPreventionPolicies", {[tenantId]}) otherwise null)
     in
-        Table.ExpandData(data, {"@odata.context", "tenantId"});
+        Table.ExpandData(data, {"tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.UserSensitivityLabels = (optional tenants as list) as table =>
@@ -553,7 +548,7 @@ shared SecMgmtInsights.UserSensitivityLabels = (optional tenants as list) as tab
         renamedColumns = Table.RenameColumns(source, {"id", "userId"}), 
         data = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/beta/users/" & [userId] & "/informationProtection/sensitivityLabels", {[tenantId]}) otherwise null)
     in 
-        Table.ExpandData(data, {"@odata.context", "tenantId"});
+        Table.ExpandData(data, {"tenantId"});
 
 // Intelligent Security Graph
 
