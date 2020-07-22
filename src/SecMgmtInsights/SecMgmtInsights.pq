@@ -227,7 +227,7 @@ shared SecMgmtInsights.DeviceConfigurationPolicyStates = (optional tenants as li
         renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
         data = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates", {[tenantId]}) otherwise null)
     in 
-        Table.ExpandData(data, {"@odata.context", "tenantId"});
+        Table.ExpandData(data, {"tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.Intents = (optional tenants as list) as table =>
@@ -246,11 +246,8 @@ shared SecMgmtInsights.ManagedDevices = (optional tenants as list) as table =>
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.MobileAppDeviceStatuses = (optional tenants as list) as table =>
     let
-        // TODO - Refactor to use the select query string parameter
-        source = SecMgmtInsights.MobileApps(tenants),
-        filteredRows = Table.SelectRows(source, each [isAssigned] = true),
-        mobileApps = Table.SelectColumns(filteredRows, {"tenantId", "id"}),
-        renamedColumn = Table.RenameColumns(mobileApps, {{"id", "mobileAppId"}}),
+        source = Request.GraphFeed("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
+        renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
         data = Table.AddColumn(renamedColumn, "Custom", each try Request.GraphFeed("/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/deviceStatuses", {[tenantId]}) otherwise null),
         expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
         expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "deviceName", "deviceId", "lastSyncDateTime", "mobileAppInstallStatusValue", "installState", "installStateDetail", "errorCode", "osVersion", "osDescription", "userName", "userPrincipalName", "displayVersion"}, {"id", "deviceName", "deviceId", "lastSyncDateTime", "mobileAppInstallStatusValue", "installState", "installStateDetail", "errorCode", "osVersion", "osDescription", "userName", "userPrincipalName", "displayVersion"}),
@@ -261,23 +258,17 @@ shared SecMgmtInsights.MobileAppDeviceStatuses = (optional tenants as list) as t
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.MobileAppInstallSummary = (optional tenants as list) as table =>
     let
-        // TODO - Refactor to use the select query string parameter
-        source = SecMgmtInsights.MobileApps(tenants),
-        filteredRows = Table.SelectRows(source, each [isAssigned] = true),
-        mobileApps = Table.SelectColumns(filteredRows, {"tenantId", "id"}),
-        renamedColumn = Table.RenameColumns(mobileApps, {{"id", "mobileAppId"}}),
+        source = Request.GraphFeed("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
+        renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
         data = Table.AddColumn(renamedColumn, "Custom", each try Request.GraphFeed("/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/installSummary", {[tenantId]}) otherwise null)
     in 
-        Table.ExpandData(data, {"@odata.context", "tenantId"});
+        Table.ExpandData(data, {"tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.MobileAppUserStatuses = (optional tenants as list) as table =>
     let
-        // TODO - Refactor to use the select query string parameter
-        source = SecMgmtInsights.MobileApps(tenants),
-        filteredRows = Table.SelectRows(source, each [isAssigned] = true),
-        mobileApps = Table.SelectColumns(filteredRows, {"tenantId", "id"}),
-        renamedColumn = Table.RenameColumns(mobileApps, {{"id", "mobileAppId"}}),
+        source = Request.GraphFeed("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
+        renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
         data = Table.AddColumn(renamedColumn, "Custom", each try Request.GraphFeed("/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/userStatuses", {[tenantId]}) otherwise null),
         expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
         expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "userName", "userPrincipalName", "installedDeviceCount", "failedDeviceCount", "notInstalledDeviceCount"}, {"id", "userName", "userPrincipalName", "installedDeviceCount", "failedDeviceCount", "notInstalledDeviceCount"}),
@@ -295,13 +286,13 @@ shared SecMgmtInsights.MobileApps = (optional tenants as list) as table =>
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SecurityBaselineSettingStates = (optional tenants as list) as table =>
     let
-        // TODO - Refactor to use the select query string parameter
-        source = SecMgmtInsights.SecurityBaselineStates(tenants),
-        filterColumns = Table.SelectColumns(source, {"tenantId", "deviceId", "id"}),
-        renamedColumn =  Table.RenameColumns(filterColumns, {{"id", "templateId"}}),
-        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates/" & [templateId] & "/settingStates", {[tenantId]}) otherwise null)
+        source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", tenants),
+        renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
+        states = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates?$select=id", {[tenantId]}) otherwise null),
+        statesColumnsRenamed = Table.RenameColumns(states, {"id", "templateId"}),
+        data = Table.AddColumn(statesColumnsRenamed, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates/" & [templateId] & "/settingStates", {[tenantId]}) otherwise null)
     in 
-        Table.ExpandData(data, {"@odata.context", "tenantId"});
+        Table.ExpandData(data, {"tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SecurityBaselineStates = (optional tenants as list) as table =>
@@ -310,7 +301,7 @@ shared SecMgmtInsights.SecurityBaselineStates = (optional tenants as list) as ta
         renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
         data = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates", {[tenantId]}) otherwise null)
     in 
-        Table.ExpandData(data, {"@odata.context", "tenantId"});
+        Table.ExpandData(data, {"tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SoftwareUpdateStatusSummary = (optional tenants as list) as table =>
