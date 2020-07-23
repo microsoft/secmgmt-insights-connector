@@ -409,6 +409,13 @@ shared SecMgmtInsights.DeviceActions = (optional tenants as list, optional jsonT
 
 // Helper
 
+Extension.LoadFunction = (name as text) =>
+    let
+        binary = Extension.Contents(name),
+        asText = Text.FromBinary(binary)
+    in
+        Expression.Evaluate(asText, #shared);
+
 Request.GraphFeed = (relativeUrl as text, optional tenants as list) as table =>
     let      
         GetData = (tenantId as text) =>
@@ -442,6 +449,46 @@ Request.GetTenant = () =>
         expandedRecord = Table.ExpandRecordColumn(expandedList, "Column1", {"id"}, {"tenantId"})
     in
         expandedRecord;
+
+Schema.GetTable = (relativeUri as text) =>
+    let
+        source = Xml.Tables(Web.Contents("https://graph.microsoft.com/v1.0/$metadata")){0}[DataServices]{0}[#"http://docs.oasis-open.org/odata/ns/edm"],
+        schema = source{0}[Schema],
+
+        // Get the entity type
+        entityContainer = schema{0}[EntityContainer]{0}[EntitySet], 
+        filteredRows = Table.SelectRows(entityContainer, each [#"Attribute:Name"] = "users"),
+        entityType = Text.Split(filteredRows{0}[#"Attribute:EntityType"], "."){2},
+
+        // Get the property table for the entity
+        entityTypeTable = schema[EntityType]{0},
+        entityTypeTableFiltered = Table.SelectRows(entityTypeTable, each [#"Attribute:Name"] = entityType),
+        propertyTable = entityTypeTableFiltered[Property]{0},
+
+        GetData = (row as any) => 
+            let
+                data = if(row[#"Attribute:Nullable"] <> null and row[#"Attribute:Nullable"] = true) then 
+                    // TODO - This statement is not correct and it has not been caught in testing because the testing type did not contain a nullable type
+                    //          The nullable statement should be moved to the GetDataType function and the value should look like 'type nullable logical'
+                    [Entity = row[#"Attribute:Name"], Type = " nullable " & GetDataType(row[#"Attribute:Type"])] 
+                else 
+                    [Entity = row[#"Attribute:Name"], Type = GetDataType(row[#"Attribute:Type"])]
+            in 
+                data,
+
+        GetDataType = (value) as type =>
+            if (value = "Edm.Boolean") then type logical else if (value = "Collection(Edm.String)") then type list 
+                else if (value = "Edm.DateTimeOffset") then type datetimezone  else if (value = "Edm.Int32") then type number 
+                else if(value = "Edm.String") then type text else type any,
+
+        // Build the schema table based on data from the property table
+        addedSchema = Table.AddColumn(propertyTable, "schema", each GetData(_)),
+        schemaTable = Table.FromList(addedSchema[schema], Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+        expandedColumn = Table.ExpandRecordColumn(schemaTable, "Column1", {"Entity", "Type"}, {"Entity", "Type"})
+    in
+        expandedColumn;
+
+Table.ChangeType = Extension.LoadFunction("Table.ChangeType.pq");
 
 Table.ExpandData = (data as table, optional columnsToRemove as list) =>
     let 
