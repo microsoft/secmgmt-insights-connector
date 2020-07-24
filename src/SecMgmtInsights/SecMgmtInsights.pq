@@ -137,7 +137,7 @@ shared SecMgmtInsights.Devices = (optional tenants as list) as table =>
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy = (optional tenants as list) as table =>
     let
-       data = Request.GraphFeed("/beta/policies/identitySecurityDefaultsEnforcementPolicy", tenants)
+       data = Request.GraphFeed("/v1.0/policies/identitySecurityDefaultsEnforcementPolicy", tenants)
     in 
         data;
 
@@ -424,15 +424,15 @@ Request.GraphFeed = (relativeUrl as text, optional tenants as list) as table =>
         GetData = (tenantId as text) =>
             let
                 data = Rest.Feed(graph_endpoint & "/" & relativeUrl, Token.GetAccessToken(tenantId)),
-                testing = Table.ChangeType(data{0}[Column1], schemaTable)
+                changedType = Table.ChangeType(data{0}[Column1], schemaTable)
             in 
-                testing, 
+                changedType, 
 
-        data = Table.AddColumn(source, "Custom", each GetData([tenantId])),
+        data = Table.AddColumn(source, "Custom", each GetData([tenantId]), schemaTable),
         listOfColumns = Table.ColumnNames(data{0}[Custom]), 
         expandedTable = Table.ExpandTableColumn(data, "Custom", listOfColumns, listOfColumns)
    in
-        Table.ChangeType(expandedTable, schemaTable); 
+       expandedTable;
 
 Request.GetServiceCommData = (relativeUrl as text, optional tenants as list) =>
     let 
@@ -457,12 +457,19 @@ Request.GetTenant = () =>
 
 Schema.GetTable = (relativeUrl as text) =>
     let
-        source = Xml.Tables(Web.Contents("https://graph.microsoft.com/v1.0/$metadata")){0}[DataServices]{0}[#"http://docs.oasis-open.org/odata/ns/edm"],
+        parts = Text.Split(relativeUrl, "/"),
+        resource = if(List.Count(parts) > 3) then List.LastN(parts,2){0} else List.Last(parts),
+        // TODO - If the context or the relativeUrl has select= then the metadata should not be obtained
+        source = Xml.Tables(Web.Contents("https://graph.microsoft.com/" & parts{1} & "/$metadata")){0}[DataServices]{0}[#"http://docs.oasis-open.org/odata/ns/edm"],
         schema = source{0}[Schema],
+
+        // TODO - if List.Count(parts) > 3 then table to access will be singleton and not EntitySet. Also, once the property is found the 
+        // same process used below will be used with an additional step. After finding the final property the navigation table will be used 
+        // to find the final type
 
         // Get the entity type
         entityContainer = schema{0}[EntityContainer]{0}[EntitySet], 
-        filteredRows = Table.SelectRows(entityContainer, each [#"Attribute:Name"] = "users"),
+        filteredRows = Table.SelectRows(entityContainer, each [#"Attribute:Name"] = resource),
         entityType = Text.Split(filteredRows{0}[#"Attribute:EntityType"], "."){2},
 
         // Get the property table for the entity
@@ -472,7 +479,7 @@ Schema.GetTable = (relativeUrl as text) =>
 
         GetData = (row as any) => 
             let
-                data = if(row[#"Attribute:Nullable"] <> null and row[#"Attribute:Nullable"] = true) then 
+                data = if(Record.HasFields(row, "Attribute:Nullable") and row[#"Attribute:Nullable"] <> null and row[#"Attribute:Nullable"] = true) then 
                     [Entity = row[#"Attribute:Name"], Type = " nullable " & GetDataType(row[#"Attribute:Type"])] 
                 else 
                     [Entity = row[#"Attribute:Name"], Type = GetDataType(row[#"Attribute:Type"])]
