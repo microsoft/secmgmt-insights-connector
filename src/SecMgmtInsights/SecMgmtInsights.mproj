@@ -70,9 +70,9 @@
     <Compile Include="client_id">
       <SubType>Content</SubType>
     </Compile>
-    <Content Include="Table.ChangeType.pq">
+    <Compile Include="Table.ChangeType.pqm">
       <SubType>Content</SubType>
-    </Content>
+    </Compile>
     <Content Include="SecMgmtInsights.query.pq">
       <SubType>Code</SubType>
     </Content>
