@@ -421,6 +421,8 @@ Request.GraphFeed = (relativeUrl as text, optional tenants as list) as table =>
         source = if (tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
         schemaTable = Schema.GetTable(relativeUrl),
 
+        // TODO - This needs to be refactored because the context value needs to come from the response
+
         GetData = (tenantId as text) =>
             let
                 data = Rest.Feed(graph_endpoint & "/" & relativeUrl, Token.GetAccessToken(tenantId)),
@@ -455,27 +457,38 @@ Request.GetTenant = () =>
     in
         expandedRecord;
 
-Schema.GetTable = (relativeUrl as text) =>
+Schema.GetEntityFromEntitySet = (entityContainer as table, value as text) =>
     let
-        parts = Text.Split(relativeUrl, "/"),
-        resource = if(List.Count(parts) > 3) then List.LastN(parts,2){0} else List.Last(parts),
-        // TODO - If the context or the relativeUrl has select= then the metadata should not be obtained
-        source = Xml.Tables(Web.Contents("https://graph.microsoft.com/" & parts{1} & "/$metadata")){0}[DataServices]{0}[#"http://docs.oasis-open.org/odata/ns/edm"],
-        schema = source{0}[Schema],
+        entitySetTable = entityContainer{0}[EntitySet],
+        entityValue = Table.SelectRows(entitySetTable, each [#"Attribute:Name"] = value),
+        entity = Text.Split(entityValue{0}[#"Attribute:EntityType"], "."){2}
+    in 
+        entity;
 
-        // TODO - if List.Count(parts) > 3 then table to access will be singleton and not EntitySet. Also, once the property is found the 
-        // same process used below will be used with an additional step. After finding the final property the navigation table will be used 
-        // to find the final type
+Schema.GetEntityFromSingleton = (entityContainer as table, entityType as table, values as list) =>
+    let 
+        singletonTable = entityContainer{0}[Singleton],
+        singletonValue = Table.SelectRows(singletonTable, each [#"Attribute:Name"] = values{0}),
+        singleton = Text.Split(singletonValue{0}[#"Attribute:Type"], "."){2},
 
-        // Get the entity type
-        entityContainer = schema{0}[EntityContainer]{0}[EntitySet], 
-        filteredRows = Table.SelectRows(entityContainer, each [#"Attribute:Name"] = resource),
-        entityType = Text.Split(filteredRows{0}[#"Attribute:EntityType"], "."){2},
+        entity = Schema.GetTypeFromNavigationProperty(entityType, singleton, 1, values)
+    in 
+        entity;
 
-        // Get the property table for the entity
-        entityTypeTable = schema[EntityType]{0},
-        entityTypeTableFiltered = Table.SelectRows(entityTypeTable, each [#"Attribute:Name"] = entityType),
-        propertyTable = entityTypeTableFiltered[Property]{0},
+Schema.GetEntityType = (entityContainer as table, entityType as table, value as text) => 
+    let 
+        parts = Text.Split(value, "/"),
+        entity = if(List.Count = 1) then Schema.GetEntityFromEntitySet(entityContainer, value) else Schema.GetEntityFromSingleton(parts)
+    in 
+        entity;
+
+Schema.GetTable = (context as text) =>
+    let
+        schema = Xml.Tables(Web.Contents(Text.BeforeDelimiter(context, "$") & "$metadata")){0}[DataServices]{0}[#"http://docs.oasis-open.org/odata/ns/edm"],
+
+        entity = Schema.GetEntityType(schema{0}[EntityContainer], schema{0}[EntityType], Text.AfterDelimiter(context, "#")),
+        entityType = Table.SelectRows(schema{0}[EntityType], each [#"Attribute:Name"] = entity),
+        propertyTable = entityType[Property]{0},
 
         GetData = (row as any) => 
             let
@@ -500,6 +513,18 @@ Schema.GetTable = (relativeUrl as text) =>
         output = Expression.Evaluate("type table [" & Text.Combine(custom[Expression], ", ") & "]")
     in
         output;
+
+Schema.GetTypeFromNavigationProperty = (entityType as table, entityName as text, index as number, values as list) =>
+    let
+        filtered = Table.SelectRows(entityType, each [#"Attribute:Name"] = entityName),
+        navigationType = Table.SelectRows(filtered{0}[NavigationProperty], each [#"Attribute:Name"] = Text.BeforeDelimiter(values{index}, "(")),
+
+        resource = navigationType{0}[#"Attribute:Type"], 
+        entity = if(Text.Contains(resource, "(")) then Text.AfterDelimiter(Text.BetweenDelimiters(resource, "(", ")"), ".") else Text.AfterDelimiter(resource, "."),
+
+        value = if(index = 3) then entity else @Schema.GetTypeFromNavigationProperty(entityType, entity, index + 1, values)
+    in 
+        value;
 
 Table.ChangeType = Extension.LoadFunction("Table.ChangeType.pqm");
 
