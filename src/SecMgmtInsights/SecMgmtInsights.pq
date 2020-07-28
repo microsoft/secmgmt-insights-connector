@@ -419,22 +419,18 @@ Extension.LoadFunction = (name as text) =>
 Request.GraphFeed = (relativeUrl as text, optional tenants as list) as table =>
     let      
         source = if (tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
-        schemaTable = Schema.GetTable(relativeUrl),
-
-        // TODO - This needs to be refactored because the context value needs to come from the response
 
         GetData = (tenantId as text) =>
             let
-                data = Rest.Feed(graph_endpoint & "/" & relativeUrl, Token.GetAccessToken(tenantId)),
-                changedType = Table.ChangeType(data{0}[Column1], schemaTable)
+                data = Rest.Feed(graph_endpoint & "/" & relativeUrl, Token.GetAccessToken(tenantId))
             in 
-                changedType, 
+                data, 
 
-        data = Table.AddColumn(source, "Custom", each GetData([tenantId]), schemaTable),
-        listOfColumns = Table.ColumnNames(data{0}[Custom]), 
-        expandedTable = Table.ExpandTableColumn(data, "Custom", listOfColumns, listOfColumns)
+        data = Table.AddColumn(source, "Custom", each GetData([tenantId]))
+        // listOfColumns = Table.ColumnNames(data{0}[Custom]), 
+        // expandedTable = Table.ExpandTableColumn(data, "Custom", listOfColumns, listOfColumns)
    in
-       expandedTable;
+       data;
 
 Request.GetServiceCommData = (relativeUrl as text, optional tenants as list) =>
     let 
@@ -452,6 +448,7 @@ Request.GetServiceCommData = (relativeUrl as text, optional tenants as list) =>
 Request.GetTenant = () =>
     let
         data = Rest.Feed(graph_endpoint & "/v1.0/organization", Extension.CurrentCredential()[access_token]),
+        // TODO - This broke with the change made downstream
         expandedList = Table.ExpandListColumn(data, "Column1"),
         expandedRecord = Table.ExpandRecordColumn(expandedList, "Column1", {"id"}, {"tenantId"})
     in
@@ -471,20 +468,20 @@ Schema.GetEntityFromSingleton = (entityContainer as table, entityType as table, 
         singletonValue = Table.SelectRows(singletonTable, each [#"Attribute:Name"] = values{0}),
         singleton = Text.Split(singletonValue{0}[#"Attribute:Type"], "."){2},
 
-        entity = Schema.GetTypeFromNavigationProperty(entityType, singleton, 1, values)
+        entity = Schema.GetTypeFromNavigationProperty(entityType, singleton, values)
     in 
         entity;
 
 Schema.GetEntityType = (entityContainer as table, entityType as table, value as text) => 
     let 
         parts = Text.Split(value, "/"),
-        entity = if(List.Count = 1) then Schema.GetEntityFromEntitySet(entityContainer, value) else Schema.GetEntityFromSingleton(parts)
+        entity = if(List.Count(parts) = 1) then Schema.GetEntityFromEntitySet(entityContainer, value) else Schema.GetEntityFromSingleton(entityContainer, entityType, parts)
     in 
         entity;
 
 Schema.GetTable = (context as text) =>
     let
-        schema = Xml.Tables(Web.Contents(Text.BeforeDelimiter(context, "$") & "$metadata")){0}[DataServices]{0}[#"http://docs.oasis-open.org/odata/ns/edm"],
+        schema = Xml.Tables(Web.Contents(Text.BeforeDelimiter(context, "$") & "$metadata")){0}[DataServices]{0}[#"http://docs.oasis-open.org/odata/ns/edm"]{0}[Schema],
 
         entity = Schema.GetEntityType(schema{0}[EntityContainer], schema{0}[EntityType], Text.AfterDelimiter(context, "#")),
         entityType = Table.SelectRows(schema{0}[EntityType], each [#"Attribute:Name"] = entity),
@@ -514,15 +511,16 @@ Schema.GetTable = (context as text) =>
     in
         output;
 
-Schema.GetTypeFromNavigationProperty = (entityType as table, entityName as text, index as number, values as list) =>
+Schema.GetTypeFromNavigationProperty = (entityType as table, entityName as text, values as list) =>
     let
         filtered = Table.SelectRows(entityType, each [#"Attribute:Name"] = entityName),
-        navigationType = Table.SelectRows(filtered{0}[NavigationProperty], each [#"Attribute:Name"] = Text.BeforeDelimiter(values{index}, "(")),
+        navigationType = Table.SelectRows(filtered{0}[NavigationProperty], each [#"Attribute:Name"] = Text.BeforeDelimiter(values{1}, "(")),
 
         resource = navigationType{0}[#"Attribute:Type"], 
         entity = if(Text.Contains(resource, "(")) then Text.AfterDelimiter(Text.BetweenDelimiters(resource, "(", ")"), ".") else Text.AfterDelimiter(resource, "."),
 
-        value = if(index = 3) then entity else @Schema.GetTypeFromNavigationProperty(entityType, entity, index + 1, values)
+        // TODO - This value should not be hardcoded 
+        value = if(List.Count(values) <= 2) then entity else @Schema.GetTypeFromNavigationProperty(entityType, entity, List.RemoveFirstN(values, 1))
     in 
         value;
 
@@ -599,6 +597,17 @@ Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
     in 
         authResult[access_token];
 
+// Debug 
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.Debug = (optional tenants as list) =>
+    let
+        data = Rest.Feed(graph_endpoint & "/v1.0/organization", Extension.CurrentCredential()[access_token]),
+        schema = Schema.GetTable(data{0}[Value]), 
+        value = Table.ChangeType(data{1}[Value], schema)
+    in 
+        value;
+        
 // Identity Protection
 
 [DataSource.Kind="SecMgmtInsights"]
@@ -764,13 +773,9 @@ Rest.Feed = (url as text, token as text) => Table.GenerateByPage((previous) =>
         // If we have a previous page, but don't have a next link, then we're done paging. Otherwise retrieve the next page.
         current = if (previous <> null and next = null) then null else Rest.Contents(urlToUse, token),
         // If we got data back from the current page, get the link for the next page
-        link = if (current <> null) then Value.Metadata(current)[Next] else null,
-        // Check if the table has the value column
-        flag = if(current <> null) then Table.Contains(current, [Name = "value"]) else null,
-        // Data sources being used utilize OData so the value needs to be extracted
-        data = if(flag = true) then Table.FromList(Table.SelectRows(current, each ([Name] = "value"))[Value], Splitter.SplitByNothing()) else if(flag = false) then Table.FromList({Record.FromList(current[Value], current[Name])}, Record.FieldValues, current[Name]) else null
+        link = if (current <> null) then Value.Metadata(current)[Next] else null
     in
-        data meta [Next=link]);
+        current meta [Next = link]);
 
 // Office 365
 
