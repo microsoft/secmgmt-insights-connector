@@ -151,7 +151,8 @@ shared SecMgmtInsights.SignIns = (optional tenants as list) as table =>
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.Users = (optional tenants as list) as table =>
     let 
-        data = Request.GraphFeed("/v1.0/users", tenants)
+        // todo - remove top after debugging
+        data = Request.GraphFeed("/v1.0/users?$top=1", tenants)
     in
         data;
 
@@ -448,11 +449,13 @@ Request.GetServiceCommData = (relativeUrl as text, optional tenants as list) =>
 Request.GetTenant = () =>
     let
         data = Rest.Feed(graph_endpoint & "/v1.0/organization", Extension.CurrentCredential()[access_token]),
-        // TODO - This broke with the change made downstream
-        expandedList = Table.ExpandListColumn(data, "Column1"),
-        expandedRecord = Table.ExpandRecordColumn(expandedList, "Column1", {"id"}, {"tenantId"})
+        schema = Schema.GetTable(data{0}[Value]), 
+        value = Table.ChangeType(data{1}[Value], schema),
+        // TODO - The following is temporary until the filtering has been added to the schema functions
+        selectedColumns = Table.SelectColumns(value, "id"),
+        renamedColumns = Table.RenameColumns(selectedColumns,{{"id", "tenantId"}})
     in
-        expandedRecord;
+        renamedColumns;
 
 Schema.GetEntityFromEntitySet = (entityContainer as table, value as text) =>
     let
@@ -472,6 +475,14 @@ Schema.GetEntityFromSingleton = (entityContainer as table, entityType as table, 
     in 
         entity;
 
+Schema.GetEntityProperties = (entityType as table, entity as text, tables as list) =>
+    let 
+        entry = Table.SelectRows(entityType, each [#"Attribute:Name"] = entity),
+        properties = List.InsertRange(tables, 0, entry[Property]),
+        value = if(entry{0}[#"Attribute:BaseType"] = null) then properties else @Schema.GetEntityProperties(entityType, Text.AfterDelimiter(entry{0}[#"Attribute:BaseType"], "."), properties)
+    in 
+        value;
+
 Schema.GetEntityType = (entityContainer as table, entityType as table, value as text) => 
     let 
         parts = Text.Split(value, "/"),
@@ -485,8 +496,7 @@ Schema.GetTable = (context as text) =>
 
         entity = Schema.GetEntityType(schema{0}[EntityContainer], schema{0}[EntityType], Text.AfterDelimiter(context, "#")),
         entityType = Table.SelectRows(schema{0}[EntityType], each [#"Attribute:Name"] = entity),
-        propertyTable = entityType[Property]{0},
-
+  
         GetData = (row as any) => 
             let
                 data = if(Record.HasFields(row, "Attribute:Nullable") and row[#"Attribute:Nullable"] <> null and row[#"Attribute:Nullable"] = true) then 
@@ -502,6 +512,9 @@ Schema.GetTable = (context as text) =>
                 else if(value = "Edm.String") then "text" else "any",
 
         // Build the schema table based on data from the property table
+        propertyTableList = Schema.GetEntityProperties(schema{0}[EntityType], entity, {}),
+        convertedTable = Table.FromList(propertyTableList, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+        propertyTable = Table.ExpandTableColumn(convertedTable, "Column1", {"Attribute:Name", "Attribute:Type", "Attribute:Nullable"}, {"Attribute:Name", "Attribute:Type", "Attribute:Nullable"}),
         addedSchema = Table.AddColumn(propertyTable, "schema", each GetData(_)),
         schemaTable = Table.FromList(addedSchema[schema], Splitter.SplitByNothing(), null, null, ExtraValues.Error),
         expandedColumn = Table.ExpandRecordColumn(schemaTable, "Column1", {"Entity", "Type"}, {"Entity", "Type"}),
@@ -519,7 +532,6 @@ Schema.GetTypeFromNavigationProperty = (entityType as table, entityName as text,
         resource = navigationType{0}[#"Attribute:Type"], 
         entity = if(Text.Contains(resource, "(")) then Text.AfterDelimiter(Text.BetweenDelimiters(resource, "(", ")"), ".") else Text.AfterDelimiter(resource, "."),
 
-        // TODO - This value should not be hardcoded 
         value = if(List.Count(values) <= 2) then entity else @Schema.GetTypeFromNavigationProperty(entityType, entity, List.RemoveFirstN(values, 1))
     in 
         value;
