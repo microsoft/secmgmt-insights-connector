@@ -432,7 +432,17 @@ Request.GraphFeed = (relativeUrl as text, optional tenants as list) =>
         listOfColumns = Record.FieldNames(data{0}[Custom]), 
         expandedTable = Table.ExpandRecordColumn(data, "Custom", listOfColumns, listOfColumns),
         schema = Schema.GetTable(expandedTable[#"@odata.context"]{0}, "tenantId = text"),
-        value = Table.ChangeType(expandedTable, schema)
+
+        transform = if(Table.HasColumns(expandedTable, "value")) then
+            let 
+                expandedList = Table.ExpandListColumn(expandedTable, "value"),
+                fieldNames = Record.FieldNames(expandedList{0}[value]),
+                expandedRecord = Table.ExpandRecordColumn(expandedList, "value", fieldNames, fieldNames)
+            in 
+                expandedRecord 
+            else expandedTable,
+
+        value = Table.ChangeType(transform, schema)
    in
        value;
 
