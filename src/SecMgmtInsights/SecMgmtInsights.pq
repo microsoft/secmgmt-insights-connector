@@ -152,7 +152,7 @@ shared SecMgmtInsights.SignIns = (optional tenants as list) as table =>
 shared SecMgmtInsights.Users = (optional tenants as list) as table =>
     let 
         // todo - remove top after debugging
-        data = Request.GraphFeed("/v1.0/users?$top=1", tenants)
+        data = Request.GraphFeed("/v1.0/users", tenants)
     in
         data;
 
@@ -417,21 +417,24 @@ Extension.LoadFunction = (name as text) =>
     in
         Expression.Evaluate(asText, #shared);
 
-Request.GraphFeed = (relativeUrl as text, optional tenants as list) as table =>
+Request.GraphFeed = (relativeUrl as text, optional tenants as list) =>
     let      
         source = if (tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
 
         GetData = (tenantId as text) =>
             let
-                data = Rest.Feed(graph_endpoint & "/" & relativeUrl, Token.GetAccessToken(tenantId))
+                data = Rest.Feed(graph_endpoint & relativeUrl, Token.GetAccessToken(tenantId)), 
+                record = Record.FromTable(data)
             in 
-                data, 
+                record, 
 
-        data = Table.AddColumn(source, "Custom", each GetData([tenantId]))
-        // listOfColumns = Table.ColumnNames(data{0}[Custom]), 
-        // expandedTable = Table.ExpandTableColumn(data, "Custom", listOfColumns, listOfColumns)
+        data = Table.AddColumn(source, "Custom", each GetData([tenantId])),
+        listOfColumns = Record.FieldNames(data{0}[Custom]), 
+        expandedTable = Table.ExpandRecordColumn(data, "Custom", listOfColumns, listOfColumns),
+        schema = Schema.GetTable(expandedTable[#"@odata.context"]{0}, "tenantId = text"),
+        value = Table.ChangeType(expandedTable, schema)
    in
-       data;
+       value;
 
 Request.GetServiceCommData = (relativeUrl as text, optional tenants as list) =>
     let 
@@ -484,11 +487,12 @@ Schema.GetEntityProperties = (entityType as table, entity as text, tables as lis
 Schema.GetEntityType = (entityContainer as table, entityType as table, value as text) => 
     let 
         parts = Text.Split(value, "/"),
-        entity = if(List.Count(parts) = 1) then Schema.GetEntityFromEntitySet(entityContainer, value) else Schema.GetEntityFromSingleton(entityContainer, entityType, parts)
+        removedEntity = if(List.Last(parts) = "$entity") then List.RemoveLastN(parts, 1) else parts,
+        entity = if(List.Count(removedEntity) = 1) then Schema.GetEntityFromEntitySet(entityContainer, value) else Schema.GetEntityFromSingleton(entityContainer, entityType, removedEntity)
     in 
         entity;
 
-Schema.GetTable = (context as text) =>
+Schema.GetTable = (context as text, optional additionalTypes as text) =>
     let
         schema = Xml.Tables(Web.Contents(Text.BeforeDelimiter(context, "$") & "$metadata")){0}[DataServices]{0}[#"http://docs.oasis-open.org/odata/ns/edm"]{0}[Schema],
 
@@ -526,7 +530,7 @@ Schema.GetTable = (context as text) =>
         filteredTable = if(filter = null or filter = "") then expandedColumn else Table.SelectRows(expandedColumn, each List.Contains(filterList, [Entity])),
 
         custom = Table.AddColumn(filteredTable, "Expression", each [Entity] & " = " & [Type]),
-        output = Expression.Evaluate("type table [" & Text.Combine(custom[Expression], ", ") & "]")
+        output = if(additionalTypes = null or additionalTypes = "") then Expression.Evaluate("type table [" & Text.Combine(custom[Expression], ", ") & "]") else Expression.Evaluate("type table [" & additionalTypes & "," & Text.Combine(custom[Expression], ", ") & "]")
     in
         output;
 
@@ -614,7 +618,16 @@ Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
             TokenMethod(token_uri, "refresh_token", "refresh_token", Extension.CurrentCredential()[refresh_token], scope)
     in 
         authResult[access_token];
-        
+
+// Debug 
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.Debug = (optional tenants as list) =>
+    let
+        data = Request.GraphFeed("/v1.0/users", tenants)
+    in 
+        data;
+
 // Identity Protection
 
 [DataSource.Kind="SecMgmtInsights"]
@@ -756,7 +769,7 @@ Rest.Contents = (url as text, token as text) =>
         source = Web.Contents(url,
             [
                 Headers = [
-                    #"Accept" = "application/json",
+                    #"Accept" = "application/json;odata.metadata=minimal;odata.streaming=false;IEEE754Compatible=false",
                     #"Accept-encoding" = "gzip",
                     #"Authorization" = "Bearer " & token,
                     #"User-Agent" = "secmgmt-insights-connector"
