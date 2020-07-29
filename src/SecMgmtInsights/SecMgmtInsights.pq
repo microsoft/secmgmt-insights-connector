@@ -448,19 +448,17 @@ Request.GetServiceCommData = (relativeUrl as text, optional tenants as list) =>
 
 Request.GetTenant = () =>
     let
-        data = Rest.Feed(graph_endpoint & "/v1.0/organization", Extension.CurrentCredential()[access_token]),
+        data = Rest.Feed(graph_endpoint & "/v1.0/organization?$select=id", Extension.CurrentCredential()[access_token]),
         schema = Schema.GetTable(data{0}[Value]), 
         value = Table.ChangeType(data{1}[Value], schema),
-        // TODO - The following is temporary until the filtering has been added to the schema functions
-        selectedColumns = Table.SelectColumns(value, "id"),
-        renamedColumns = Table.RenameColumns(selectedColumns,{{"id", "tenantId"}})
+        renamedColumns = Table.RenameColumns(value, {{"id", "tenantId"}})
     in
         renamedColumns;
 
 Schema.GetEntityFromEntitySet = (entityContainer as table, value as text) =>
     let
         entitySetTable = entityContainer{0}[EntitySet],
-        entityValue = Table.SelectRows(entitySetTable, each [#"Attribute:Name"] = value),
+        entityValue = Table.SelectRows(entitySetTable, each [#"Attribute:Name"] = Text.BeforeDelimiter(value, "(")),
         entity = Text.Split(entityValue{0}[#"Attribute:EntityType"], "."){2}
     in 
         entity;
@@ -519,7 +517,15 @@ Schema.GetTable = (context as text) =>
         schemaTable = Table.FromList(addedSchema[schema], Splitter.SplitByNothing(), null, null, ExtraValues.Error),
         expandedColumn = Table.ExpandRecordColumn(schemaTable, "Column1", {"Entity", "Type"}, {"Entity", "Type"}),
 
-        custom = Table.AddColumn(expandedColumn, "Expression", each [Entity] & " = " & [Type]),
+        // Build the filter 
+        parts = Text.Split(Text.AfterDelimiter(context, "#"), "/"),
+        filter = if(List.Last(parts) = "$entity") then Text.BetweenDelimiters(List.LastN(parts, 2){0}, "(", ")") else Text.BetweenDelimiters(List.Last(parts), "(", ")"),
+        filterList = Text.Split(filter, ","),
+
+        // Remove the columns that are not included in the filter
+        filteredTable = if(filter = null or filter = "") then expandedColumn else Table.SelectRows(expandedColumn, each List.Contains(filterList, [Entity])),
+
+        custom = Table.AddColumn(filteredTable, "Expression", each [Entity] & " = " & [Type]),
         output = Expression.Evaluate("type table [" & Text.Combine(custom[Expression], ", ") & "]")
     in
         output;
@@ -608,17 +614,6 @@ Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
             TokenMethod(token_uri, "refresh_token", "refresh_token", Extension.CurrentCredential()[refresh_token], scope)
     in 
         authResult[access_token];
-
-// Debug 
-
-[DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.Debug = (optional tenants as list) =>
-    let
-        data = Rest.Feed(graph_endpoint & "/v1.0/organization", Extension.CurrentCredential()[access_token]),
-        schema = Schema.GetTable(data{0}[Value]), 
-        value = Table.ChangeType(data{1}[Value], schema)
-    in 
-        value;
         
 // Identity Protection
 
