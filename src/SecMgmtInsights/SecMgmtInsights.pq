@@ -505,11 +505,11 @@ Schema.GetEntityFromSingleton = (entityContainer as table, entityType as table, 
         singleton = Text.Split(singletonValue{0}[#"Attribute:Type"], "."){2},
         
         filtered = Table.SelectRows(entityType, each [#"Attribute:Name"] = singleton),
+        property = if(filtered{0}[Property] <> null) then Table.SelectRows(filtered{0}[Property], each [#"Attribute:Name"] = values{1}) else null,
 
-        entity = if(List.Count(values) = 2 and filtered{0}[Property] <> null) then 
+        entity = if(property <> null and not Table.IsEmpty(property)) then 
             let 
-                propertyType = Table.SelectRows(filtered{0}[Property], each [#"Attribute:Name"] = values{1}),
-                value = Text.Split(propertyType{0}[#"Attribute:Type"], "."){1}
+                value = Text.Split(property{0}[#"Attribute:Type"], "."){1}
             in 
                 value
             else 
