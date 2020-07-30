@@ -184,7 +184,7 @@ shared SecMgmtInsights.DeviceCompliancePolicySettingStates = (optional tenants a
         expandedTable = Table.ExpandTableColumn(policies, "Custom", {"id"}, {"policyId"}),
         data = Table.AddColumn(expandedTable, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates/" & [policyId] & "/settingStates", {[tenantId]}) otherwise null)    
     in 
-       Table.ExpandData(data, {"tenantId"});
+        Table.ExpandData(data, {"tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.DeviceCompliancePolicies = (optional tenants as list) as table =>
@@ -284,7 +284,7 @@ shared SecMgmtInsights.SecurityBaselineSettingStates = (optional tenants as list
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", tenants),
         renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
         states = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates?$select=id", {[tenantId]}) otherwise null),
-        statesColumnsRenamed = Table.RenameColumns(states, {"id", "templateId"}),
+        statesColumnsRenamed = Table.RenameColumns(Table.ExpandData(states, {"tenantId"}), {"id", "templateId"}),
         data = Table.AddColumn(statesColumnsRenamed, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates/" & [templateId] & "/settingStates", {[tenantId]}) otherwise null)
     in 
         Table.ExpandData(data, {"tenantId"});
@@ -301,7 +301,7 @@ shared SecMgmtInsights.SecurityBaselineStates = (optional tenants as list) as ta
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SoftwareUpdateStatusSummary = (optional tenants as list) as table =>
     let
-        data = Request.GraphFeed("/beta/deviceManagement/softwareUpdateStatusSummary", tenants)
+        data = Request.GraphContents("/beta/deviceManagement/softwareUpdateStatusSummary", tenants)
     in 
         data;
 
@@ -354,7 +354,7 @@ shared SecMgmtInsights.WindowsProtectionState = (optional tenants as list) as ta
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
         data = Table.AddColumn(renamedColumn, "Custom", each try Request.GraphContents("/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState", {[tenantId]}) otherwise null)
     in
-        Table.ExpandData(data, {"@odata.context", "id", "tenantId"});
+        Table.ExpandData(data, {"id", "tenantId"});
 
 // GitHub
 
@@ -427,7 +427,8 @@ Request.GraphContents = (relativeUrl as text, optional tenants as list) =>
             in 
                 record, 
 
-        data = Table.AddColumn(source, "Custom", each GetData([tenantId])),
+        // DEBUG - Temporarily adding try otherwise null, need to find a way to expose the errors
+        data = Table.AddColumn(source, "Custom", each try GetData([tenantId]) otherwise null),
         listOfColumns = Record.FieldNames(data{0}[Custom]), 
         expandedTable = Table.ExpandRecordColumn(data, "Custom", listOfColumns, listOfColumns),
         
@@ -446,7 +447,8 @@ Request.GraphFeed = (relativeUrl as text, optional tenants as list) =>
             in 
                 data,
 
-        data = Table.AddColumn(source, "Custom", each GetData([tenantId])),
+        // DEBUG - Determine if we should return null or if there is a way to return the error without breaking the processing
+        data = Table.AddColumn(source, "Custom", each try GetData([tenantId]) otherwise null),
         expandedCustom = Table.ExpandTableColumn(data, "Custom", {"Name", "Value"}, {"Name", "Value"}),
         context = expandedCustom{0}[Value],
 
@@ -492,7 +494,7 @@ Request.GetTenant = () =>
 
 Schema.GetEntityFromEntitySet = (entityContainer as table, value as text) =>
     let
-        entity = if(Text.Contains(value, "Collection(")) then
+        entity = if(Text.Contains(value, "microsoft.graph.")) then List.Last(Text.Split(value, ".")) else if(Text.Contains(value, "Collection(")) then
                 null
             else
                 let
@@ -590,9 +592,13 @@ Schema.GetTable = (context as text, optional additionalTypes as text) =>
 Schema.GetTypeFromNavigationProperty = (entityType as table, entityName as text, values as list) =>
     let
         filtered = Table.SelectRows(entityType, each [#"Attribute:Name"] = entityName),
-        navigationType = Table.SelectRows(filtered{0}[NavigationProperty], each [#"Attribute:Name"] = Text.BeforeDelimiter(values{1}, "(")),
 
-        resource = navigationType{0}[#"Attribute:Type"], 
+        dataTable = if(filtered{0}[NavigationProperty] = null) then 
+                    Table.SelectRows(filtered{0}[Property], each [#"Attribute:Name"] = Text.BeforeDelimiter(values{1}, "("))
+                else
+                    Table.SelectRows(filtered{0}[NavigationProperty], each [#"Attribute:Name"] = Text.BeforeDelimiter(values{1}, "(")), 
+
+        resource = dataTable{0}[#"Attribute:Type"], 
         entity = if(Text.Contains(resource, "(")) then Text.AfterDelimiter(Text.BetweenDelimiters(resource, "(", ")"), ".") else Text.AfterDelimiter(resource, "."),
 
         value = if(List.Count(values) <= 2) then entity else @Schema.GetTypeFromNavigationProperty(entityType, entity, List.RemoveFirstN(values, 1))
@@ -603,24 +609,20 @@ Table.ChangeType = Extension.LoadFunction("Table.ChangeType.pqm");
 
 Table.ExpandData = (data as table, optional columnsToRemove as list) =>
     let 
-        expandedValue = if (data{0}[Custom] = null) then null else if(Type.Is(Value.Type(Record.Field(data{0}[Custom]{0}, Table.ColumnNames(data{0}[Custom]){0})), type list)) then 
-        let 
-            source = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-            expandedList = Table.ExpandListColumn(source, "Column1"),
-            removedColumns = if(columnsToRemove <> null) then Table.RemoveColumns(expandedList{0}[Column1], columnsToRemove) else expandedList{0}[Column1],
-            listOfColumns = Record.FieldNames(removedColumns),
-            expandedColumn = Table.ExpandRecordColumn(expandedList, "Column1", listOfColumns, listOfColumns)
-        in 
-            expandedColumn
-    else 
-        let
-            removedColumns = if(columnsToRemove <> null) then Table.RemoveColumns(data{0}[Custom], columnsToRemove) else data{0}[Custom],
-            listOfColumns = Table.ColumnNames(removedColumns), 
-            expandedTable = Table.ExpandTableColumn(data, "Custom", listOfColumns, listOfColumns)
-        in
-            expandedTable
+        // TODO - optomize you are basically querying for non-null rows twice
+
+        value = if(Table.IsEmpty(Table.SelectRows(data, each [Custom] <> null))) then 
+                data
+            else
+                let 
+                    nonNullRows = Table.SelectRows(data, each [Custom] <> null and not Table.HasColumns([Custom], "Value")),
+                    removedColumns = if(columnsToRemove <> null) then Table.RemoveColumns(nonNullRows{0}[Custom], columnsToRemove) else nonNullRows{0}[Custom],
+                    listOfColumns = Table.ColumnNames(removedColumns), 
+                    expandedTable = Table.ExpandTableColumn(data, "Custom", listOfColumns, listOfColumns)
+                in 
+                    expandedTable
     in
-        expandedValue;
+        value;
 
 Table.GenerateByPage = (getNextPage as function) as table =>
     let        
@@ -677,6 +679,8 @@ Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.RiskDetections = (optional tenants as list) as table =>
     let
+        // TODO - This request requires a new permission to be added. With the test environment this is being left broken 
+        // so we can fix the error handling and reporting
         data = Request.GraphFeed("/beta/identityProtection/riskDetections", tenants)
     in 
         data;
