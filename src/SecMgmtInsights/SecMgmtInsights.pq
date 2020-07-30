@@ -137,7 +137,7 @@ shared SecMgmtInsights.Devices = (optional tenants as list) as table =>
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy = (optional tenants as list) as table =>
     let
-       data = Request.GraphFeed("/v1.0/policies/identitySecurityDefaultsEnforcementPolicy", tenants)
+       data = Request.GraphContents("/v1.0/policies/identitySecurityDefaultsEnforcementPolicy", tenants)
     in 
         data;
 
@@ -151,7 +151,6 @@ shared SecMgmtInsights.SignIns = (optional tenants as list) as table =>
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.Users = (optional tenants as list) as table =>
     let 
-        // todo - remove top after debugging
         data = Request.GraphFeed("/v1.0/users", tenants)
     in
         data;
@@ -309,7 +308,7 @@ shared SecMgmtInsights.SoftwareUpdateStatusSummary = (optional tenants as list) 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SubscriptionState = (optional tenants as list) as table =>
     let 
-        data = Request.GraphFeed("/beta/deviceManagement/subscriptionState", tenants)
+        data = Request.GraphContents("/beta/deviceManagement/subscriptionState", tenants)
     in
         data;
 
@@ -337,7 +336,7 @@ shared SecMgmtInsights.WindowsAutopilotProfiles = (optional tenants as list) as 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.WindowsAutopilotSettings = (optional tenants as list) as table =>
     let 
-        data = Request.GraphFeed("/beta/deviceManagement/windowsAutopilotSettings", tenants)
+        data = Request.GraphContents("/beta/deviceManagement/windowsAutopilotSettings", tenants)
     in 
         data;
 
@@ -353,7 +352,7 @@ shared SecMgmtInsights.WindowsProtectionState = (optional tenants as list) as ta
     let 
         source = Request.GraphFeed("/v1.0/deviceManagement/managedDevices?$select=id", tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
-        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState", {[tenantId]}) otherwise null)
+        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GraphContents("/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState", {[tenantId]}) otherwise null)
     in
         Table.ExpandData(data, {"@odata.context", "id", "tenantId"});
 
@@ -417,13 +416,13 @@ Extension.LoadFunction = (name as text) =>
     in
         Expression.Evaluate(asText, #shared);
 
-Request.GraphFeed = (relativeUrl as text, optional tenants as list) =>
+Request.GraphContents = (relativeUrl as text, optional tenants as list) =>
     let      
         source = if (tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
 
         GetData = (tenantId as text) =>
             let
-                data = Rest.Feed(graph_endpoint & relativeUrl, Token.GetAccessToken(tenantId)), 
+                data = Rest.Contents(graph_endpoint & relativeUrl, Token.GetAccessToken(tenantId)), 
                 record = Record.FromTable(data)
             in 
                 record, 
@@ -432,17 +431,34 @@ Request.GraphFeed = (relativeUrl as text, optional tenants as list) =>
         listOfColumns = Record.FieldNames(data{0}[Custom]), 
         expandedTable = Table.ExpandRecordColumn(data, "Custom", listOfColumns, listOfColumns),
         schema = Schema.GetTable(expandedTable[#"@odata.context"]{0}, "tenantId = text"),
+        value = Table.ChangeType(expandedTable, schema)
+   in
+       value;
 
-        transform = if(Table.HasColumns(expandedTable, "value")) then
-            let 
-                expandedList = Table.ExpandListColumn(expandedTable, "value"),
-                fieldNames = Record.FieldNames(expandedList{0}[value]),
-                expandedRecord = Table.ExpandRecordColumn(expandedList, "value", fieldNames, fieldNames)
+Request.GraphFeed = (relativeUrl as text, optional tenants as list) =>
+    let      
+        source = if (tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
+
+        GetData = (tenantId as text) =>
+            let
+                data = Rest.Feed(graph_endpoint & relativeUrl, Token.GetAccessToken(tenantId))
+                // filteredRows = Table.SelectRows(data, each ([Name] = "value"))[Value]
             in 
-                expandedRecord 
-            else expandedTable,
+                data,
 
-        value = Table.ChangeType(transform, schema)
+        data = Table.AddColumn(source, "Custom", each GetData([tenantId])),
+        expandedCustom = Table.ExpandTableColumn(data, "Custom", {"Name", "Value"}, {"Name", "Value"}),
+        context = expandedCustom{0}[Value],
+
+        filteredRows = Table.SelectRows(expandedCustom, each [Name] = "value"), 
+        filteredColumns = Table.SelectColumns(filteredRows, {"tenantId", "Value"}),
+        expandedList = Table.ExpandListColumn(filteredColumns, "Value"),
+
+        schema = Schema.GetTable(context, "tenantId = text"),
+
+        listOfColumns = Record.FieldNames(expandedList{0}[Value]), 
+        expandedTable = Table.ExpandRecordColumn(expandedList, "Value", listOfColumns, listOfColumns),
+        value = Table.ChangeType(expandedTable, schema)
    in
        value;
 
@@ -628,15 +644,6 @@ Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
             TokenMethod(token_uri, "refresh_token", "refresh_token", Extension.CurrentCredential()[refresh_token], scope)
     in 
         authResult[access_token];
-
-// Debug 
-
-[DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.Debug = (optional tenants as list) =>
-    let
-        data = Request.GraphFeed("/v1.0/users", tenants)
-    in 
-        data;
 
 // Identity Protection
 
