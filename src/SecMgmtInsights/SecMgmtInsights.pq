@@ -432,7 +432,7 @@ Request.GraphContents = (relativeUrl as text, optional tenants as list) =>
         expandedTable = Table.ExpandRecordColumn(data, "Custom", listOfColumns, listOfColumns),
         
         schema = Schema.GetTable(expandedTable[#"@odata.context"]{0}, "tenantId = text"),
-        value = if(schema = null) then Table.RemoveColumns(expandedTable, "@odata.context", MissingField.Ignore) else Table.ChangeType(expandedTable, schema)
+        value = if(schema = null) then Table.RemoveColumns(expandedTable, {"@odata.context", "@odata.type"}, MissingField.Ignore) else Table.ChangeType(expandedTable, schema)
    in
        value;
 
@@ -446,7 +446,7 @@ Request.GraphFeed = (relativeUrl as text, optional tenants as list) =>
             in 
                 data,
 
-        data = Table.AddColumn(source, "Custom", each try GetData([tenantId]) otherwise null),
+        data = Table.AddColumn(source, "Custom", each GetData([tenantId])),
         expandedCustom = Table.ExpandTableColumn(data, "Custom", {"Name", "Value"}, {"Name", "Value"}),
         context = expandedCustom{0}[Value],
 
@@ -464,7 +464,7 @@ Request.GraphFeed = (relativeUrl as text, optional tenants as list) =>
                 in 
                     expandedTable,
 
-        value = if(schema = null) then Table.RemoveColumns(entries, "@odata.context", MissingField.Ignore) else Table.ChangeType(entries, schema)
+        value = if(schema = null) then Table.RemoveColumns(entries, {"@odata.context", "@odata.type"}, MissingField.Ignore) else Table.ChangeType(entries, schema)
    in
        value;
 
@@ -492,9 +492,15 @@ Request.GetTenant = () =>
 
 Schema.GetEntityFromEntitySet = (entityContainer as table, value as text) =>
     let
-        entitySetTable = entityContainer{0}[EntitySet],
-        entityValue = Table.SelectRows(entitySetTable, each [#"Attribute:Name"] = Text.BeforeDelimiter(value, "(")),
-        entity = Text.Split(entityValue{0}[#"Attribute:EntityType"], "."){2}
+        entity = if(Text.Contains(value, "Collection(")) then
+                null
+            else
+                let
+                    entitySetTable = entityContainer{0}[EntitySet],
+                    entityValue = Table.SelectRows(entitySetTable, each [#"Attribute:Name"] = Text.BeforeDelimiter(value, "(")),
+                    entity = Text.Split(entityValue{0}[#"Attribute:EntityType"], "."){2}
+                in 
+                    entity
     in 
         entity;
 
@@ -840,49 +846,49 @@ Rest.Feed = (url as text, token as text) => Table.GenerateByPage((previous) =>
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.MailboxUsageDetail = (optional tenants as list) as table =>
     let 
-        data = Request.GraphFeed("/v1.0/reports/getMailboxUsageDetail(period='D30')?$format=application/json", tenants)
+        data = Request.GraphFeed("/beta/reports/getMailboxUsageDetail(period='D30')?$format=application/json", tenants)
     in 
         data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.Office365ActiveUserDetails = (optional tenants as list) as table =>
     let
-        data = Request.GraphFeed("/v1.0/reports/getOffice365ActiveUserDetail(period='D30')?$format=application/json", tenants)
+        data = Request.GraphFeed("/beta/reports/getOffice365ActiveUserDetail(period='D30')?$format=application/json", tenants)
     in 
         data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.Office365ServicesUserCounts = (optional tenants as list) as table =>
     let
-        data = Request.GraphFeed("/v1.0/reports/getOffice365ServicesUserCounts(period='D30')?$format=application/json", tenants)
+        data = Request.GraphFeed("/beta/reports/getOffice365ServicesUserCounts(period='D30')?$format=application/json", tenants)
     in 
         data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.OneDriveUsageAccountDetail = (optional tenants as list) as table =>
     let
-        data = Request.GraphFeed("/v1.0/reports/getOneDriveUsageAccountDetail(period='D30')?$format=application/json", tenants)
+        data = Request.GraphFeed("/beta/reports/getOneDriveUsageAccountDetail(period='D30')?$format=application/json", tenants)
     in 
         data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SharePointSiteUsageDetail = (optional tenants as list) as table =>
     let
-        data = Request.GraphFeed("/v1.0/reports/getSharePointSiteUsageDetail(period='D30')?$format=application/json", tenants)
+        data = Request.GraphFeed("/beta/reports/getSharePointSiteUsageDetail(period='D30')?$format=application/json", tenants)
     in 
         data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.TeamsUserActivityUserDetail = (optional tenants as list) as table =>
     let
-        data = Request.GraphFeed("/v1.0/reports/getTeamsUserActivityUserDetail(period='D30')?$format=application/json", tenants)
+        data = Request.GraphFeed("/beta/reports/getTeamsUserActivityUserDetail(period='D30')?$format=application/json", tenants)
     in 
         data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.YammerActivityUserDetail = (optional tenants as list) as table =>
     let
-        data = Request.GraphFeed("/v1.0/reports/getYammerActivityUserDetail(period='D30')?$format=application/json", tenants)
+        data = Request.GraphFeed("/beta/reports/getYammerActivityUserDetail(period='D30')?$format=application/json", tenants)
     in 
         data;
 
