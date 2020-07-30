@@ -258,7 +258,7 @@ shared SecMgmtInsights.MobileAppInstallSummary = (optional tenants as list) as t
     let
         source = Request.GraphFeed("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
         renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
-        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GraphFeed("/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/installSummary", {[tenantId]}) otherwise null)
+        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GraphContents("/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/installSummary", {[tenantId]}) otherwise null)
     in 
         Table.ExpandData(data, {"tenantId"});
 
@@ -442,11 +442,10 @@ Request.GraphFeed = (relativeUrl as text, optional tenants as list) =>
         GetData = (tenantId as text) =>
             let
                 data = Rest.Feed(graph_endpoint & relativeUrl, Token.GetAccessToken(tenantId))
-                // filteredRows = Table.SelectRows(data, each ([Name] = "value"))[Value]
             in 
                 data,
 
-        data = Table.AddColumn(source, "Custom", each GetData([tenantId])),
+        data = Table.AddColumn(source, "Custom", each try GetData([tenantId]) otherwise null),
         expandedCustom = Table.ExpandTableColumn(data, "Custom", {"Name", "Value"}, {"Name", "Value"}),
         context = expandedCustom{0}[Value],
 
@@ -498,7 +497,14 @@ Schema.GetEntityFromSingleton = (entityContainer as table, entityType as table, 
         singletonValue = Table.SelectRows(singletonTable, each [#"Attribute:Name"] = values{0}),
         singleton = Text.Split(singletonValue{0}[#"Attribute:Type"], "."){2},
 
-        entity = Schema.GetTypeFromNavigationProperty(entityType, singleton, values)
+        entity = if(List.Count(values) = 2) then 
+            let 
+                filtered = Table.SelectRows(entityType, each [#"Attribute:Name"] = singleton),
+                propertyType = Table.SelectRows(filtered{0}[Property], each [#"Attribute:Name"] = values{1}),
+                value = Text.Split(propertyType{0}[#"Attribute:Type"], "."){1}
+            in 
+                value
+            else Schema.GetTypeFromNavigationProperty(entityType, singleton, values)
     in 
         entity;
 
