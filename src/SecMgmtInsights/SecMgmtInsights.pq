@@ -430,8 +430,9 @@ Request.GraphContents = (relativeUrl as text, optional tenants as list) =>
         data = Table.AddColumn(source, "Custom", each GetData([tenantId])),
         listOfColumns = Record.FieldNames(data{0}[Custom]), 
         expandedTable = Table.ExpandRecordColumn(data, "Custom", listOfColumns, listOfColumns),
+        
         schema = Schema.GetTable(expandedTable[#"@odata.context"]{0}, "tenantId = text"),
-        value = Table.ChangeType(expandedTable, schema)
+        value = if(schema = null) then Table.RemoveColumns(expandedTable, "@odata.context", MissingField.Ignore) else Table.ChangeType(expandedTable, schema)
    in
        value;
 
@@ -453,11 +454,11 @@ Request.GraphFeed = (relativeUrl as text, optional tenants as list) =>
         filteredColumns = Table.SelectColumns(filteredRows, {"tenantId", "Value"}),
         expandedList = Table.ExpandListColumn(filteredColumns, "Value"),
 
-        schema = Schema.GetTable(context, "tenantId = text"),
-
         listOfColumns = Record.FieldNames(expandedList{0}[Value]), 
         expandedTable = Table.ExpandRecordColumn(expandedList, "Value", listOfColumns, listOfColumns),
-        value = Table.ChangeType(expandedTable, schema)
+     
+        schema = Schema.GetTable(context, "tenantId = text"),
+        value = if(schema = null) then Table.RemoveColumns(expandedTable, "@odata.context", MissingField.Ignore) else Table.ChangeType(expandedTable, schema)
    in
        value;
 
@@ -504,7 +505,8 @@ Schema.GetEntityFromSingleton = (entityContainer as table, entityType as table, 
                 value = Text.Split(propertyType{0}[#"Attribute:Type"], "."){1}
             in 
                 value
-            else Schema.GetTypeFromNavigationProperty(entityType, singleton, values)
+            else 
+                Schema.GetTypeFromNavigationProperty(entityType, singleton, values)
     in 
         entity;
 
@@ -545,24 +547,30 @@ Schema.GetTable = (context as text, optional additionalTypes as text) =>
                 else if (value = "Edm.DateTimeOffset") then "datetimezone"  else if (value = "Edm.Int32") then "number" 
                 else if(value = "Edm.String") then "text" else "any",
 
-        // Build the schema table based on data from the property table
-        propertyTableList = Schema.GetEntityProperties(schema{0}[EntityType], entity, {}),
-        convertedTable = Table.FromList(propertyTableList, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
-        propertyTable = Table.ExpandTableColumn(convertedTable, "Column1", {"Attribute:Name", "Attribute:Type", "Attribute:Nullable"}, {"Attribute:Name", "Attribute:Type", "Attribute:Nullable"}),
-        addedSchema = Table.AddColumn(propertyTable, "schema", each GetData(_)),
-        schemaTable = Table.FromList(addedSchema[schema], Splitter.SplitByNothing(), null, null, ExtraValues.Error),
-        expandedColumn = Table.ExpandRecordColumn(schemaTable, "Column1", {"Entity", "Type"}, {"Entity", "Type"}),
+        output = if(Table.IsEmpty(entityType)) then 
+            null 
+        else
+            let 
+                // Build the schema table based on data from the property table
+                propertyTableList = Schema.GetEntityProperties(schema{0}[EntityType], entity, {}),
+                convertedTable = Table.FromList(propertyTableList, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+                propertyTable = Table.ExpandTableColumn(convertedTable, "Column1", {"Attribute:Name", "Attribute:Type", "Attribute:Nullable"}, {"Attribute:Name", "Attribute:Type", "Attribute:Nullable"}),
+                addedSchema = Table.AddColumn(propertyTable, "schema", each GetData(_)),
+                schemaTable = Table.FromList(addedSchema[schema], Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+                expandedColumn = Table.ExpandRecordColumn(schemaTable, "Column1", {"Entity", "Type"}, {"Entity", "Type"}),
 
-        // Build the filter 
-        parts = Text.Split(Text.AfterDelimiter(context, "#"), "/"),
-        filter = if(List.Last(parts) = "$entity") then Text.BetweenDelimiters(List.LastN(parts, 2){0}, "(", ")") else Text.BetweenDelimiters(List.Last(parts), "(", ")"),
-        filterList = Text.Split(filter, ","),
+                // Build the filter 
+                parts = Text.Split(Text.AfterDelimiter(context, "#"), "/"),
+                filter = if(List.Last(parts) = "$entity") then Text.BetweenDelimiters(List.LastN(parts, 2){0}, "(", ")") else Text.BetweenDelimiters(List.Last(parts), "(", ")"),
+                filterList = Text.Split(filter, ","),
 
-        // Remove the columns that are not included in the filter
-        filteredTable = if(filter = null or filter = "") then expandedColumn else Table.SelectRows(expandedColumn, each List.Contains(filterList, [Entity])),
+                // Remove the columns that are not included in the filter
+                filteredTable = if(filter = null or filter = "") then expandedColumn else Table.SelectRows(expandedColumn, each List.Contains(filterList, [Entity])),
 
-        custom = Table.AddColumn(filteredTable, "Expression", each [Entity] & " = " & [Type]),
-        output = if(additionalTypes = null or additionalTypes = "") then Expression.Evaluate("type table [" & Text.Combine(custom[Expression], ", ") & "]") else Expression.Evaluate("type table [" & additionalTypes & "," & Text.Combine(custom[Expression], ", ") & "]")
+                custom = Table.AddColumn(filteredTable, "Expression", each [Entity] & " = " & [Type]),
+                output = if(additionalTypes = null or additionalTypes = "") then Expression.Evaluate("type table [" & Text.Combine(custom[Expression], ", ") & "]") else Expression.Evaluate("type table [" & additionalTypes & "," & Text.Combine(custom[Expression], ", ") & "]")
+            in 
+                output
     in
         output;
 
