@@ -453,12 +453,18 @@ Request.GraphFeed = (relativeUrl as text, optional tenants as list) =>
         filteredRows = Table.SelectRows(expandedCustom, each [Name] = "value"), 
         filteredColumns = Table.SelectColumns(filteredRows, {"tenantId", "Value"}),
         expandedList = Table.ExpandListColumn(filteredColumns, "Value"),
-
-        listOfColumns = Record.FieldNames(expandedList{0}[Value]), 
-        expandedTable = Table.ExpandRecordColumn(expandedList, "Value", listOfColumns, listOfColumns),
-     
         schema = Schema.GetTable(context, "tenantId = text"),
-        value = if(schema = null) then Table.RemoveColumns(expandedTable, "@odata.context", MissingField.Ignore) else Table.ChangeType(expandedTable, schema)
+
+        entries = if(expandedList{0}[Value] = null) then 
+                expandedList 
+            else 
+                let
+                    listOfColumns = Record.FieldNames(expandedList{0}[Value]), 
+                    expandedTable = Table.ExpandRecordColumn(expandedList, "Value", listOfColumns, listOfColumns)
+                in 
+                    expandedTable,
+
+        value = if(schema = null) then Table.RemoveColumns(entries, "@odata.context", MissingField.Ignore) else Table.ChangeType(entries, schema)
    in
        value;
 
@@ -497,10 +503,11 @@ Schema.GetEntityFromSingleton = (entityContainer as table, entityType as table, 
         singletonTable = entityContainer{0}[Singleton],
         singletonValue = Table.SelectRows(singletonTable, each [#"Attribute:Name"] = values{0}),
         singleton = Text.Split(singletonValue{0}[#"Attribute:Type"], "."){2},
+        
+        filtered = Table.SelectRows(entityType, each [#"Attribute:Name"] = singleton),
 
-        entity = if(List.Count(values) = 2) then 
+        entity = if(List.Count(values) = 2 and filtered{0}[Property] <> null) then 
             let 
-                filtered = Table.SelectRows(entityType, each [#"Attribute:Name"] = singleton),
                 propertyType = Table.SelectRows(filtered{0}[Property], each [#"Attribute:Name"] = values{1}),
                 value = Text.Split(propertyType{0}[#"Attribute:Type"], "."){1}
             in 
