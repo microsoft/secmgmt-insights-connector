@@ -117,9 +117,10 @@ shared SecMgmtInsights.ConditionalAccessPolicies = (optional tenants as list) as
 shared SecMgmtInsights.Contracts = (optional tenants as list) as table =>
     let
         data = Request.GraphFeed("/v1.0/contracts", tenants),
-        removeColumn = try Table.RemoveColumns(data, "tenantId") otherwise data
+        removedColumn = try Table.RemoveColumns(data, "tenantId") otherwise data,
+        renamedColumn = Table.RenameColumns(removedColumn, {"customerId", "tenantId"}, MissingField.Ignore)
     in
-        data;
+        renamedColumn;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.CredentialUserRegistrationDetails = (optional tenants as list) as table =>
