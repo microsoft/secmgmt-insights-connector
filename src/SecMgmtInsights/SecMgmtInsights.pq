@@ -4,7 +4,7 @@
 
 authorize_uri = "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize";
 client_id = Text.FromBinary(Extension.Contents("client_id"));
-graph_endpoint = "https://graph.microsoft.com/beta";
+graph_endpoint = "https://graph.microsoft.com";
 logout_uri = "https://login.microsoftonline.com/logout.srf";
 redirect_uri = "https://oauth.powerbi.com/views/oauthredirect.html";
 token_uri = "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
@@ -108,335 +108,253 @@ TokenMethod = (tokenUri, grantType, tokenField, parameter, optional scope as tex
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.ConditionalAccessPolicies = (optional tenants as list) as table =>
     let
-        data = Request.GetPagedData("identity/conditionalAccess/policies", tenants),
-        expandRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "displayName", "createdDateTime", "modifiedDateTime", "state", "sessionControls", "conditions", "grantControls"}, {"id", "displayName", "createdDateTime", "modifiedDateTime", "state", "sessionControls", "conditions", "grantControls"}),
-        changeType = Table.TransformColumnTypes(expandRecord, {{"createdDateTime", type datetimezone}, {"modifiedDateTime", type datetimezone}}),
-        expandedConditions = Table.ExpandRecordColumn(changeType, "conditions", {"signInRiskLevels", "clientAppTypes", "platforms", "locations", "deviceStates", "devices", "applications", "users"}, {"conditions.signInRiskLevels", "conditions.clientAppTypes", "conditions.platforms", "conditions.locations", "conditions.deviceStates", "conditions.devices", "conditions.applications", "conditions.users"}),
-        expandedGrantControls = Table.ExpandRecordColumn(expandedConditions, "grantControls", {"operator", "builtInControls", "customAuthenticationFactors", "termsOfUse"}, {"grantControls.operator", "grantControls.builtInControls", "grantControls.customAuthenticationFactors", "grantControls.termsOfUse"})
+        data = Request.GraphFeed("/beta/identity/conditionalAccess/policies", tenants)
     in 
-        expandedGrantControls;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.Contracts = (optional tenants as list) as table =>
     let
-        data = Request.GetPagedData("contracts", tenants),
-        removeColumn = Table.RemoveColumns(data, "tenantId"),
-        expandRecord = Table.ExpandRecordColumn(removeColumn, "Column1", {"id", "deletedDateTime", "contractType", "customerId", "defaultDomainName", "displayName"}, {"id", "deletedDateTime", "contractType", "tenantId", "defaultDomainName", "displayName"}),
-        changeType = Table.TransformColumnTypes(expandRecord, {{"deletedDateTime", type datetime}})
+        data = Request.GraphFeed("/v1.0/contracts", tenants),
+        removeColumn = try Table.RemoveColumns(data, "tenantId") otherwise data
     in
-        changeType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.CredentialUserRegistrationDetails = (optional tenants as list) as table =>
     let 
-        data = Request.GetPagedData("reports/credentialUserRegistrationDetails", tenants),
-        expandedCustom = Table.ExpandRecordColumn(data, "Column1", {"id", "userPrincipalName", "userDisplayName", "isRegistered", "isEnabled", "isCapable", "isMfaRegistered", "authMethods"}, {"id", "userPrincipalName", "userDisplayName", "isRegistered", "isEnabled", "isCapable", "isMfaRegistered", "authMethods"}),
-        expandedAuthMethods = Table.ExpandListColumn(expandedCustom, "authMethods"),
-        changeType = Table.TransformColumnTypes(expandedAuthMethods, {{"isRegistered", type logical}, {"isEnabled", type logical}, {"isCapable", type logical}, {"isMfaRegistered", type logical}})
+        data = Request.GraphFeed("/beta/reports/credentialUserRegistrationDetails", tenants)
     in
-        changeType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.Devices = (optional tenants as list) as table =>
     let 
-        data = Request.GetPagedData("devices", tenants),
-        expandRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "deletedDateTime", "accountEnabled", "approximateLastSignInDateTime", "complianceExpirationDateTime", "deviceId", "deviceMetadata", "deviceVersion", "displayName", "isCompliant", "isManaged", "Manufacturer", "mdmAppId", "Model", "onPremisesLastSyncDateTime", "onPremisesSyncEnabled", "operatingSystem", "operatingSystemVersion", "physicalIds", "profileType", "systemLabels", "trustType", "alternativeSecurityIds"}, {"id", "deletedDateTime", "accountEnabled", "approximateLastSignInDateTime", "complianceExpirationDateTime", "deviceId", "deviceMetadata", "deviceVersion", "displayName", "isCompliant", "isManaged", "Manufacturer", "mdmAppId", "Model", "onPremisesLastSyncDateTime", "onPremisesSyncEnabled", "operatingSystem", "operatingSystemVersion", "physicalIds", "profileType", "systemLabels", "trustType", "alternativeSecurityIds"}),
-        changeType = Table.TransformColumnTypes(expandRecord, {{"deletedDateTime", type datetimezone}, {"accountEnabled", type logical}, {"approximateLastSignInDateTime", type datetimezone}, {"complianceExpirationDateTime", type datetimezone}, {"deviceVersion", Int64.Type}, {"isCompliant", type logical}, {"isManaged", type logical}, {"onPremisesLastSyncDateTime", type datetimezone}, {"onPremisesSyncEnabled", type logical}})
+        data = Request.GraphFeed("/v1.0/devices", tenants)
     in
-        changeType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy = (optional tenants as list) as table =>
     let
-       data = Request.GetData("policies/identitySecurityDefaultsEnforcementPolicy", tenants),
-       expandedCustom = Table.ExpandRecordColumn(data, "Column1", {"id", "displayName", "description", "isEnabled"}, {"id", "displayName", "description", "isEnabled"}),
-       changeType = Table.TransformColumnTypes(expandedCustom, {{"isEnabled", type logical}})
+       data = Request.GraphContents("/v1.0/policies/identitySecurityDefaultsEnforcementPolicy", tenants)
     in 
-        changeType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SignIns = (optional tenants as list) as table =>
     let
-        data = Request.GetPagedData("auditLogs/signIns", tenants),
-        expandRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "createdDateTime", "userDisplayName", "userPrincipalName", "userId", "appId", "appDisplayName", "ipAddress", "clientAppUsed", "userAgent", "correlationId", "conditionalAccessStatus", "originalRequestId", "isInteractive", "tokenIssuerName", "tokenIssuerType", "processingTimeInMilliseconds", "riskDetail", "riskLevelAggregated", "riskLevelDuringSignIn", "riskState", "riskEventTypes", "riskEventTypes_v2", "resourceDisplayName", "resourceId", "authenticationMethodsUsed", "authenticationRequirement", "alternateSignInName", "servicePrincipalName", "servicePrincipalId", "mfaDetail", "status", "deviceDetail", "location", "appliedConditionalAccessPolicies", "authenticationProcessingDetails", "networkLocationDetails", "authenticationDetails", "authenticationRequirementPolicies"}, {"id", "createdDateTime", "userDisplayName", "userPrincipalName", "userId", "appId", "appDisplayName", "ipAddress", "clientAppUsed", "userAgent", "correlationId", "conditionalAccessStatus", "originalRequestId", "isInteractive", "tokenIssuerName", "tokenIssuerType", "processingTimeInMilliseconds", "riskDetail", "riskLevelAggregated", "riskLevelDuringSignIn", "riskState", "riskEventTypes", "riskEventTypes_v2", "resourceDisplayName", "resourceId", "authenticationMethodsUsed", "authenticationRequirement", "alternateSignInName", "servicePrincipalName", "servicePrincipalId", "mfaDetail", "status", "deviceDetail", "location", "appliedConditionalAccessPolicies", "authenticationProcessingDetails", "networkLocationDetails", "authenticationDetails", "authenticationRequirementPolicies"}),
-        expandedAuthMethodList = Table.ExpandListColumn(expandRecord, "authenticationDetails"),
-        expandedAuthMethodRecord = Table.ExpandRecordColumn(expandedAuthMethodList, "authenticationDetails", {"authenticationStepDateTime", "authenticationMethod", "authenticationMethodDetail", "succeeded", "authenticationStepResultDetail", "authenticationStepRequirement"}, {"authenticationStepDateTime", "authenticationMethod", "authenticationMethodDetail", "succeeded", "authenticationStepResultDetail", "authenticationStepRequirement"}),
-        changeType = Table.TransformColumnTypes(expandedAuthMethodRecord, {{"createdDateTime", type datetime}, {"isInteractive", type logical}, {"processingTimeInMilliseconds", Int64.Type}, {"authenticationStepDateTime", type datetimezone}, {"succeeded", type logical}})
+        data = Request.GraphFeed("/beta/auditLogs/signIns", tenants)
     in 
-        changeType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.Users = (optional tenants as list) as table =>
     let 
-        data = Request.GetPagedData("users", tenants),
-        expandRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "deletedDateTime", "accountEnabled", "ageGroup", "businessPhones", "city", "createdDateTime", "creationType", "companyName", "consentProvidedForMinor", "country", "department", "displayName", "employeeId", "faxNumber", "givenName", "imAddresses", "infoCatalogs", "isResourceAccount", "jobTitle", "legalAgeGroupClassification", "mail", "mailNickname", "mobilePhone", "onPremisesDistinguishedName", "officeLocation", "onPremisesDomainName", "onPremisesImmutableId", "onPremisesLastSyncDateTime", "onPremisesSecurityIdentifier", "onPremisesSamAccountName", "onPremisesSyncEnabled", "onPremisesUserPrincipalName", "otherMails", "passwordPolicies", "passwordProfile", "postalCode", "preferredDataLocation", "preferredLanguage", "proxyAddresses", "refreshTokensValidFromDateTime", "showInAddressList", "signInSessionsValidFromDateTime", "state", "streetAddress", "surname", "usageLocation", "userPrincipalName", "externalUserState", "externalUserStateChangeDateTime", "userType", "assignedLicenses", "assignedPlans", "deviceKeys", "identities", "onPremisesExtensionAttributes", "onPremisesProvisioningErrors", "provisionedPlans"}, {"id", "deletedDateTime", "accountEnabled", "ageGroup", "businessPhones", "city", "createdDateTime", "creationType", "companyName", "consentProvidedForMinor", "country", "department", "displayName", "employeeId", "faxNumber", "givenName", "imAddresses", "infoCatalogs", "isResourceAccount", "jobTitle", "legalAgeGroupClassification", "mail", "mailNickname", "mobilePhone", "onPremisesDistinguishedName", "officeLocation", "onPremisesDomainName", "onPremisesImmutableId", "onPremisesLastSyncDateTime", "onPremisesSecurityIdentifier", "onPremisesSamAccountName", "onPremisesSyncEnabled", "onPremisesUserPrincipalName", "otherMails", "passwordPolicies", "passwordProfile", "postalCode", "preferredDataLocation", "preferredLanguage", "proxyAddresses", "refreshTokensValidFromDateTime", "showInAddressList", "signInSessionsValidFromDateTime", "state", "streetAddress", "surname", "usageLocation", "userPrincipalName", "externalUserState", "externalUserStateChangeDateTime", "userType", "assignedLicenses", "assignedPlans", "deviceKeys", "identities", "onPremisesExtensionAttributes", "onPremisesProvisioningErrors", "provisionedPlans"}),
-        changeType = Table.TransformColumnTypes(expandRecord, {{"accountEnabled", type logical}, {"createdDateTime", type datetimezone}, {"onPremisesLastSyncDateTime", type datetimezone}, {"onPremisesSyncEnabled", type logical}, {"postalCode", Int64.Type}, {"refreshTokensValidFromDateTime", type datetimezone}, {"signInSessionsValidFromDateTime", type datetimezone}})
+        data = Request.GraphFeed("/v1.0/users", tenants)
     in
-        changeType;
+        data;
 
 // Device Management
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.DetectedApps= (optional tenants as list) as table =>
     let 
-        source = Request.GetPagedData("deviceManagement/managedDevices?$select=id", tenants),
-        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
-        data = Table.AddColumn(expandColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId]  & "/detectedApps", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "displayName", "version", "sizeInByte", "deviceCount"}, {"id", "displayName", "version", "sizeInByte", "deviceCount"}),
-        changedType = Table.TransformColumnTypes(expandRecord, {{"sizeInByte", Int64.Type}, {"deviceCount", Int64.Type}})
+        source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", tenants),
+        renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
+        data = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId]  & "/detectedApps", {[tenantId]}) otherwise null)
     in
-        changedType;
+        Table.ExpandData(data, {"tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.DetectedMalwareState = (optional tenants as list) as table =>
     let 
-        source = Request.GetPagedData("deviceManagement/managedDevices?$select=id", tenants),
-        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
-        data = Table.AddColumn(expandColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState/detectedMalwareState", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "displayName", "additionalInformationUrl", "severity", "catetgory", "executionState", "state", "threatState", "initialDetectionDateTime", "lastStateChangeDateTime", "detectionCount"}, {"id", "displayName", "additionalInformationUrl", "severity", "catetgory", "executionState", "state", "threatState", "initialDetectionDateTime", "lastStateChangeDateTime", "detectionCount"}),
-        changedType = Table.TransformColumnTypes(expandedRecord, {{"initialDetectionDateTime", type datetimezone}, {"lastStateChangeDateTime", type datetimezone}, {"detectionCount", Int64.Type}})
+        source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", tenants),
+        renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
+        data = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState/detectedMalwareState", {[tenantId]}) otherwise null)
     in 
-        changedType;
+        Table.ExpandData(data, {"tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.DeviceCompliancePolicySettingStates = (optional tenants as list) as table => 
     let
-        source = Request.GetPagedData("deviceManagement/managedDevices?$select=id", tenants),
-        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
-        policies = Table.AddColumn(expandColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates?$select=id", {[tenantId]}) otherwise null), 
-        expandPolicies  = Table.ExpandTableColumn(policies, "Custom", {"Column1"}, {"Column1"}),
-        expandRecord = Table.ExpandRecordColumn(expandPolicies, "Column1", {"id"}, {"policyId"}),
-        data = Table.AddColumn(expandRecord, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates/" & [policyId] & "/settingStates", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"setting", "settingName", "instanceDisplayName", "state", "errorCode", "errorDescription", "userId", "userName", "userEmail", "userPrincipalName", "currentValue", "settingInstanceId", "sources"}, {"setting", "settingName", "instanceDisplayName", "state", "errorCode", "errorDescription", "userId", "userName", "userEmail", "userPrincipalName", "currentValue", "settingInstanceId", "sources"}),
-        expandedSources = Table.ExpandListColumn(expandedRecord, "sources"),
-        expandedSourcesRecord = Table.ExpandRecordColumn(expandedSources, "sources", {"id", "displayName"}, {"sources.id", "sources.displayName"})
+        source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", tenants),
+        renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
+        policies = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates?$select=id", {[tenantId]}) otherwise null), 
+        expandedTable = Table.ExpandTableColumn(policies, "Custom", {"id"}, {"policyId"}),
+        data = Table.AddColumn(expandedTable, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates/" & [policyId] & "/settingStates", {[tenantId]}) otherwise null)    
     in 
-        expandedSourcesRecord;
+        Table.ExpandData(data, {"tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.DeviceCompliancePolicies = (optional tenants as list) as table =>
     let 
-        data = Request.GetPagedData("deviceManagement/deviceCompliancePolicies", tenants),
-        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"roleScopeTagIds", "id", "createdDateTime", "description", "lastModifiedDateTime", "displayName", "version", "passwordRequired", "passwordMinimumLength", "passwordRequiredType", "passwordMinutesOfInactivityBeforeLock", "passwordExpirationDays", "passwordPreviousPasswordBlockCount", "passwordSignInFailureCountBeforeFactoryReset", "securityPreventInstallAppsFromUnknownSources", "securityDisableUsbDebugging", "securityRequireVerifyApps", "deviceThreatProtectionEnabled", "deviceThreatProtectionRequiredSecurityLevel", "advancedThreatProtectionRequiredSecurityLevel", "securityBlockJailbrokenDevices", "securityBlockDeviceAdministratorManagedDevices", "osMinimumVersion", "osMaximumVersion", "minAndroidSecurityPatchLevel", "storageRequireEncryption", "securityRequireSafetyNetAttestationBasicIntegrity", "securityRequireSafetyNetAttestationCertifiedDevice", "securityRequireGooglePlayServices", "securityRequireUpToDateSecurityProviders", "securityRequireCompanyPortalAppIntegrity", "conditionStatementId", "restrictedApps", "passwordBlockSimple", "passwordRequiredToUnlockFromIdle", "passwordMinimumCharacterSetCount", "requireHealthyDeviceReport", "mobileOsMinimumVersion", "mobileOsMaximumVersion", "earlyLaunchAntiMalwareDriverEnabled", "bitLockerEnabled", "secureBootEnabled", "codeIntegrityEnabled", "activeFirewallRequired", "defenderEnabled", "defenderVersion", "signatureOutOfDate", "rtpEnabled", "antivirusRequired", "antiSpywareRequired", "configurationManagerComplianceRequired", "tpmRequired", "validOperatingSystemBuildRanges"}, {"roleScopeTagIds", "id", "createdDateTime", "description", "lastModifiedDateTime", "displayName", "version", "passwordRequired", "passwordMinimumLength", "passwordRequiredType", "passwordMinutesOfInactivityBeforeLock", "passwordExpirationDays", "passwordPreviousPasswordBlockCount", "passwordSignInFailureCountBeforeFactoryReset", "securityPreventInstallAppsFromUnknownSources", "securityDisableUsbDebugging", "securityRequireVerifyApps", "deviceThreatProtectionEnabled", "deviceThreatProtectionRequiredSecurityLevel", "advancedThreatProtectionRequiredSecurityLevel", "securityBlockJailbrokenDevices", "securityBlockDeviceAdministratorManagedDevices", "osMinimumVersion", "osMaximumVersion", "minAndroidSecurityPatchLevel", "storageRequireEncryption", "securityRequireSafetyNetAttestationBasicIntegrity", "securityRequireSafetyNetAttestationCertifiedDevice", "securityRequireGooglePlayServices", "securityRequireUpToDateSecurityProviders", "securityRequireCompanyPortalAppIntegrity", "conditionStatementId", "restrictedApps", "passwordBlockSimple", "passwordRequiredToUnlockFromIdle", "passwordMinimumCharacterSetCount", "requireHealthyDeviceReport", "mobileOsMinimumVersion", "mobileOsMaximumVersion", "earlyLaunchAntiMalwareDriverEnabled", "bitLockerEnabled", "secureBootEnabled", "codeIntegrityEnabled", "activeFirewallRequired", "defenderEnabled", "defenderVersion", "signatureOutOfDate", "rtpEnabled", "antivirusRequired", "antiSpywareRequired", "configurationManagerComplianceRequired", "tpmRequired", "validOperatingSystemBuildRanges"}),
-        changedType = Table.TransformColumnTypes(expandedRecord, {{"createdDateTime", type datetimezone}, {"lastModifiedDateTime", type datetimezone}, {"version", Int64.Type}, {"passwordRequired", type logical}, {"securityDisableUsbDebugging", type logical}, {"securityPreventInstallAppsFromUnknownSources", type logical}, {"securityRequireVerifyApps", type logical}, {"deviceThreatProtectionEnabled", type logical}, {"securityBlockJailbrokenDevices", type logical}, {"securityBlockDeviceAdministratorManagedDevices", type logical}, {"storageRequireEncryption", type logical}, {"securityRequireSafetyNetAttestationBasicIntegrity", type logical}, {"securityRequireSafetyNetAttestationCertifiedDevice", type logical}, {"securityRequireGooglePlayServices", type logical}, {"securityRequireUpToDateSecurityProviders", type logical}, {"securityRequireCompanyPortalAppIntegrity", type logical}, {"passwordBlockSimple", type logical}, {"passwordRequiredToUnlockFromIdle", type logical}, {"requireHealthyDeviceReport", type logical}, {"earlyLaunchAntiMalwareDriverEnabled", type logical}, {"bitLockerEnabled", type logical}, {"secureBootEnabled", type logical}, {"codeIntegrityEnabled", type logical}, {"activeFirewallRequired", type logical}, {"defenderEnabled", type logical}, {"signatureOutOfDate", type logical}, {"rtpEnabled", type logical}, {"antivirusRequired", type logical}, {"antiSpywareRequired", type logical}, {"configurationManagerComplianceRequired", type logical}, {"tpmRequired", type logical}})
+        data = Request.GraphFeed("/beta/deviceManagement/deviceCompliancePolicies", tenants)
     in
-        changedType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.DeviceCompliancePolicyStates = (optional tenants as list) as table =>
     let
-        source = Request.GetPagedData("deviceManagement/managedDevices?$select=id", tenants),
-        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
-        data = Table.AddColumn(expandColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "displayName", "version", "platformType", "state", "settingCount", "userId", "userPrincipalName", "settingStates"}, {"id", "displayName", "version", "platformType", "state", "settingCount", "userId", "userPrincipalName", "settingStates"})
+        source = Request.GraphFeed("/v1.0/deviceManagement/managedDevices?$select=id", tenants),
+        renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
+        data = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates", {[tenantId]}) otherwise null)
     in 
-        expandedRecord;
+        Table.ExpandData(data, {"tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.DeviceConfigurationPolicies = (optional tenants as list) as table =>
     let 
-        data = Request.GetPagedData("deviceManagement/deviceConfigurations", tenants),
-        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "lastModifiedDateTime", "roleScopeTagIds", "supportsScopeTags", "deviceManagementApplicabilityRuleOsEdition", "deviceManagementApplicabilityRuleOsVersion", "deviceManagementApplicabilityRuleDeviceMode", "createdDateTime", "description", "displayName", "version", "dmaGuardDeviceEnumerationPolicy", "userRightsAccessCredentialManagerAsTrustedCaller", "userRightsAllowAccessFromNetwork", "userRightsBlockAccessFromNetwork", "userRightsActAsPartOfTheOperatingSystem", "userRightsLocalLogOn", "userRightsDenyLocalLogOn", "userRightsBackupData", "userRightsChangeSystemTime", "userRightsCreateGlobalObjects", "userRightsCreatePageFile", "userRightsCreatePermanentSharedObjects", "userRightsCreateSymbolicLinks", "userRightsCreateToken", "userRightsDebugPrograms", "userRightsRemoteDesktopServicesLogOn", "userRightsDelegation", "userRightsGenerateSecurityAudits", "userRightsImpersonateClient", "userRightsIncreaseSchedulingPriority", "userRightsLoadUnloadDrivers", "userRightsLockMemory", "userRightsManageAuditingAndSecurityLogs", "userRightsManageVolumes", "userRightsModifyFirmwareEnvironment", "userRightsModifyObjectLabels", "userRightsProfileSingleProcess", "userRightsRemoteShutdown", "userRightsRestoreData", "userRightsTakeOwnership", "xboxServicesEnableXboxGameSaveTask", "xboxServicesAccessoryManagementServiceStartupMode", "xboxServicesLiveAuthManagerServiceStartupMode", "xboxServicesLiveGameSaveServiceStartupMode", "xboxServicesLiveNetworkingServiceStartupMode", "localSecurityOptionsBlockMicrosoftAccounts", "localSecurityOptionsBlockRemoteLogonWithBlankPassword", "localSecurityOptionsDisableAdministratorAccount", "localSecurityOptionsAdministratorAccountName", "localSecurityOptionsDisableGuestAccount", "localSecurityOptionsGuestAccountName", "localSecurityOptionsAllowUndockWithoutHavingToLogon", "localSecurityOptionsBlockUsersInstallingPrinterDrivers", "localSecurityOptionsBlockRemoteOpticalDriveAccess", "localSecurityOptionsFormatAndEjectOfRemovableMediaAllowedUser", "localSecurityOptionsMachineInactivityLimit", "localSecurityOptionsMachineInactivityLimitInMinutes", "localSecurityOptionsDoNotRequireCtrlAltDel", "localSecurityOptionsHideLastSignedInUser", "localSecurityOptionsHideUsernameAtSignIn", "localSecurityOptionsLogOnMessageTitle", "localSecurityOptionsLogOnMessageText", "localSecurityOptionsAllowPKU2UAuthenticationRequests", "localSecurityOptionsAllowRemoteCallsToSecurityAccountsManagerHelperBool", "localSecurityOptionsAllowRemoteCallsToSecurityAccountsManager", "localSecurityOptionsMinimumSessionSecurityForNtlmSspBasedClients", "localSecurityOptionsMinimumSessionSecurityForNtlmSspBasedServers", "lanManagerAuthenticationLevel", "lanManagerWorkstationDisableInsecureGuestLogons", "localSecurityOptionsClearVirtualMemoryPageFile", "localSecurityOptionsAllowSystemToBeShutDownWithoutHavingToLogOn", "localSecurityOptionsAllowUIAccessApplicationElevation", "localSecurityOptionsVirtualizeFileAndRegistryWriteFailuresToPerUserLocations", "localSecurityOptionsOnlyElevateSignedExecutables", "localSecurityOptionsAdministratorElevationPromptBehavior", "localSecurityOptionsStandardUserElevationPromptBehavior", "localSecurityOptionsSwitchToSecureDesktopWhenPromptingForElevation", "localSecurityOptionsDetectApplicationInstallationsAndPromptForElevation", "localSecurityOptionsAllowUIAccessApplicationsForSecureLocations", "localSecurityOptionsUseAdminApprovalMode", "localSecurityOptionsUseAdminApprovalModeForAdministrators", "localSecurityOptionsInformationShownOnLockScreen", "localSecurityOptionsInformationDisplayedOnLockScreen", "localSecurityOptionsDisableClientDigitallySignCommunicationsIfServerAgrees", "localSecurityOptionsClientDigitallySignCommunicationsAlways", "localSecurityOptionsClientSendUnencryptedPasswordToThirdPartySMBServers", "localSecurityOptionsDisableServerDigitallySignCommunicationsAlways", "localSecurityOptionsDisableServerDigitallySignCommunicationsIfClientAgrees", "localSecurityOptionsRestrictAnonymousAccessToNamedPipesAndShares", "localSecurityOptionsDoNotAllowAnonymousEnumerationOfSAMAccounts", "localSecurityOptionsAllowAnonymousEnumerationOfSAMAccountsAndShares", "localSecurityOptionsDoNotStoreLANManagerHashValueOnNextPasswordChange", "localSecurityOptionsSmartCardRemovalBehavior", "defenderSecurityCenterDisableAppBrowserUI", "defenderSecurityCenterDisableFamilyUI", "defenderSecurityCenterDisableHealthUI", "defenderSecurityCenterDisableNetworkUI", "defenderSecurityCenterDisableVirusUI", "defenderSecurityCenterDisableAccountUI", "defenderSecurityCenterDisableClearTpmUI", "defenderSecurityCenterDisableHardwareUI", "defenderSecurityCenterDisableNotificationAreaUI", "defenderSecurityCenterDisableRansomwareUI", "defenderSecurityCenterDisableSecureBootUI", "defenderSecurityCenterDisableTroubleshootingUI", "defenderSecurityCenterDisableVulnerableTpmFirmwareUpdateUI", "defenderSecurityCenterOrganizationDisplayName", "defenderSecurityCenterHelpEmail", "defenderSecurityCenterHelpPhone", "defenderSecurityCenterHelpURL", "defenderSecurityCenterNotificationsFromApp", "defenderSecurityCenterITContactDisplay", "windowsDefenderTamperProtection", "firewallBlockStatefulFTP", "firewallIdleTimeoutForSecurityAssociationInSeconds", "firewallPreSharedKeyEncodingMethod", "firewallIPSecExemptionsAllowNeighborDiscovery", "firewallIPSecExemptionsAllowICMP", "firewallIPSecExemptionsAllowRouterDiscovery", "firewallIPSecExemptionsAllowDHCP", "firewallCertificateRevocationListCheckMethod", "firewallMergeKeyingModuleSettings", "firewallPacketQueueingMethod", "firewallProfileDomain", "firewallProfilePublic", "firewallProfilePrivate", "defenderAdobeReaderLaunchChildProcess", "defenderAttackSurfaceReductionExcludedPaths", "defenderOfficeAppsOtherProcessInjectionType", "defenderOfficeAppsOtherProcessInjection", "defenderOfficeCommunicationAppsLaunchChildProcess", "defenderOfficeAppsExecutableContentCreationOrLaunchType", "defenderOfficeAppsExecutableContentCreationOrLaunch", "defenderOfficeAppsLaunchChildProcessType", "defenderOfficeAppsLaunchChildProcess", "defenderOfficeMacroCodeAllowWin32ImportsType", "defenderOfficeMacroCodeAllowWin32Imports", "defenderScriptObfuscatedMacroCodeType", "defenderScriptObfuscatedMacroCode", "defenderScriptDownloadedPayloadExecutionType", "defenderScriptDownloadedPayloadExecution", "defenderPreventCredentialStealingType", "defenderProcessCreationType", "defenderProcessCreation", "defenderUntrustedUSBProcessType", "defenderUntrustedUSBProcess", "defenderUntrustedExecutableType", "defenderUntrustedExecutable", "defenderEmailContentExecutionType", "defenderEmailContentExecution", "defenderAdvancedRansomewareProtectionType", "defenderGuardMyFoldersType", "defenderGuardedFoldersAllowedAppPaths", "defenderAdditionalGuardedFolders", "defenderNetworkProtectionType", "defenderExploitProtectionXml", "defenderExploitProtectionXmlFileName", "defenderSecurityCenterBlockExploitProtectionOverride", "appLockerApplicationControl", "deviceGuardLocalSystemAuthorityCredentialGuardSettings", "deviceGuardEnableVirtualizationBasedSecurity", "deviceGuardEnableSecureBootWithDMA", "deviceGuardSecureBootWithDMA", "deviceGuardLaunchSystemGuard", "smartScreenEnableInShell", "smartScreenBlockOverrideForFiles", "applicationGuardEnabled", "applicationGuardEnabledOptions", "applicationGuardBlockFileTransfer", "applicationGuardBlockNonEnterpriseContent", "applicationGuardAllowPersistence", "applicationGuardForceAuditing", "applicationGuardBlockClipboardSharing", "applicationGuardAllowPrintToPDF", "applicationGuardAllowPrintToXPS", "applicationGuardAllowPrintToLocalPrinters", "applicationGuardAllowPrintToNetworkPrinters", "applicationGuardAllowVirtualGPU", "applicationGuardAllowFileSaveOnHost", "bitLockerAllowStandardUserEncryption", "bitLockerDisableWarningForOtherDiskEncryption", "bitLockerEnableStorageCardEncryptionOnMobile", "bitLockerEncryptDevice", "bitLockerSystemDrivePolicy", "bitLockerFixedDrivePolicy", "bitLockerRemovableDrivePolicy", "bitLockerRecoveryPasswordRotation", "defenderDisableScanArchiveFiles", "defenderAllowScanArchiveFiles", "defenderDisableBehaviorMonitoring", "defenderAllowBehaviorMonitoring", "defenderDisableCloudProtection", "defenderAllowCloudProtection", "defenderEnableScanIncomingMail", "defenderEnableScanMappedNetworkDrivesDuringFullScan", "defenderDisableScanRemovableDrivesDuringFullScan", "defenderAllowScanRemovableDrivesDuringFullScan", "defenderDisableScanDownloads", "defenderAllowScanDownloads", "defenderDisableIntrusionPreventionSystem", "defenderAllowIntrusionPreventionSystem", "defenderDisableOnAccessProtection", "defenderAllowOnAccessProtection", "defenderDisableRealTimeMonitoring", "defenderAllowRealTimeMonitoring", "defenderDisableScanNetworkFiles", "defenderAllowScanNetworkFiles", "defenderDisableScanScriptsLoadedInInternetExplorer", "defenderAllowScanScriptsLoadedInInternetExplorer", "defenderBlockEndUserAccess", "defenderAllowEndUserAccess", "defenderScanMaxCpuPercentage", "defenderCheckForSignaturesBeforeRunningScan", "defenderCloudBlockLevel", "defenderCloudExtendedTimeoutInSeconds", "defenderDaysBeforeDeletingQuarantinedMalware", "defenderDisableCatchupFullScan", "defenderDisableCatchupQuickScan", "defenderEnableLowCpuPriority", "defenderFileExtensionsToExclude", "defenderFilesAndFoldersToExclude", "defenderProcessesToExclude", "defenderPotentiallyUnwantedAppAction", "defenderScanDirection", "defenderScanType", "defenderScheduledQuickScanTime", "defenderScheduledScanDay", "defenderScheduledScanTime", "defenderSignatureUpdateIntervalInHours", "defenderSubmitSamplesConsentType", "defenderDetectedMalwareActions", "firewallRules", "taskManagerBlockEndTask", "energySaverOnBatteryThresholdPercentage", "energySaverPluggedInThresholdPercentage", "powerLidCloseActionOnBattery", "powerLidCloseActionPluggedIn", "powerButtonActionOnBattery", "powerButtonActionPluggedIn", "powerSleepButtonActionOnBattery", "powerSleepButtonActionPluggedIn", "powerHybridSleepOnBattery", "powerHybridSleepPluggedIn", "windows10AppsForceUpdateSchedule", "enableAutomaticRedeployment", "microsoftAccountSignInAssistantSettings", "authenticationAllowSecondaryDevice", "authenticationWebSignIn", "authenticationPreferredAzureADTenantDomainName", "cryptographyAllowFipsAlgorithmPolicy", "displayAppListWithGdiDPIScalingTurnedOn", "displayAppListWithGdiDPIScalingTurnedOff", "enterpriseCloudPrintDiscoveryEndPoint", "enterpriseCloudPrintOAuthAuthority", "enterpriseCloudPrintOAuthClientIdentifier", "enterpriseCloudPrintResourceIdentifier", "enterpriseCloudPrintDiscoveryMaxLimit", "enterpriseCloudPrintMopriaDiscoveryResourceIdentifier", "experienceDoNotSyncBrowserSettings", "messagingBlockSync", "messagingBlockMMS", "messagingBlockRichCommunicationServices", "printerNames", "printerDefaultName", "printerBlockAddition", "searchBlockDiacritics", "searchDisableAutoLanguageDetection", "searchDisableIndexingEncryptedItems", "searchEnableRemoteQueries", "searchDisableUseLocation", "searchDisableLocation", "searchDisableIndexerBackoff", "searchDisableIndexingRemovableDrive", "searchEnableAutomaticIndexSizeManangement", "searchBlockWebResults", "findMyFiles", "securityBlockAzureADJoinedDevicesAutoEncryption", "diagnosticsDataSubmissionMode", "oneDriveDisableFileSync", "systemTelemetryProxyServer", "edgeTelemetryForMicrosoft365Analytics", "inkWorkspaceAccess", "inkWorkspaceAccessState", "inkWorkspaceBlockSuggestedApps", "smartScreenEnableAppInstallControl", "smartScreenAppInstallControl", "personalizationDesktopImageUrl", "personalizationLockScreenImageUrl", "bluetoothAllowedServices", "bluetoothBlockAdvertising", "bluetoothBlockPromptedProximalConnections", "bluetoothBlockDiscoverableMode", "bluetoothBlockPrePairing", "edgeBlockAutofill", "edgeBlocked", "edgeCookiePolicy", "edgeBlockDeveloperTools", "edgeBlockSendingDoNotTrackHeader", "edgeBlockExtensions", "edgeBlockInPrivateBrowsing", "edgeBlockJavaScript", "edgeBlockPasswordManager", "edgeBlockAddressBarDropdown", "edgeBlockCompatibilityList", "edgeClearBrowsingDataOnExit", "edgeAllowStartPagesModification", "edgeDisableFirstRunPage", "edgeBlockLiveTileDataCollection", "edgeSyncFavoritesWithInternetExplorer", "edgeFavoritesListLocation", "edgeBlockEditFavorites", "edgeNewTabPageURL", "edgeHomeButtonConfiguration", "edgeHomeButtonConfigurationEnabled", "edgeOpensWith", "edgeBlockSideloadingExtensions", "edgeRequiredExtensionPackageFamilyNames", "edgeBlockPrinting", "edgeFavoritesBarVisibility", "edgeBlockSavingHistory", "edgeBlockFullScreenMode", "edgeBlockWebContentOnNewTabPage", "edgeBlockTabPreloading", "edgeBlockPrelaunch", "edgeShowMessageWhenOpeningInternetExplorerSites", "edgePreventCertificateErrorOverride", "edgeKioskModeRestriction", "edgeKioskResetAfterIdleTimeInMinutes", "cellularBlockDataWhenRoaming", "cellularBlockVpn", "cellularBlockVpnWhenRoaming", "cellularData", "defenderRequireRealTimeMonitoring", "defenderRequireBehaviorMonitoring", "defenderRequireNetworkInspectionSystem", "defenderScanDownloads", "defenderScheduleScanEnableLowCpuPriority", "defenderScanScriptsLoadedInInternetExplorer", "defenderMonitorFileActivity", "defenderScanMaxCpu", "defenderScanArchiveFiles", "defenderScanIncomingMail", "defenderScanRemovableDrivesDuringFullScan", "defenderScanMappedNetworkDrivesDuringFullScan", "defenderScanNetworkFiles", "defenderRequireCloudProtection", "defenderCloudExtendedTimeout", "defenderPromptForSampleSubmission", "defenderSystemScanSchedule", "defenderPotentiallyUnwantedAppActionSetting", "defenderBlockOnAccessProtection", "lockScreenAllowTimeoutConfiguration", "lockScreenBlockActionCenterNotifications", "lockScreenBlockCortana", "lockScreenBlockToastNotifications", "lockScreenTimeoutInSeconds", "lockScreenActivateAppsWithVoice", "passwordBlockSimple", "passwordExpirationDays", "passwordMinimumLength", "passwordMinutesOfInactivityBeforeScreenTimeout", "passwordMinimumCharacterSetCount", "passwordPreviousPasswordBlockCount", "passwordRequired", "passwordRequireWhenResumeFromIdleState", "passwordRequiredType", "passwordSignInFailureCountBeforeFactoryReset", "passwordMinimumAgeInDays", "privacyAdvertisingId", "privacyAutoAcceptPairingAndConsentPrompts", "privacyDisableLaunchExperience", "privacyBlockInputPersonalization", "privacyBlockPublishUserActivities", "privacyBlockActivityFeed", "activateAppsWithVoice", "startBlockUnpinningAppsFromTaskbar", "startMenuAppListVisibility", "startMenuHideChangeAccountSettings", "startMenuHideFrequentlyUsedApps", "startMenuHideHibernate", "startMenuHideLock", "startMenuHidePowerButton", "startMenuHideRecentJumpLists", "startMenuHideRecentlyAddedApps", "startMenuHideRestartOptions", "startMenuHideShutDown", "startMenuHideSignOut", "startMenuHideSleep", "startMenuHideSwitchAccount", "startMenuHideUserTile", "startMenuLayoutEdgeAssetsXml", "startMenuLayoutXml", "startMenuMode", "startMenuPinnedFolderDocuments", "startMenuPinnedFolderDownloads", "startMenuPinnedFolderFileExplorer", "startMenuPinnedFolderHomeGroup", "startMenuPinnedFolderMusic", "startMenuPinnedFolderNetwork", "startMenuPinnedFolderPersonalFolder", "startMenuPinnedFolderPictures", "startMenuPinnedFolderSettings", "startMenuPinnedFolderVideos", "settingsBlockSettingsApp", "settingsBlockSystemPage", "settingsBlockDevicesPage", "settingsBlockNetworkInternetPage", "settingsBlockPersonalizationPage", "settingsBlockAccountsPage", "settingsBlockTimeLanguagePage", "settingsBlockEaseOfAccessPage", "settingsBlockPrivacyPage", "settingsBlockUpdateSecurityPage", "settingsBlockAppsPage", "settingsBlockGamingPage", "windowsSpotlightBlockConsumerSpecificFeatures", "windowsSpotlightBlocked", "windowsSpotlightBlockOnActionCenter", "windowsSpotlightBlockTailoredExperiences", "windowsSpotlightBlockThirdPartyNotifications", "windowsSpotlightBlockWelcomeExperience", "windowsSpotlightBlockWindowsTips", "windowsSpotlightConfigureOnLockScreen", "networkProxyApplySettingsDeviceWide", "networkProxyDisableAutoDetect", "networkProxyAutomaticConfigurationUrl", "networkProxyServer", "accountsBlockAddingNonMicrosoftAccountEmail", "antiTheftModeBlocked", "bluetoothBlocked", "cameraBlocked", "connectedDevicesServiceBlocked", "certificatesBlockManualRootCertificateInstallation", "copyPasteBlocked", "cortanaBlocked", "deviceManagementBlockFactoryResetOnMobile", "deviceManagementBlockManualUnenroll", "safeSearchFilter", "edgeBlockPopups", "edgeBlockSearchSuggestions", "edgeBlockSearchEngineCustomization", "edgeBlockSendingIntranetTrafficToInternetExplorer", "edgeSendIntranetTrafficToInternetExplorer", "edgeRequireSmartScreen", "edgeEnterpriseModeSiteListLocation", "edgeFirstRunUrl", "edgeSearchEngine", "edgeHomepageUrls", "edgeBlockAccessToAboutFlags", "smartScreenBlockPromptOverride", "smartScreenBlockPromptOverrideForFiles", "webRtcBlockLocalhostIpAddress", "internetSharingBlocked", "settingsBlockAddProvisioningPackage", "settingsBlockRemoveProvisioningPackage", "settingsBlockChangeSystemTime", "settingsBlockEditDeviceName", "settingsBlockChangeRegion", "settingsBlockChangeLanguage", "settingsBlockChangePowerSleep", "locationServicesBlocked", "microsoftAccountBlocked", "microsoftAccountBlockSettingsSync", "nfcBlocked", "resetProtectionModeBlocked", "screenCaptureBlocked", "storageBlockRemovableStorage", "storageRequireMobileDeviceEncryption", "usbBlocked", "voiceRecordingBlocked", "wiFiBlockAutomaticConnectHotspots", "wiFiBlocked", "wiFiBlockManualConfiguration", "wiFiScanInterval", "wirelessDisplayBlockProjectionToThisDevice", "wirelessDisplayBlockUserInputFromReceiver", "wirelessDisplayRequirePinForPairing", "windowsStoreBlocked", "appsAllowTrustedAppsSideloading", "windowsStoreBlockAutoUpdate", "developerUnlockSetting", "sharedUserAppDataAllowed", "appsBlockWindowsStoreOriginatedApps", "windowsStoreEnablePrivateStoreOnly", "storageRestrictAppDataToSystemVolume", "storageRestrictAppInstallToSystemVolume", "gameDvrBlocked", "experienceBlockDeviceDiscovery", "experienceBlockErrorDialogWhenNoSIM", "experienceBlockTaskSwitcher", "logonBlockFastUserSwitching", "tenantLockdownRequireNetworkDuringOutOfBoxExperience", "appManagementMSIAllowUserControlOverInstall", "appManagementMSIAlwaysInstallWithElevatedPrivileges", "dataProtectionBlockDirectMemoryAccess", "appManagementPackageFamilyNamesToLaunchAfterLogOn", "uninstallBuiltInApps", "configureTimeZone", "deliveryOptimizationMode", "prereleaseFeatures", "automaticUpdateMode", "microsoftUpdateServiceAllowed", "driversExcluded", "installationSchedule", "qualityUpdatesDeferralPeriodInDays", "featureUpdatesDeferralPeriodInDays", "qualityUpdatesPaused", "featureUpdatesPaused", "qualityUpdatesPauseExpiryDateTime", "featureUpdatesPauseExpiryDateTime", "businessReadyUpdatesOnly", "skipChecksBeforeRestart", "updateWeeks", "qualityUpdatesPauseStartDate", "featureUpdatesPauseStartDate", "featureUpdatesRollbackWindowInDays", "qualityUpdatesWillBeRolledBack", "featureUpdatesWillBeRolledBack", "qualityUpdatesRollbackStartDateTime", "featureUpdatesRollbackStartDateTime", "engagedRestartDeadlineInDays", "engagedRestartSnoozeScheduleInDays", "engagedRestartTransitionScheduleInDays", "deadlineForFeatureUpdatesInDays", "deadlineForQualityUpdatesInDays", "deadlineGracePeriodInDays", "postponeRebootUntilAfterDeadline", "autoRestartNotificationDismissal", "scheduleRestartWarningInHours", "scheduleImminentRestartWarningInMinutes", "userPauseAccess", "userWindowsUpdateScanAccess", "updateNotificationLevel"}, {"id", "lastModifiedDateTime", "roleScopeTagIds", "supportsScopeTags", "deviceManagementApplicabilityRuleOsEdition", "deviceManagementApplicabilityRuleOsVersion", "deviceManagementApplicabilityRuleDeviceMode", "createdDateTime", "description", "displayName", "version", "dmaGuardDeviceEnumerationPolicy", "userRightsAccessCredentialManagerAsTrustedCaller", "userRightsAllowAccessFromNetwork", "userRightsBlockAccessFromNetwork", "userRightsActAsPartOfTheOperatingSystem", "userRightsLocalLogOn", "userRightsDenyLocalLogOn", "userRightsBackupData", "userRightsChangeSystemTime", "userRightsCreateGlobalObjects", "userRightsCreatePageFile", "userRightsCreatePermanentSharedObjects", "userRightsCreateSymbolicLinks", "userRightsCreateToken", "userRightsDebugPrograms", "userRightsRemoteDesktopServicesLogOn", "userRightsDelegation", "userRightsGenerateSecurityAudits", "userRightsImpersonateClient", "userRightsIncreaseSchedulingPriority", "userRightsLoadUnloadDrivers", "userRightsLockMemory", "userRightsManageAuditingAndSecurityLogs", "userRightsManageVolumes", "userRightsModifyFirmwareEnvironment", "userRightsModifyObjectLabels", "userRightsProfileSingleProcess", "userRightsRemoteShutdown", "userRightsRestoreData", "userRightsTakeOwnership", "xboxServicesEnableXboxGameSaveTask", "xboxServicesAccessoryManagementServiceStartupMode", "xboxServicesLiveAuthManagerServiceStartupMode", "xboxServicesLiveGameSaveServiceStartupMode", "xboxServicesLiveNetworkingServiceStartupMode", "localSecurityOptionsBlockMicrosoftAccounts", "localSecurityOptionsBlockRemoteLogonWithBlankPassword", "localSecurityOptionsDisableAdministratorAccount", "localSecurityOptionsAdministratorAccountName", "localSecurityOptionsDisableGuestAccount", "localSecurityOptionsGuestAccountName", "localSecurityOptionsAllowUndockWithoutHavingToLogon", "localSecurityOptionsBlockUsersInstallingPrinterDrivers", "localSecurityOptionsBlockRemoteOpticalDriveAccess", "localSecurityOptionsFormatAndEjectOfRemovableMediaAllowedUser", "localSecurityOptionsMachineInactivityLimit", "localSecurityOptionsMachineInactivityLimitInMinutes", "localSecurityOptionsDoNotRequireCtrlAltDel", "localSecurityOptionsHideLastSignedInUser", "localSecurityOptionsHideUsernameAtSignIn", "localSecurityOptionsLogOnMessageTitle", "localSecurityOptionsLogOnMessageText", "localSecurityOptionsAllowPKU2UAuthenticationRequests", "localSecurityOptionsAllowRemoteCallsToSecurityAccountsManagerHelperBool", "localSecurityOptionsAllowRemoteCallsToSecurityAccountsManager", "localSecurityOptionsMinimumSessionSecurityForNtlmSspBasedClients", "localSecurityOptionsMinimumSessionSecurityForNtlmSspBasedServers", "lanManagerAuthenticationLevel", "lanManagerWorkstationDisableInsecureGuestLogons", "localSecurityOptionsClearVirtualMemoryPageFile", "localSecurityOptionsAllowSystemToBeShutDownWithoutHavingToLogOn", "localSecurityOptionsAllowUIAccessApplicationElevation", "localSecurityOptionsVirtualizeFileAndRegistryWriteFailuresToPerUserLocations", "localSecurityOptionsOnlyElevateSignedExecutables", "localSecurityOptionsAdministratorElevationPromptBehavior", "localSecurityOptionsStandardUserElevationPromptBehavior", "localSecurityOptionsSwitchToSecureDesktopWhenPromptingForElevation", "localSecurityOptionsDetectApplicationInstallationsAndPromptForElevation", "localSecurityOptionsAllowUIAccessApplicationsForSecureLocations", "localSecurityOptionsUseAdminApprovalMode", "localSecurityOptionsUseAdminApprovalModeForAdministrators", "localSecurityOptionsInformationShownOnLockScreen", "localSecurityOptionsInformationDisplayedOnLockScreen", "localSecurityOptionsDisableClientDigitallySignCommunicationsIfServerAgrees", "localSecurityOptionsClientDigitallySignCommunicationsAlways", "localSecurityOptionsClientSendUnencryptedPasswordToThirdPartySMBServers", "localSecurityOptionsDisableServerDigitallySignCommunicationsAlways", "localSecurityOptionsDisableServerDigitallySignCommunicationsIfClientAgrees", "localSecurityOptionsRestrictAnonymousAccessToNamedPipesAndShares", "localSecurityOptionsDoNotAllowAnonymousEnumerationOfSAMAccounts", "localSecurityOptionsAllowAnonymousEnumerationOfSAMAccountsAndShares", "localSecurityOptionsDoNotStoreLANManagerHashValueOnNextPasswordChange", "localSecurityOptionsSmartCardRemovalBehavior", "defenderSecurityCenterDisableAppBrowserUI", "defenderSecurityCenterDisableFamilyUI", "defenderSecurityCenterDisableHealthUI", "defenderSecurityCenterDisableNetworkUI", "defenderSecurityCenterDisableVirusUI", "defenderSecurityCenterDisableAccountUI", "defenderSecurityCenterDisableClearTpmUI", "defenderSecurityCenterDisableHardwareUI", "defenderSecurityCenterDisableNotificationAreaUI", "defenderSecurityCenterDisableRansomwareUI", "defenderSecurityCenterDisableSecureBootUI", "defenderSecurityCenterDisableTroubleshootingUI", "defenderSecurityCenterDisableVulnerableTpmFirmwareUpdateUI", "defenderSecurityCenterOrganizationDisplayName", "defenderSecurityCenterHelpEmail", "defenderSecurityCenterHelpPhone", "defenderSecurityCenterHelpURL", "defenderSecurityCenterNotificationsFromApp", "defenderSecurityCenterITContactDisplay", "windowsDefenderTamperProtection", "firewallBlockStatefulFTP", "firewallIdleTimeoutForSecurityAssociationInSeconds", "firewallPreSharedKeyEncodingMethod", "firewallIPSecExemptionsAllowNeighborDiscovery", "firewallIPSecExemptionsAllowICMP", "firewallIPSecExemptionsAllowRouterDiscovery", "firewallIPSecExemptionsAllowDHCP", "firewallCertificateRevocationListCheckMethod", "firewallMergeKeyingModuleSettings", "firewallPacketQueueingMethod", "firewallProfileDomain", "firewallProfilePublic", "firewallProfilePrivate", "defenderAdobeReaderLaunchChildProcess", "defenderAttackSurfaceReductionExcludedPaths", "defenderOfficeAppsOtherProcessInjectionType", "defenderOfficeAppsOtherProcessInjection", "defenderOfficeCommunicationAppsLaunchChildProcess", "defenderOfficeAppsExecutableContentCreationOrLaunchType", "defenderOfficeAppsExecutableContentCreationOrLaunch", "defenderOfficeAppsLaunchChildProcessType", "defenderOfficeAppsLaunchChildProcess", "defenderOfficeMacroCodeAllowWin32ImportsType", "defenderOfficeMacroCodeAllowWin32Imports", "defenderScriptObfuscatedMacroCodeType", "defenderScriptObfuscatedMacroCode", "defenderScriptDownloadedPayloadExecutionType", "defenderScriptDownloadedPayloadExecution", "defenderPreventCredentialStealingType", "defenderProcessCreationType", "defenderProcessCreation", "defenderUntrustedUSBProcessType", "defenderUntrustedUSBProcess", "defenderUntrustedExecutableType", "defenderUntrustedExecutable", "defenderEmailContentExecutionType", "defenderEmailContentExecution", "defenderAdvancedRansomewareProtectionType", "defenderGuardMyFoldersType", "defenderGuardedFoldersAllowedAppPaths", "defenderAdditionalGuardedFolders", "defenderNetworkProtectionType", "defenderExploitProtectionXml", "defenderExploitProtectionXmlFileName", "defenderSecurityCenterBlockExploitProtectionOverride", "appLockerApplicationControl", "deviceGuardLocalSystemAuthorityCredentialGuardSettings", "deviceGuardEnableVirtualizationBasedSecurity", "deviceGuardEnableSecureBootWithDMA", "deviceGuardSecureBootWithDMA", "deviceGuardLaunchSystemGuard", "smartScreenEnableInShell", "smartScreenBlockOverrideForFiles", "applicationGuardEnabled", "applicationGuardEnabledOptions", "applicationGuardBlockFileTransfer", "applicationGuardBlockNonEnterpriseContent", "applicationGuardAllowPersistence", "applicationGuardForceAuditing", "applicationGuardBlockClipboardSharing", "applicationGuardAllowPrintToPDF", "applicationGuardAllowPrintToXPS", "applicationGuardAllowPrintToLocalPrinters", "applicationGuardAllowPrintToNetworkPrinters", "applicationGuardAllowVirtualGPU", "applicationGuardAllowFileSaveOnHost", "bitLockerAllowStandardUserEncryption", "bitLockerDisableWarningForOtherDiskEncryption", "bitLockerEnableStorageCardEncryptionOnMobile", "bitLockerEncryptDevice", "bitLockerSystemDrivePolicy", "bitLockerFixedDrivePolicy", "bitLockerRemovableDrivePolicy", "bitLockerRecoveryPasswordRotation", "defenderDisableScanArchiveFiles", "defenderAllowScanArchiveFiles", "defenderDisableBehaviorMonitoring", "defenderAllowBehaviorMonitoring", "defenderDisableCloudProtection", "defenderAllowCloudProtection", "defenderEnableScanIncomingMail", "defenderEnableScanMappedNetworkDrivesDuringFullScan", "defenderDisableScanRemovableDrivesDuringFullScan", "defenderAllowScanRemovableDrivesDuringFullScan", "defenderDisableScanDownloads", "defenderAllowScanDownloads", "defenderDisableIntrusionPreventionSystem", "defenderAllowIntrusionPreventionSystem", "defenderDisableOnAccessProtection", "defenderAllowOnAccessProtection", "defenderDisableRealTimeMonitoring", "defenderAllowRealTimeMonitoring", "defenderDisableScanNetworkFiles", "defenderAllowScanNetworkFiles", "defenderDisableScanScriptsLoadedInInternetExplorer", "defenderAllowScanScriptsLoadedInInternetExplorer", "defenderBlockEndUserAccess", "defenderAllowEndUserAccess", "defenderScanMaxCpuPercentage", "defenderCheckForSignaturesBeforeRunningScan", "defenderCloudBlockLevel", "defenderCloudExtendedTimeoutInSeconds", "defenderDaysBeforeDeletingQuarantinedMalware", "defenderDisableCatchupFullScan", "defenderDisableCatchupQuickScan", "defenderEnableLowCpuPriority", "defenderFileExtensionsToExclude", "defenderFilesAndFoldersToExclude", "defenderProcessesToExclude", "defenderPotentiallyUnwantedAppAction", "defenderScanDirection", "defenderScanType", "defenderScheduledQuickScanTime", "defenderScheduledScanDay", "defenderScheduledScanTime", "defenderSignatureUpdateIntervalInHours", "defenderSubmitSamplesConsentType", "defenderDetectedMalwareActions", "firewallRules", "taskManagerBlockEndTask", "energySaverOnBatteryThresholdPercentage", "energySaverPluggedInThresholdPercentage", "powerLidCloseActionOnBattery", "powerLidCloseActionPluggedIn", "powerButtonActionOnBattery", "powerButtonActionPluggedIn", "powerSleepButtonActionOnBattery", "powerSleepButtonActionPluggedIn", "powerHybridSleepOnBattery", "powerHybridSleepPluggedIn", "windows10AppsForceUpdateSchedule", "enableAutomaticRedeployment", "microsoftAccountSignInAssistantSettings", "authenticationAllowSecondaryDevice", "authenticationWebSignIn", "authenticationPreferredAzureADTenantDomainName", "cryptographyAllowFipsAlgorithmPolicy", "displayAppListWithGdiDPIScalingTurnedOn", "displayAppListWithGdiDPIScalingTurnedOff", "enterpriseCloudPrintDiscoveryEndPoint", "enterpriseCloudPrintOAuthAuthority", "enterpriseCloudPrintOAuthClientIdentifier", "enterpriseCloudPrintResourceIdentifier", "enterpriseCloudPrintDiscoveryMaxLimit", "enterpriseCloudPrintMopriaDiscoveryResourceIdentifier", "experienceDoNotSyncBrowserSettings", "messagingBlockSync", "messagingBlockMMS", "messagingBlockRichCommunicationServices", "printerNames", "printerDefaultName", "printerBlockAddition", "searchBlockDiacritics", "searchDisableAutoLanguageDetection", "searchDisableIndexingEncryptedItems", "searchEnableRemoteQueries", "searchDisableUseLocation", "searchDisableLocation", "searchDisableIndexerBackoff", "searchDisableIndexingRemovableDrive", "searchEnableAutomaticIndexSizeManangement", "searchBlockWebResults", "findMyFiles", "securityBlockAzureADJoinedDevicesAutoEncryption", "diagnosticsDataSubmissionMode", "oneDriveDisableFileSync", "systemTelemetryProxyServer", "edgeTelemetryForMicrosoft365Analytics", "inkWorkspaceAccess", "inkWorkspaceAccessState", "inkWorkspaceBlockSuggestedApps", "smartScreenEnableAppInstallControl", "smartScreenAppInstallControl", "personalizationDesktopImageUrl", "personalizationLockScreenImageUrl", "bluetoothAllowedServices", "bluetoothBlockAdvertising", "bluetoothBlockPromptedProximalConnections", "bluetoothBlockDiscoverableMode", "bluetoothBlockPrePairing", "edgeBlockAutofill", "edgeBlocked", "edgeCookiePolicy", "edgeBlockDeveloperTools", "edgeBlockSendingDoNotTrackHeader", "edgeBlockExtensions", "edgeBlockInPrivateBrowsing", "edgeBlockJavaScript", "edgeBlockPasswordManager", "edgeBlockAddressBarDropdown", "edgeBlockCompatibilityList", "edgeClearBrowsingDataOnExit", "edgeAllowStartPagesModification", "edgeDisableFirstRunPage", "edgeBlockLiveTileDataCollection", "edgeSyncFavoritesWithInternetExplorer", "edgeFavoritesListLocation", "edgeBlockEditFavorites", "edgeNewTabPageURL", "edgeHomeButtonConfiguration", "edgeHomeButtonConfigurationEnabled", "edgeOpensWith", "edgeBlockSideloadingExtensions", "edgeRequiredExtensionPackageFamilyNames", "edgeBlockPrinting", "edgeFavoritesBarVisibility", "edgeBlockSavingHistory", "edgeBlockFullScreenMode", "edgeBlockWebContentOnNewTabPage", "edgeBlockTabPreloading", "edgeBlockPrelaunch", "edgeShowMessageWhenOpeningInternetExplorerSites", "edgePreventCertificateErrorOverride", "edgeKioskModeRestriction", "edgeKioskResetAfterIdleTimeInMinutes", "cellularBlockDataWhenRoaming", "cellularBlockVpn", "cellularBlockVpnWhenRoaming", "cellularData", "defenderRequireRealTimeMonitoring", "defenderRequireBehaviorMonitoring", "defenderRequireNetworkInspectionSystem", "defenderScanDownloads", "defenderScheduleScanEnableLowCpuPriority", "defenderScanScriptsLoadedInInternetExplorer", "defenderMonitorFileActivity", "defenderScanMaxCpu", "defenderScanArchiveFiles", "defenderScanIncomingMail", "defenderScanRemovableDrivesDuringFullScan", "defenderScanMappedNetworkDrivesDuringFullScan", "defenderScanNetworkFiles", "defenderRequireCloudProtection", "defenderCloudExtendedTimeout", "defenderPromptForSampleSubmission", "defenderSystemScanSchedule", "defenderPotentiallyUnwantedAppActionSetting", "defenderBlockOnAccessProtection", "lockScreenAllowTimeoutConfiguration", "lockScreenBlockActionCenterNotifications", "lockScreenBlockCortana", "lockScreenBlockToastNotifications", "lockScreenTimeoutInSeconds", "lockScreenActivateAppsWithVoice", "passwordBlockSimple", "passwordExpirationDays", "passwordMinimumLength", "passwordMinutesOfInactivityBeforeScreenTimeout", "passwordMinimumCharacterSetCount", "passwordPreviousPasswordBlockCount", "passwordRequired", "passwordRequireWhenResumeFromIdleState", "passwordRequiredType", "passwordSignInFailureCountBeforeFactoryReset", "passwordMinimumAgeInDays", "privacyAdvertisingId", "privacyAutoAcceptPairingAndConsentPrompts", "privacyDisableLaunchExperience", "privacyBlockInputPersonalization", "privacyBlockPublishUserActivities", "privacyBlockActivityFeed", "activateAppsWithVoice", "startBlockUnpinningAppsFromTaskbar", "startMenuAppListVisibility", "startMenuHideChangeAccountSettings", "startMenuHideFrequentlyUsedApps", "startMenuHideHibernate", "startMenuHideLock", "startMenuHidePowerButton", "startMenuHideRecentJumpLists", "startMenuHideRecentlyAddedApps", "startMenuHideRestartOptions", "startMenuHideShutDown", "startMenuHideSignOut", "startMenuHideSleep", "startMenuHideSwitchAccount", "startMenuHideUserTile", "startMenuLayoutEdgeAssetsXml", "startMenuLayoutXml", "startMenuMode", "startMenuPinnedFolderDocuments", "startMenuPinnedFolderDownloads", "startMenuPinnedFolderFileExplorer", "startMenuPinnedFolderHomeGroup", "startMenuPinnedFolderMusic", "startMenuPinnedFolderNetwork", "startMenuPinnedFolderPersonalFolder", "startMenuPinnedFolderPictures", "startMenuPinnedFolderSettings", "startMenuPinnedFolderVideos", "settingsBlockSettingsApp", "settingsBlockSystemPage", "settingsBlockDevicesPage", "settingsBlockNetworkInternetPage", "settingsBlockPersonalizationPage", "settingsBlockAccountsPage", "settingsBlockTimeLanguagePage", "settingsBlockEaseOfAccessPage", "settingsBlockPrivacyPage", "settingsBlockUpdateSecurityPage", "settingsBlockAppsPage", "settingsBlockGamingPage", "windowsSpotlightBlockConsumerSpecificFeatures", "windowsSpotlightBlocked", "windowsSpotlightBlockOnActionCenter", "windowsSpotlightBlockTailoredExperiences", "windowsSpotlightBlockThirdPartyNotifications", "windowsSpotlightBlockWelcomeExperience", "windowsSpotlightBlockWindowsTips", "windowsSpotlightConfigureOnLockScreen", "networkProxyApplySettingsDeviceWide", "networkProxyDisableAutoDetect", "networkProxyAutomaticConfigurationUrl", "networkProxyServer", "accountsBlockAddingNonMicrosoftAccountEmail", "antiTheftModeBlocked", "bluetoothBlocked", "cameraBlocked", "connectedDevicesServiceBlocked", "certificatesBlockManualRootCertificateInstallation", "copyPasteBlocked", "cortanaBlocked", "deviceManagementBlockFactoryResetOnMobile", "deviceManagementBlockManualUnenroll", "safeSearchFilter", "edgeBlockPopups", "edgeBlockSearchSuggestions", "edgeBlockSearchEngineCustomization", "edgeBlockSendingIntranetTrafficToInternetExplorer", "edgeSendIntranetTrafficToInternetExplorer", "edgeRequireSmartScreen", "edgeEnterpriseModeSiteListLocation", "edgeFirstRunUrl", "edgeSearchEngine", "edgeHomepageUrls", "edgeBlockAccessToAboutFlags", "smartScreenBlockPromptOverride", "smartScreenBlockPromptOverrideForFiles", "webRtcBlockLocalhostIpAddress", "internetSharingBlocked", "settingsBlockAddProvisioningPackage", "settingsBlockRemoveProvisioningPackage", "settingsBlockChangeSystemTime", "settingsBlockEditDeviceName", "settingsBlockChangeRegion", "settingsBlockChangeLanguage", "settingsBlockChangePowerSleep", "locationServicesBlocked", "microsoftAccountBlocked", "microsoftAccountBlockSettingsSync", "nfcBlocked", "resetProtectionModeBlocked", "screenCaptureBlocked", "storageBlockRemovableStorage", "storageRequireMobileDeviceEncryption", "usbBlocked", "voiceRecordingBlocked", "wiFiBlockAutomaticConnectHotspots", "wiFiBlocked", "wiFiBlockManualConfiguration", "wiFiScanInterval", "wirelessDisplayBlockProjectionToThisDevice", "wirelessDisplayBlockUserInputFromReceiver", "wirelessDisplayRequirePinForPairing", "windowsStoreBlocked", "appsAllowTrustedAppsSideloading", "windowsStoreBlockAutoUpdate", "developerUnlockSetting", "sharedUserAppDataAllowed", "appsBlockWindowsStoreOriginatedApps", "windowsStoreEnablePrivateStoreOnly", "storageRestrictAppDataToSystemVolume", "storageRestrictAppInstallToSystemVolume", "gameDvrBlocked", "experienceBlockDeviceDiscovery", "experienceBlockErrorDialogWhenNoSIM", "experienceBlockTaskSwitcher", "logonBlockFastUserSwitching", "tenantLockdownRequireNetworkDuringOutOfBoxExperience", "appManagementMSIAllowUserControlOverInstall", "appManagementMSIAlwaysInstallWithElevatedPrivileges", "dataProtectionBlockDirectMemoryAccess", "appManagementPackageFamilyNamesToLaunchAfterLogOn", "uninstallBuiltInApps", "configureTimeZone", "deliveryOptimizationMode", "prereleaseFeatures", "automaticUpdateMode", "microsoftUpdateServiceAllowed", "driversExcluded", "installationSchedule", "qualityUpdatesDeferralPeriodInDays", "featureUpdatesDeferralPeriodInDays", "qualityUpdatesPaused", "featureUpdatesPaused", "qualityUpdatesPauseExpiryDateTime", "featureUpdatesPauseExpiryDateTime", "businessReadyUpdatesOnly", "skipChecksBeforeRestart", "updateWeeks", "qualityUpdatesPauseStartDate", "featureUpdatesPauseStartDate", "featureUpdatesRollbackWindowInDays", "qualityUpdatesWillBeRolledBack", "featureUpdatesWillBeRolledBack", "qualityUpdatesRollbackStartDateTime", "featureUpdatesRollbackStartDateTime", "engagedRestartDeadlineInDays", "engagedRestartSnoozeScheduleInDays", "engagedRestartTransitionScheduleInDays", "deadlineForFeatureUpdatesInDays", "deadlineForQualityUpdatesInDays", "deadlineGracePeriodInDays", "postponeRebootUntilAfterDeadline", "autoRestartNotificationDismissal", "scheduleRestartWarningInHours", "scheduleImminentRestartWarningInMinutes", "userPauseAccess", "userWindowsUpdateScanAccess", "updateNotificationLevel"})
+        data = Request.GraphFeed("/beta/deviceManagement/deviceConfigurations", tenants)
     in
-        expandedRecord;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.DeviceConfigurationPolicySettingStates = (optional tenants as list) as table =>
     let
-        source = Request.GetPagedData("deviceManagement/managedDevices?$select=id", tenants),
-        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
-        policies = Table.AddColumn(expandColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates?$select=id", {[tenantId]}) otherwise null), 
-        expandPolicies  = Table.ExpandTableColumn(policies, "Custom", {"Column1"}, {"Column1"}),
-        expandRecord = Table.ExpandRecordColumn(expandPolicies, "Column1", {"id"}, {"policyId"}),
-        data = Table.AddColumn(expandRecord, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates/" & [policyId] & "/settingStates", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"setting", "settingName", "instanceDisplayName", "state", "errorCode", "errorDescription", "userId", "userName", "userEmail", "userPrincipalName", "currentValue", "settingInstanceId", "sources"}, {"setting", "settingName", "instanceDisplayName", "state", "errorCode", "errorDescription", "userId", "userName", "userEmail", "userPrincipalName", "currentValue", "settingInstanceId", "sources"}),
-        expandedSourcesList = Table.ExpandListColumn(expandedRecord, "sources"),
-        expandedSourcesRecord = Table.ExpandRecordColumn(expandedSourcesList, "sources", {"id", "displayName"}, {"sources.id", "sources.displayName"})
+        source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", tenants),
+        renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
+        policies = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates?$select=id", {[tenantId]}) otherwise null), 
+        expandedTable = Table.ExpandTableColumn(policies, "Custom", {"id"}, {"policyId"}),
+        data = Table.AddColumn(expandedTable, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates/" & [policyId] & "/settingStates", {[tenantId]}) otherwise null)    
     in 
-        expandedSourcesRecord;
+        Table.ExpandData(data, {"tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.DeviceConfigurationPolicyStates = (optional tenants as list) as table =>
     let        
-        source = Request.GetPagedData("deviceManagement/managedDevices?$select=id", tenants),
-        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
-        data = Table.AddColumn(expandColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "displayName", "version", "platformType", "state", "settingCount", "userId", "userPrincipalName", "settingStates"}, {"id", "displayName", "version", "platformType", "state", "settingCount", "userId", "userPrincipalName", "settingStates"})
+        source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", tenants),
+        renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
+        data = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates", {[tenantId]}) otherwise null)
     in 
-        expandedRecord;
+        Table.ExpandData(data, {"tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.Intents = (optional tenants as list) as table =>
     let 
-        data = Request.GetPagedData("deviceManagement/intents", tenants),
-        expandedCustom = Table.ExpandRecordColumn(data, "Column1", {"id", "displayName", "description", "isAssigned", "lastModifiedDateTime", "templateId", "roleScopeTagIds"}, {"id", "displayName", "description", "isAssigned", "lastModifiedDateTime", "templateId", "roleScopeTagIds"}),
-        changedType = Table.TransformColumnTypes(expandedCustom, {{"isAssigned", type logical}, {"lastModifiedDateTime", type datetimezone}})
+        data = Request.GraphFeed("/beta/deviceManagement/intents", tenants)
     in
-        changedType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.ManagedDevices = (optional tenants as list) as table =>
     let 
-        data = Request.GetPagedData("deviceManagement/managedDevices", tenants),
-        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "userId", "deviceName", "ownerType", "managedDeviceOwnerType", "managementState", "enrolledDateTime", "lastSyncDateTime", "chassisType", "operatingSystem", "deviceType", "complianceState", "jailBroken", "managementAgent", "osVersion", "easActivated", "easDeviceId", "easActivationDateTime", "aadRegistered", "azureADRegistered", "deviceEnrollmentType", "lostModeState", "activationLockBypassCode", "emailAddress", "azureActiveDirectoryDeviceId", "azureADDeviceId", "deviceRegistrationState", "deviceCategoryDisplayName", "isSupervised", "exchangeLastSuccessfulSyncDateTime", "exchangeAccessState", "exchangeAccessStateReason", "remoteAssistanceSessionUrl", "remoteAssistanceSessionErrorDetails", "isEncrypted", "userPrincipalName", "model", "manufacturer", "imei", "complianceGracePeriodExpirationDateTime", "serialNumber", "phoneNumber", "androidSecurityPatchLevel", "userDisplayName", "configurationManagerClientEnabledFeatures", "wiFiMacAddress", "deviceHealthAttestationState", "subscriberCarrier", "meid", "totalStorageSpaceInBytes", "freeStorageSpaceInBytes", "managedDeviceName", "partnerReportedThreatState", "retireAfterDateTime", "preferMdmOverGroupPolicyAppliedDateTime", "autopilotEnrolled", "requireUserEnrollmentApproval", "managementCertificateExpirationDate", "iccid", "udid", "roleScopeTagIds", "windowsActiveMalwareCount", "windowsRemediatedMalwareCount", "notes", "configurationManagerClientHealthState", "configurationManagerClientInformation", "ethernetMacAddress", "physicalMemoryInBytes", "processorArchitecture", "specificationVersion", "hardwareInformation", "deviceActionResults", "usersLoggedOn"}, {"id", "userId", "deviceName", "ownerType", "managedDeviceOwnerType", "managementState", "enrolledDateTime", "lastSyncDateTime", "chassisType", "operatingSystem", "deviceType", "complianceState", "jailBroken", "managementAgent", "osVersion", "easActivated", "easDeviceId", "easActivationDateTime", "aadRegistered", "azureADRegistered", "deviceEnrollmentType", "lostModeState", "activationLockBypassCode", "emailAddress", "azureActiveDirectoryDeviceId", "azureADDeviceId", "deviceRegistrationState", "deviceCategoryDisplayName", "isSupervised", "exchangeLastSuccessfulSyncDateTime", "exchangeAccessState", "exchangeAccessStateReason", "remoteAssistanceSessionUrl", "remoteAssistanceSessionErrorDetails", "isEncrypted", "userPrincipalName", "model", "manufacturer", "imei", "complianceGracePeriodExpirationDateTime", "serialNumber", "phoneNumber", "androidSecurityPatchLevel", "userDisplayName", "configurationManagerClientEnabledFeatures", "wiFiMacAddress", "deviceHealthAttestationState", "subscriberCarrier", "meid", "totalStorageSpaceInBytes", "freeStorageSpaceInBytes", "managedDeviceName", "partnerReportedThreatState", "retireAfterDateTime", "preferMdmOverGroupPolicyAppliedDateTime", "autopilotEnrolled", "requireUserEnrollmentApproval", "managementCertificateExpirationDate", "iccid", "udid", "roleScopeTagIds", "windowsActiveMalwareCount", "windowsRemediatedMalwareCount", "notes", "configurationManagerClientHealthState", "configurationManagerClientInformation", "ethernetMacAddress", "physicalMemoryInBytes", "processorArchitecture", "specificationVersion", "hardwareInformation", "deviceActionResults", "usersLoggedOn"}),
-        changedType = Table.TransformColumnTypes(expandedRecord,{{"enrolledDateTime", type datetimezone}, {"lastSyncDateTime", type datetimezone}, {"easActivated", type logical}, {"easActivationDateTime", type datetimezone}, {"aadRegistered", type logical}, {"azureADRegistered", type logical}, {"exchangeLastSuccessfulSyncDateTime", type datetimezone}, {"isEncrypted", type logical}, {"complianceGracePeriodExpirationDateTime", type datetimezone}, {"retireAfterDateTime", type datetimezone}, {"preferMdmOverGroupPolicyAppliedDateTime", type datetimezone}, {"autopilotEnrolled", type logical}, {"managementCertificateExpirationDate", type datetimezone}, {"windowsActiveMalwareCount", Int64.Type}, {"windowsRemediatedMalwareCount", Int64.Type}})
+        data = Request.GraphFeed("/beta/deviceManagement/managedDevices", tenants)
     in 
-        changedType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.MobileAppDeviceStatuses = (optional tenants as list) as table =>
     let
-        source = SecMgmtInsights.MobileApps(tenants),
-        filteredRows = Table.SelectRows(source, each [isAssigned] = true),
-        mobileApps = Table.SelectColumns(filteredRows, {"tenantId", "id"}),
-        renamedColumn = Table.RenameColumns(mobileApps, {{"id", "mobileAppId"}}),
-        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GetPagedData("deviceAppManagement/mobileApps/" & [mobileAppId] & "/deviceStatuses", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "deviceName", "deviceId", "lastSyncDateTime", "mobileAppInstallStatusValue", "installState", "installStateDetail", "errorCode", "osVersion", "osDescription", "userName", "userPrincipalName", "displayVersion"}, {"id", "deviceName", "deviceId", "lastSyncDateTime", "mobileAppInstallStatusValue", "installState", "installStateDetail", "errorCode", "osVersion", "osDescription", "userName", "userPrincipalName", "displayVersion"}),
-        changedType = Table.TransformColumnTypes(expandedRecord, {{"lastSyncDateTime", type datetimezone}})
+        source = Request.GraphFeed("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
+        renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
+        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GraphFeed("/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/deviceStatuses", {[tenantId]}) otherwise null)
     in 
-        changedType;
+        Table.ExpandData(data, {"tenantId"});
+
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.MobileAppInstallSummary = (optional tenants as list) as table =>
     let
-        source = SecMgmtInsights.MobileApps(tenants),
-        filteredRows = Table.SelectRows(source, each [isAssigned] = true),
-        mobileApps = Table.SelectColumns(filteredRows, {"tenantId", "id"}),
-        renamedColumn = Table.RenameColumns(mobileApps, {{"id", "mobileAppId"}}),
-        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GetData("deviceAppManagement/mobileApps/" & [mobileAppId] & "/installSummary", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "installedDeviceCount", "failedDeviceCount", "notApplicableDeviceCount", "notInstalledDeviceCount", "pendingInstallDeviceCount", "installedUserCount", "failedUserCount", "notApplicableUserCount", "notInstalledUserCount", "pendingInstallUserCount"}, {"id", "installedDeviceCount", "failedDeviceCount", "notApplicableDeviceCount", "notInstalledDeviceCount", "pendingInstallDeviceCount", "installedUserCount", "failedUserCount", "notApplicableUserCount", "notInstalledUserCount", "pendingInstallUserCount"}),
-        changedType = Table.TransformColumnTypes(expandRecord, {{"installedDeviceCount", Int64.Type}, {"failedDeviceCount", Int64.Type}, {"notApplicableDeviceCount", Int64.Type}, {"notInstalledDeviceCount", Int64.Type}, {"pendingInstallDeviceCount", Int64.Type}, {"installedUserCount", Int64.Type}, {"failedUserCount", Int64.Type}, {"notApplicableUserCount", Int64.Type}, {"notInstalledUserCount", Int64.Type}, {"pendingInstallUserCount", Int64.Type}})
+        source = Request.GraphFeed("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
+        renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
+        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GraphContents("/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/installSummary", {[tenantId]}) otherwise null)
     in 
-        changedType;
+        Table.ExpandData(data, {"tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.MobileAppUserStatuses = (optional tenants as list) as table =>
     let
-        source = SecMgmtInsights.MobileApps(tenants),
-        filteredRows = Table.SelectRows(source, each [isAssigned] = true),
-        mobileApps = Table.SelectColumns(filteredRows, {"tenantId", "id"}),
-        renamedColumn = Table.RenameColumns(mobileApps, {{"id", "mobileAppId"}}),
-        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GetPagedData("deviceAppManagement/mobileApps/" & [mobileAppId] & "/userStatuses", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "userName", "userPrincipalName", "installedDeviceCount", "failedDeviceCount", "notInstalledDeviceCount"}, {"id", "userName", "userPrincipalName", "installedDeviceCount", "failedDeviceCount", "notInstalledDeviceCount"}),
-        changedType = Table.TransformColumnTypes(expandedRecord, {{"installedDeviceCount", Int64.Type}, {"failedDeviceCount", Int64.Type}, {"notInstalledDeviceCount", Int64.Type}})
+        source = Request.GraphFeed("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
+        renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
+        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GraphFeed("/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/userStatuses", {[tenantId]}) otherwise null)
     in 
-        changedType;
+        Table.ExpandData(data, {"tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.MobileApps = (optional tenants as list) as table =>
     let 
-        data = Request.GetPagedData("deviceAppManagement/mobileApps", tenants),
-        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "displayName", "description", "publisher", "largeIcon", "createdDateTime", "lastModifiedDateTime", "isFeatured", "privacyInformationUrl", "informationUrl", "owner", "developer", "notes", "uploadState", "publishingState", "isAssigned", "roleScopeTagIds", "dependentAppCount", "appAvailability", "version", "packageId", "appStoreUrl", "minimumSupportedOperatingSystem", "bundleId", "applicableDeviceType", "committedContentVersion", "fileName", "size", "commandLine", "productCode", "productVersion", "ignoreVersionDetection", "identityVersion", "useDeviceContext"}, {"id", "displayName", "description", "publisher", "largeIcon", "createdDateTime", "lastModifiedDateTime", "isFeatured", "privacyInformationUrl", "informationUrl", "owner", "developer", "notes", "uploadState", "publishingState", "isAssigned", "roleScopeTagIds", "dependentAppCount", "appAvailability", "version", "packageId", "appStoreUrl", "minimumSupportedOperatingSystem", "bundleId", "applicableDeviceType", "committedContentVersion", "fileName", "size", "commandLine", "productCode", "productVersion", "ignoreVersionDetection", "identityVersion", "useDeviceContext"}),
-        changedType = Table.TransformColumnTypes(expandedRecord, {{"createdDateTime", type datetimezone}, {"lastModifiedDateTime", type datetimezone}, {"isFeatured", type logical}, {"uploadState", Int64.Type}, {"isAssigned", type logical}, {"dependentAppCount", Int64.Type}, {"size", Int64.Type}})
+        data = Request.GraphFeed("/beta/deviceAppManagement/mobileApps", tenants)
     in 
-        changedType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SecurityBaselineSettingStates = (optional tenants as list) as table =>
     let
-        source = SecMgmtInsights.SecurityBaselineStates(tenants),
-        filterColumns = Table.SelectColumns(source, {"tenantId", "deviceId", "id"}),
-        renamedColumn =  Table.RenameColumns(filterColumns, {{"id", "templateId"}}),
-        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates/" & [templateId] & "/settingStates", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "settingName", "state", "settingCategoryId"}, {"id", "settingName", "state", "settingCategoryId"})
+        source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", tenants),
+        renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
+        states = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates?$select=id", {[tenantId]}) otherwise null),
+        statesColumnsRenamed = Table.RenameColumns(Table.ExpandData(states, {"tenantId"}), {"id", "templateId"}),
+        data = Table.AddColumn(statesColumnsRenamed, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates/" & [templateId] & "/settingStates", {[tenantId]}) otherwise null)
     in 
-        expandedRecord;
+        Table.ExpandData(data, {"tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SecurityBaselineStates = (optional tenants as list) as table =>
     let        
-        source = Request.GetPagedData("deviceManagement/managedDevices?$select=id", tenants),
-        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
-        data = Table.AddColumn(expandColumn, "Custom", each try Request.GetPagedData("deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandedRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "securityBaselineTemplateId", "displayName"}, {"id", "securityBaselineTemplateId", "displayName"})
+        source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", tenants),
+        renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
+        data = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates", {[tenantId]}) otherwise null)
     in 
-        expandedRecord;
+        Table.ExpandData(data, {"tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SoftwareUpdateStatusSummary = (optional tenants as list) as table =>
     let
-        data = Request.GetPagedData("deviceManagement/softwareUpdateStatusSummary", tenants),
-        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "displayName", "compliantDeviceCount", "nonCompliantDeviceCount", "remediatedDeviceCount", "errorDeviceCount", "unknownDeviceCount", "conflictDeviceCount", "notApplicableDeviceCount", "compliantUserCount", "nonCompliantUserCount", "remediatedUserCount", "errorUserCount", "unknownUserCount", "conflictUserCount", "notApplicableUserCount"}, {"id", "displayName", "compliantDeviceCount", "nonCompliantDeviceCount", "remediatedDeviceCount", "errorDeviceCount", "unknownDeviceCount", "conflictDeviceCount", "notApplicableDeviceCount", "compliantUserCount", "nonCompliantUserCount", "remediatedUserCount", "errorUserCount", "unknownUserCount", "conflictUserCount", "notApplicableUserCount"}),
-        changedType = Table.TransformColumnTypes(expandedRecord, {{"compliantDeviceCount", Int64.Type}, {"nonCompliantDeviceCount", Int64.Type}, {"remediatedDeviceCount", Int64.Type}, {"errorDeviceCount", Int64.Type}, {"unknownDeviceCount", Int64.Type}, {"conflictDeviceCount", Int64.Type}, {"notApplicableDeviceCount", Int64.Type}, {"compliantUserCount", Int64.Type}, {"nonCompliantUserCount", Int64.Type}, {"remediatedUserCount", Int64.Type}, {"errorUserCount", Int64.Type}, {"unknownUserCount", Int64.Type}, {"conflictUserCount", Int64.Type}, {"notApplicableUserCount", Int64.Type}})
+        data = Request.GraphContents("/beta/deviceManagement/softwareUpdateStatusSummary", tenants)
     in 
-        changedType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SubscriptionState = (optional tenants as list) as table =>
     let 
-        data = Request.GetData("deviceManagement/subscriptionState", tenants),
-        expandRecord = Table.ExpandRecordColumn(data, "Column1", {"value"}, {"value"})
+        data = Request.GraphContents("/beta/deviceManagement/subscriptionState", tenants)
     in
-        expandRecord;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.UserExperienceAnalyticsDevicePerformance = (optional tenants as list) as table =>
     let
-        data = Request.GetPagedData("deviceManagement/userExperienceAnalyticsDevicePerformance", tenants),
-        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "deviceName", "model", "manufacturer", "diskType", "operatingSystemVersion", "bootScore", "coreBootTimeInMs", "groupPolicyBootTimeInMs", "operatingSystem", "healthStatus", "complianceState", "loginScore", "coreLoginTimeInMs", "groupPolicyLoginTimeInMs", "deviceCount", "responsiveDesktopTimeInMs"}, {"id", "deviceName", "model", "manufacturer", "diskType", "operatingSystemVersion", "bootScore", "coreBootTimeInMs", "groupPolicyBootTimeInMs", "operatingSystem", "healthStatus", "complianceState", "loginScore", "coreLoginTimeInMs", "groupPolicyLoginTimeInMs", "deviceCount", "responsiveDesktopTimeInMs"})
+        data = Request.GraphFeed("/beta/deviceManagement/userExperienceAnalyticsDevicePerformance", tenants)
     in 
-        expandedRecord;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.WindowsAutopilotDeviceIdentities = (optional tenants as list) as table =>
     let
-        data = Request.GetPagedData("deviceManagement/windowsAutopilotDeviceIdentities", tenants),
-        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "deploymentProfileAssignmentStatus", "deploymentProfileAssignmentDetailedStatus", "deploymentProfileAssignedDateTime", "orderIdentifier", "groupTag", "purchaseOrderIdentifier", "serialNumber", "productKey", "manufacturer", "model", "enrollmentState", "lastContactedDateTime", "addressableUserName", "userPrincipalName", "resourceName", "skuNumber", "systemFamily", "azureActiveDirectoryDeviceId", "managedDeviceId", "displayName"}, {"id", "deploymentProfileAssignmentStatus", "deploymentProfileAssignmentDetailedStatus", "deploymentProfileAssignedDateTime", "orderIdentifier", "groupTag", "purchaseOrderIdentifier", "serialNumber", "productKey", "manufacturer", "model", "enrollmentState", "lastContactedDateTime", "addressableUserName", "userPrincipalName", "resourceName", "skuNumber", "systemFamily", "azureActiveDirectoryDeviceId", "managedDeviceId", "displayName"}),
-        changedType = Table.TransformColumnTypes(expandedRecord, {{"deploymentProfileAssignedDateTime", type datetimezone}, {"lastContactedDateTime", type datetimezone}})
+        data = Request.GraphFeed("/beta/deviceManagement/windowsAutopilotDeviceIdentities", tenants)
     in 
-        changedType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.WindowsAutopilotProfiles = (optional tenants as list) as table =>
     let 
-        data = Request.GetPagedData("deviceManagement/windowsAutopilotDeploymentProfiles", tenants),
-        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "displayName", "description", "language", "createdDateTime", "lastModifiedDateTime", "enrollmentStatusScreenSettings", "extractHardwareHash", "deviceNameTemplate", "deviceType", "enableWhiteGlove", "roleScopeTagIds", "outOfBoxExperienceSettings"}, {"id", "displayName", "description", "language", "createdDateTime", "lastModifiedDateTime", "enrollmentStatusScreenSettings", "extractHardwareHash", "deviceNameTemplate", "deviceType", "enableWhiteGlove", "roleScopeTagIds", "outOfBoxExperienceSettings"}),
-        expandedOobe = Table.ExpandRecordColumn(expandedRecord, "outOfBoxExperienceSettings", {"hidePrivacySettings", "hideEULA", "userType", "deviceUsageType", "skipKeyboardSelectionPage", "hideEscapeLink"}, {"outOfBoxExperienceSettings.hidePrivacySettings", "outOfBoxExperienceSettings.hideEULA", "outOfBoxExperienceSettings.userType", "outOfBoxExperienceSettings.deviceUsageType", "outOfBoxExperienceSettings.skipKeyboardSelectionPage", "outOfBoxExperienceSettings.hideEscapeLink"}),
-        changedType = Table.TransformColumnTypes(expandedOobe, {{"createdDateTime", type datetimezone}, {"lastModifiedDateTime", type datetimezone}, {"extractHardwareHash", type logical}, {"enableWhiteGlove", type logical}, {"outOfBoxExperienceSettings.hidePrivacySettings", type logical}, {"outOfBoxExperienceSettings.hideEULA", type logical}, {"outOfBoxExperienceSettings.skipKeyboardSelectionPage", type logical}, {"outOfBoxExperienceSettings.hideEscapeLink", type logical}})
+        data = Request.GraphFeed("/beta/deviceManagement/windowsAutopilotDeploymentProfiles", tenants)
     in 
-        changedType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.WindowsAutopilotSettings = (optional tenants as list) as table =>
     let 
-        data = Request.GetData("deviceManagement/windowsAutopilotSettings", tenants),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandedCustom = Table.ExpandRecordColumn(data, "Column1", {"id", "lastSyncDateTime", "lastManualSyncTriggerDateTime", "syncStatus"}, {"id", "lastSyncDateTime", "lastManualSyncTriggerDateTime", "syncStatus"}),
-        changedType = Table.TransformColumnTypes(expandedCustom, {{"lastSyncDateTime", type datetimezone}, {"lastManualSyncTriggerDateTime", type datetimezone}})
+        data = Request.GraphContents("/beta/deviceManagement/windowsAutopilotSettings", tenants)
     in 
-        changedType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.WindowsMalwareInformation = (optional tenants as list) as table =>
     let 
-        data = Request.GetPagedData("deviceManagement/windowsMalwareInformation", tenants),
-        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "displayName", "additionalInformationUrl", "severity", "category", "lastDetectionDateTime"}, {"id", "displayName", "additionalInformationUrl", "severity", "category", "lastDetectionDateTime"}),
-        changedType = Table.TransformColumnTypes(expandedRecord,{{"lastDetectionDateTime", type datetimezone}})
+        data = Request.GraphFeed("/beta/deviceManagement/windowsMalwareInformation", tenants)
     in
-        changedType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.WindowsProtectionState = (optional tenants as list) as table =>
     let 
-        source = Request.GetPagedData("deviceManagement/managedDevices?$select=id", tenants),
-        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"deviceId"}),
-        data = Table.AddColumn(expandColumn, "Custom", each try Request.GetData("deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"malwareProtectionEnabled", "deviceState", "realTimeProtectionEnabled", "networkInspectionSystemEnabled", "quickScanOverdue", "fullScanOverdue", "signatureUpdateOverdue", "rebootRequired", "fullScanRequired", "engineVersion", "signatureVersion", "antiMalwareVersion", "lastQuickScanDateTime", "lastFullScanDateTime", "lastQuickScanSignatureVersion", "lastFullScanSignatureVersion", "lastReportedDateTime"}, {"malwareProtectionEnabled", "deviceState", "realTimeProtectionEnabled", "networkInspectionSystemEnabled", "quickScanOverdue", "fullScanOverdue", "signatureUpdateOverdue", "rebootRequired", "fullScanRequired", "engineVersion", "signatureVersion", "antiMalwareVersion", "lastQuickScanDateTime", "lastFullScanDateTime", "lastQuickScanSignatureVersion", "lastFullScanSignatureVersion", "lastReportedDateTime"}),
-        changedType = Table.TransformColumnTypes(expandRecord, {{"malwareProtectionEnabled", type logical}, {"realTimeProtectionEnabled", type logical}, {"networkInspectionSystemEnabled", type logical}, {"quickScanOverdue", type logical}, {"fullScanOverdue", type logical}, {"signatureUpdateOverdue", type logical}, {"rebootRequired", type logical}, {"fullScanRequired", type logical}, {"lastQuickScanDateTime", type datetimezone}, {"lastFullScanDateTime", type datetimezone}, {"lastReportedDateTime", type datetimezone}})
-    in 
-        changedType;
+        source = Request.GraphFeed("/v1.0/deviceManagement/managedDevices?$select=id", tenants),
+        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GraphContents("/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState", {[tenantId]}) otherwise null)
+    in
+        Table.ExpandData(data, {"id", "tenantId"});
 
 // GitHub
 
@@ -491,61 +409,231 @@ shared SecMgmtInsights.DeviceActions = (optional tenants as list, optional jsonT
 
 // Helper
 
-Request.GetData = (relativeUrl as text, optional tenants as list) as table =>
+Extension.LoadFunction = (name as text) =>
     let
+        binary = Extension.Contents(name),
+        asText = Text.FromBinary(binary)
+    in
+        Expression.Evaluate(asText, #shared);
+
+Request.GraphContents = (relativeUrl as text, optional tenants as list) =>
+    let      
+        source = if (tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
+
         GetData = (tenantId as text) =>
             let
-                data = Microsoft.GetContent(graph_endpoint & "/" & relativeUrl, Token.GetAccessToken(tenantId)),
+                data = Rest.Contents(graph_endpoint & relativeUrl, Token.GetAccessToken(tenantId)), 
                 record = Record.FromTable(data)
             in 
-                record,
+                record, 
 
-        source = if(tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
-        data = Table.AddColumn(source, "Column1", each try GetData([tenantId]) otherwise null)
-    in
-        data;
+        // BUG - The typing will be lost when the table column is expanded because the schema type is not included in the AddColumn call
+        // DEBUG - Temporarily adding try otherwise null, need to find a way to expose the errors
+        data = Table.AddColumn(source, "Custom", each try GetData([tenantId]) otherwise null),
 
-Request.GetPagedData = (relativeUrl as text, optional tenants as list) as table =>
+        nonNullRows = Table.SelectRows(data, each [Custom] <> null),
+        listOfColumns = Record.FieldNames(nonNullRows{0}[Custom]), 
+        expandedTable = Table.ExpandRecordColumn(data, "Custom", listOfColumns, listOfColumns),
+        
+        schema = Schema.GetTable(nonNullRows{0}[Custom][#"@odata.context"], "tenantId = text"),
+        value = if(schema = null) then Table.RemoveColumns(expandedTable, {"@odata.context", "@odata.type"}, MissingField.Ignore) else Table.ChangeType(expandedTable, schema)
+   in
+       value;
+
+Request.GraphFeed = (relativeUrl as text, optional tenants as list) =>
     let      
+        source = if (tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
+
         GetData = (tenantId as text) =>
             let
-                data = Microsoft.GetPagedContent(graph_endpoint & "/" & relativeUrl, Token.GetAccessToken(tenantId)),
-                expandedList = Table.ExpandListColumn(data, "Column1"),
-                filteredRows = Table.SelectRows(expandedList, each [Column1] <> null)
+                data = Rest.Feed(graph_endpoint & relativeUrl, Token.GetAccessToken(tenantId))
             in 
                 data,
 
-        source = if (tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
+        // BUG - The typing will be lost when the table column is expanded because the schema type is not included in the AddColumn call
+        // DEBUG - Determine if we should return null or if there is a way to return the error without breaking the processing
         data = Table.AddColumn(source, "Custom", each try GetData([tenantId]) otherwise null),
-        expandColumn = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandList = Table.ExpandListColumn(expandColumn, "Column1")
-    in
-        expandList;
+        expandedCustom = Table.ExpandTableColumn(data, "Custom", {"Name", "Value"}, {"Name", "Value"}),
+        context = expandedCustom{0}[Value],
+
+        filteredRows = Table.SelectRows(expandedCustom, each [Name] = "value"), 
+        filteredColumns = Table.SelectColumns(filteredRows, {"tenantId", "Value"}),
+        expandedList = Table.ExpandListColumn(filteredColumns, "Value"),
+        schema = Schema.GetTable(context, "tenantId = text"),
+
+        entries = if(expandedList{0}[Value] = null) then 
+                expandedList 
+            else 
+                let
+                    listOfColumns = Record.FieldNames(expandedList{0}[Value]), 
+                    expandedTable = Table.ExpandRecordColumn(expandedList, "Value", listOfColumns, listOfColumns)
+                in 
+                    expandedTable,
+
+        value = if(schema = null) then Table.RemoveColumns(entries, {"@odata.context", "@odata.type"}, MissingField.Ignore) else Table.ChangeType(entries, schema)
+   in
+       value;
 
 Request.GetServiceCommData = (relativeUrl as text, optional tenants as list) =>
     let 
         GetData = (tenantId as text) =>
             let
-                data = Microsoft.GetPagedContent("https://manage.office.com/api/v1.0/" & tenantId & "/" & relativeUrl, Token.GetAccessToken(tenantId, "https://manage.office.com/.default")),
-                expandedList = Table.ExpandListColumn(data, "Column1"),
-                filteredRows = Table.SelectRows(expandedList, each [Column1] <> null)
+                data = Rest.Feed("https://manage.office.com/api/v1.0/" & tenantId & "/" & relativeUrl, Token.GetAccessToken(tenantId, "https://manage.office.com/.default"))
             in 
                 data,
 
         source = if (tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
         data = Table.AddColumn(source, "Custom", each try GetData([tenantId]) otherwise null),
-        expandColumn = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandList = Table.ExpandListColumn(expandColumn, "Column1")
+
+        expandedCustom = Table.ExpandTableColumn(data, "Custom", {"Name", "Value"}, {"Name", "Value"}),
+
+        filteredRows = Table.SelectRows(expandedCustom, each [Name] = "value"), 
+        filteredColumns = Table.SelectColumns(filteredRows, {"tenantId", "Value"}),
+        expandedList = Table.ExpandListColumn(filteredColumns, "Value"),
+
+        listOfColumns = Record.FieldNames(expandedList{0}[Value]), 
+        expandedTable = Table.ExpandRecordColumn(expandedList, "Value", listOfColumns, listOfColumns)
     in
-        expandList;
+        expandedTable;
 
 Request.GetTenant = () =>
     let
-        data = Microsoft.GetPagedContent(graph_endpoint & "/organization", Extension.CurrentCredential()[access_token]),
-        expandList = Table.ExpandListColumn(data, "Column1"),
-        expandRecord = Table.ExpandRecordColumn(expandList, "Column1", {"id"}, {"tenantId"})
+        data = Rest.Feed(graph_endpoint & "/v1.0/organization?$select=id", Extension.CurrentCredential()[access_token]),
+        schema = Schema.GetTable(data{0}[Value]), 
+        value = Table.ChangeType(data{1}[Value], schema),
+        renamedColumns = Table.RenameColumns(value, {{"id", "tenantId"}})
     in
-        expandRecord;
+        renamedColumns;
+
+Schema.GetEntityFromEntitySet = (entityContainer as table, value as text) =>
+    let
+        entity = if(Text.Contains(value, "microsoft.graph.")) then List.Last(Text.Split(value, ".")) else if(Text.Contains(value, "Collection(")) then
+                null
+            else
+                let
+                    entitySetTable = entityContainer{0}[EntitySet],
+                    entityValue = Table.SelectRows(entitySetTable, each [#"Attribute:Name"] = Text.BeforeDelimiter(value, "(")),
+                    entity = Text.Split(entityValue{0}[#"Attribute:EntityType"], "."){2}
+                in 
+                    entity
+    in 
+        entity;
+
+Schema.GetEntityFromSingleton = (entityContainer as table, entityType as table, values as list) =>
+    let 
+        singletonTable = entityContainer{0}[Singleton],
+        singletonValue = Table.SelectRows(singletonTable, each [#"Attribute:Name"] = values{0}),
+        singleton = Text.Split(singletonValue{0}[#"Attribute:Type"], "."){2},
+        
+        filtered = Table.SelectRows(entityType, each [#"Attribute:Name"] = singleton),
+        property = if(filtered{0}[Property] <> null) then Table.SelectRows(filtered{0}[Property], each [#"Attribute:Name"] = values{1}) else null,
+
+        entity = if(property <> null and not Table.IsEmpty(property)) then 
+            let 
+                value = Text.Split(property{0}[#"Attribute:Type"], "."){1}
+            in 
+                value
+            else 
+                Schema.GetTypeFromNavigationProperty(entityType, singleton, values)
+    in 
+        entity;
+
+Schema.GetEntityProperties = (entityType as table, entity as text, tables as list) =>
+    let 
+        entry = Table.SelectRows(entityType, each [#"Attribute:Name"] = entity),
+        properties = List.InsertRange(tables, 0, entry[Property]),
+        value = if(entry{0}[#"Attribute:BaseType"] = null) then properties else @Schema.GetEntityProperties(entityType, Text.AfterDelimiter(entry{0}[#"Attribute:BaseType"], "."), properties)
+    in 
+        value;
+
+Schema.GetEntityType = (entityContainer as table, entityType as table, value as text) => 
+    let 
+        parts = Text.Split(value, "/"),
+        removedEntity = if(List.Last(parts) = "$entity") then List.RemoveLastN(parts, 1) else parts,
+        entity = if(List.Count(removedEntity) = 1) then Schema.GetEntityFromEntitySet(entityContainer, value) else Schema.GetEntityFromSingleton(entityContainer, entityType, removedEntity)
+    in 
+        entity;
+
+Schema.GetTable = (context as text, optional additionalTypes as text) =>
+    let
+        schema = Xml.Tables(Web.Contents(Text.BeforeDelimiter(context, "$") & "$metadata")){0}[DataServices]{0}[#"http://docs.oasis-open.org/odata/ns/edm"]{0}[Schema],
+
+        entity = Schema.GetEntityType(schema{0}[EntityContainer], schema{0}[EntityType], Text.AfterDelimiter(context, "#")),
+        entityType = Table.SelectRows(schema{0}[EntityType], each [#"Attribute:Name"] = entity),
+  
+        GetData = (row as any) => 
+            let
+                data = if(Record.HasFields(row, "Attribute:Nullable") and row[#"Attribute:Nullable"] <> null and row[#"Attribute:Nullable"] = true) then 
+                    [Entity = row[#"Attribute:Name"], Type = " nullable " & GetDataType(row[#"Attribute:Type"])] 
+                else 
+                    [Entity = row[#"Attribute:Name"], Type = GetDataType(row[#"Attribute:Type"])]
+            in 
+                data,
+
+        GetDataType = (value) as text =>
+            if (value = "Edm.Boolean") then "logical" else if (value = "Collection(Edm.String)") then "list" 
+                else if (value = "Edm.DateTimeOffset") then "datetimezone"  else if (value = "Edm.Int32") then "number" 
+                else if(value = "Edm.String") then "text" else "any",
+
+        output = if(Table.IsEmpty(entityType)) then 
+            null 
+        else
+            let 
+                // Build the schema table based on data from the property table
+                propertyTableList = Schema.GetEntityProperties(schema{0}[EntityType], entity, {}),
+                convertedTable = Table.FromList(propertyTableList, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+                propertyTable = Table.ExpandTableColumn(convertedTable, "Column1", {"Attribute:Name", "Attribute:Type", "Attribute:Nullable"}, {"Attribute:Name", "Attribute:Type", "Attribute:Nullable"}),
+                addedSchema = Table.AddColumn(propertyTable, "schema", each GetData(_)),
+                schemaTable = Table.FromList(addedSchema[schema], Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+                expandedColumn = Table.ExpandRecordColumn(schemaTable, "Column1", {"Entity", "Type"}, {"Entity", "Type"}),
+
+                // Build the filter 
+                parts = Text.Split(Text.AfterDelimiter(context, "#"), "/"),
+                filter = if(List.Last(parts) = "$entity") then Text.BetweenDelimiters(List.LastN(parts, 2){0}, "(", ")") else Text.BetweenDelimiters(List.Last(parts), "(", ")"),
+                filterList = Text.Split(filter, ","),
+
+                // Remove the columns that are not included in the filter
+                filteredTable = if(filter = null or filter = "") then expandedColumn else Table.SelectRows(expandedColumn, each List.Contains(filterList, [Entity])),
+
+                custom = Table.AddColumn(filteredTable, "Expression", each [Entity] & " = " & [Type]),
+                output = if(additionalTypes = null or additionalTypes = "") then Expression.Evaluate("type table [" & Text.Combine(custom[Expression], ", ") & "]") else Expression.Evaluate("type table [" & additionalTypes & "," & Text.Combine(custom[Expression], ", ") & "]")
+            in 
+                output
+    in
+        output;
+
+Schema.GetTypeFromNavigationProperty = (entityType as table, entityName as text, values as list) =>
+    let
+        filtered = Table.SelectRows(entityType, each [#"Attribute:Name"] = entityName),
+
+        dataTable = if(filtered{0}[NavigationProperty] = null) then 
+                    Table.SelectRows(filtered{0}[Property], each [#"Attribute:Name"] = Text.BeforeDelimiter(values{1}, "("))
+                else
+                    Table.SelectRows(filtered{0}[NavigationProperty], each [#"Attribute:Name"] = Text.BeforeDelimiter(values{1}, "(")), 
+
+        resource = dataTable{0}[#"Attribute:Type"], 
+        entity = if(Text.Contains(resource, "(")) then Text.AfterDelimiter(Text.BetweenDelimiters(resource, "(", ")"), ".") else Text.AfterDelimiter(resource, "."),
+
+        value = if(List.Count(values) <= 2) then entity else @Schema.GetTypeFromNavigationProperty(entityType, entity, List.RemoveFirstN(values, 1))
+    in 
+        value;
+
+Table.ChangeType = Extension.LoadFunction("Table.ChangeType.pqm");
+
+Table.ExpandData = (data as table, optional columnsToRemove as list) =>
+    let 
+        value = if(Table.IsEmpty(Table.SelectRows(data, each [Custom] <> null))) then 
+                data
+            else
+                let 
+                    nonNullRows = Table.SelectRows(data, each [Custom] <> null and not Table.HasColumns([Custom], "Value")),
+                    removedColumns = if(columnsToRemove <> null) then Table.RemoveColumns(nonNullRows{0}[Custom], columnsToRemove) else nonNullRows{0}[Custom],
+                    listOfColumns = Table.ColumnNames(removedColumns), 
+                    expandedTable = Table.ExpandTableColumn(data, "Custom", listOfColumns, listOfColumns)
+                in 
+                    expandedTable
+    in
+        value;
 
 Table.GenerateByPage = (getNextPage as function) as table =>
     let        
@@ -602,68 +690,61 @@ Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.RiskDetections = (optional tenants as list) as table =>
     let
-        data = Request.GetPagedData("identityProtection/riskDetections", tenants),
-        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "requestId", "correlationId", "riskEventType", "riskState", "riskLevel", "riskDetail", "source", "detectionTimingType", "activity", "tokenIssuerType", "ipAddress", "activityDateTime", "detectedDateTime", "lastUpdatedDateTime", "userId", "userDisplayName", "userPrincipalName"}, {"id", "requestId", "correlationId", "riskEventType", "riskState", "riskLevel", "riskDetail", "source", "detectionTimingType", "activity", "tokenIssuerType", "ipAddress", "activityDateTime", "detectedDateTime", "lastUpdatedDateTime", "userId", "userDisplayName", "userPrincipalName"})
+        // TODO - This request requires a new permission to be added. With the test environment this is being left broken 
+        // so we can fix the error handling and reporting
+        data = Request.GraphFeed("/beta/identityProtection/riskDetections", tenants)
     in 
-        expandedRecord;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.RiskyUsers = (optional tenants as list) as table =>
     let
-        data = Request.GetPagedData("identityProtection/riskyUsers", tenants),
-        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "isDeleted", "isProcessing", "riskLastUpdatedDateTime", "riskLevel", "riskState", "riskDetail", "userDisplayName", "userPrincipalName"}, {"id", "isDeleted", "isProcessing", "riskLastUpdatedDateTime", "riskLevel", "riskState", "riskDetail", "userDisplayName", "userPrincipalName"})
+        data = Request.GraphFeed("/beta/identityProtection/riskyUsers", tenants)
     in 
-        expandedRecord;
+        data;
 
 // Information Protection 
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.UserDataLossPreventionPolicies = (optional tenants as list) as table =>
     let
-        source = Request.GetPagedData("users?$select=id", tenants),
-        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"userId"}),
-        data = Table.AddColumn(expandColumn, "Custom", each try Request.GetPagedData("users/" & [userId] & "/informationProtection/dataLossPreventionPolicies", {[tenantId]}) otherwise null)
+        source = Request.GraphFeed("/v1.0/users?$select=id", tenants),
+        renamedColumns = Table.RenameColumns(source, {"id", "userId"}), 
+        data = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/beta/users/" & [userId] & "/informationProtection/dataLossPreventionPolicies", {[tenantId]}) otherwise null)
     in
-        data;
+        Table.ExpandData(data, {"tenantId"});
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.UserSensitivityLabels = (optional tenants as list) as table =>
     let
-        source = Request.GetPagedData("users?$select=id", tenants),
-        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"id"}, {"userId"}),
-        data = Table.AddColumn(expandColumn, "Custom", each try Request.GetPagedData("users/" & [userId] & "/informationProtection/sensitivityLabels", {[tenantId]}) otherwise null),
-        expandCustom = Table.ExpandTableColumn(data, "Custom", {"Column1"}, {"Column1"}),
-        expandRecord = Table.ExpandRecordColumn(expandCustom, "Column1", {"id", "name", "displayName", "description", "toolTip", "isEndpointProtectionEnabled", "isDefault", "applicationMode", "priority", "autoLabeling", "applicableTo", "labelActions", "assignedPolicies", "sublabels"}, {"id", "name", "displayName", "description", "toolTip", "isEndpointProtectionEnabled", "isDefault", "applicationMode", "priority", "autoLabeling", "applicableTo", "labelActions", "assignedPolicies", "sublabels"}),
-        changeType = Table.TransformColumnTypes(expandRecord, {{"isEndpointProtectionEnabled", type logical}, {"isDefault", type logical}, {"priority", Int64.Type}})
+        source = Request.GraphFeed("/v1.0/users?$select=id", tenants),
+        renamedColumns = Table.RenameColumns(source, {"id", "userId"}), 
+        data = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/beta/users/" & [userId] & "/informationProtection/sensitivityLabels", {[tenantId]}) otherwise null)
     in 
-        changeType;
+        Table.ExpandData(data, {"tenantId"});
 
 // Intelligent Security Graph
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.Alerts = (optional tenants as list) as table =>
     let 
-        // TODO - Need to get a customer with test data
-        data = Request.GetPagedData("security/alerts", tenants)
+        data = Request.GraphFeed("/v1.0/security/alerts", tenants)
     in 
         data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SecureScore = (optional tenants as list) as table =>
     let 
-        data = Request.GetPagedData("security/secureScores", tenants),
-        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "azureTenantId", "activeUserCount", "createdDateTime", "currentScore", "enabledServices", "licensedUserCount", "maxScore", "vendorInformation", "averageComparativeScores", "controlScores"}, {"id", "azureTenantId", "activeUserCount", "createdDateTime", "currentScore", "enabledServices", "licensedUserCount", "maxScore", "vendorInformation", "averageComparativeScores", "controlScores"}),
-        changedType = Table.TransformColumnTypes(expandedRecord, {{"activeUserCount", Int64.Type}, {"createdDateTime", type datetimezone}, {"currentScore", Int64.Type}, {"licensedUserCount", Int64.Type}, {"maxScore", Int64.Type}})
+        data = Request.GraphFeed("/v1.0/security/secureScores", tenants)
     in 
-        changedType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SecureScoreControlProfiles = (optional tenants as list) as table =>
     let 
-        data = Request.GetPagedData("security/secureScoreControlProfiles", tenants),
-        expandedRecord = Table.ExpandRecordColumn(data, "Column1", {"id", "azureTenantId", "actionType", "actionUrl", "controlCategory", "title", "deprecated", "implementationCost", "lastModifiedDateTime", "maxScore", "rank", "remediation", "remediationImpact", "service", "threats", "tier", "userImpact", "vendorInformation", "complianceInformation", "controlStateUpdates"}, {"id", "azureTenantId", "actionType", "actionUrl", "controlCategory", "title", "deprecated", "implementationCost", "lastModifiedDateTime", "maxScore", "rank", "remediation", "remediationImpact", "service", "threats", "tier", "userImpact", "vendorInformation", "complianceInformation", "controlStateUpdates"})
+        data = Request.GraphFeed("/v1.0/security/secureScoreControlProfiles", tenants)
     in
-        expandedRecord;
+        data;
 
 // Navigation 
 
@@ -742,136 +823,111 @@ GitHub.GetContent = (url as text) =>
     in 
         result;
 
-Microsoft.GetContent = (url as text, token as text) =>
+Rest.Contents = (url as text, token as text) =>
     let
         source = Web.Contents(url,
             [
                 Headers = [
-                    #"Accept" = "application/json",
+                    #"Accept" = "application/json;odata.metadata=minimal;odata.streaming=false;IEEE754Compatible=false",
                     #"Accept-encoding" = "gzip",
                     #"Authorization" = "Bearer " & token,
                     #"User-Agent" = "secmgmt-insights-connector"
                 ], 
                 ManualCredentials = true,
-                ManualStatusHandling = {400, 401, 403}
+                ManualStatusHandling = {401, 403}
             ]),
         buffered = Binary.Buffer(source),
         status = Value.Metadata(source)[Response.Status],
-        result = if status = 400 then Json.Document(buffered)[error][message] else if status = 401 then Json.Document(buffered)[error][message] else if status = 403 then Json.Document(buffered) else Json.Document(buffered),
+        result = if status = 401 then Json.Document(buffered)[error][message] else if status = 403 then Json.Document(buffered) else Json.Document(buffered),
         link = try result[#"@odata.nextLink"] otherwise null
     in 
-        Record.ToTable(result) meta [Next=link];
+         Record.ToTable(result) meta [Next = link];
 
-Microsoft.GetPagedContent = (url as text, token as text) => Table.GenerateByPage((previous) =>
+Rest.Feed = (url as text, token as text) => Table.GenerateByPage((previous) =>
     let
         // If we have a previous page, get its Next link from metadata on the page.
         next = if (previous <> null) then try Value.Metadata(previous)[Next] otherwise null else null,
         // If we have a next link, use it, otherwise use the original URL that was passed in.
         urlToUse = if (next <> null) then next else url,
-        // If we have a previous page, but don't have a next link, then we're done paging.
-        // Otherwise retrieve the next page.
-        current = if (previous <> null and next = null) then null else Microsoft.GetContent(urlToUse, token),
+        // If we have a previous page, but don't have a next link, then we're done paging. Otherwise retrieve the next page.
+        current = if (previous <> null and next = null) then null else Rest.Contents(urlToUse, token),
         // If we got data back from the current page, get the link for the next page
-        link = if (current <> null) then Value.Metadata(current)[Next] else null,
-        // Microsoft Graph utilizes OData, so the value needs to be extracted
-        data = if(current <> null) then Table.FromList(Table.SelectRows(current, each ([Name] = "value"))[Value], Splitter.SplitByNothing()) else null
+        link = if (current <> null) then Value.Metadata(current)[Next] else null
     in
-        data meta [Next=link]);
+        current meta [Next = link]);
 
 // Office 365
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.MailboxUsageDetail = (optional tenants as list) as table =>
     let 
-        data = Request.GetPagedData("reports/getMailboxUsageDetail(period='D30')?$format=application/json", tenants),
-        expandRecord = Table.ExpandRecordColumn(data, "Column1", {"userPrincipalName", "displayName", "isDeleted", "deletedDate", "createdDate", "lastActivityDate", "itemCount", "storageUsedInBytes", "deletedItemCount", "deletedItemSizeInBytes", "issueWarningQuotaInBytes", "prohibitSendQuotaInBytes", "prohibitSendReceiveQuotaInBytes"}, {"userPrincipalName", "displayName", "isDeleted", "deletedDate", "createdDate", "lastActivityDate", "itemCount", "storageUsedInBytes", "deletedItemCount", "deletedItemSizeInBytes", "issueWarningQuotaInBytes", "prohibitSendQuotaInBytes", "prohibitSendReceiveQuotaInBytes"}),
-        changeType = Table.TransformColumnTypes(expandRecord, {{"isDeleted", type logical}, {"deletedDate", type date}, {"createdDate", type date}, {"lastActivityDate", type date}, {"itemCount", Int64.Type}, {"storageUsedInBytes", Int64.Type}, {"deletedItemCount", Int64.Type}, {"deletedItemSizeInBytes", Int64.Type}, {"issueWarningQuotaInBytes", Int64.Type}, {"prohibitSendQuotaInBytes", Int64.Type}, {"prohibitSendReceiveQuotaInBytes", Int64.Type}})
+        data = Request.GraphFeed("/beta/reports/getMailboxUsageDetail(period='D30')?$format=application/json", tenants)
     in 
-        changeType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.Office365ActiveUserDetails = (optional tenants as list) as table =>
     let
-        data = Request.GetPagedData("reports/getOffice365ActiveUserDetail(period='D30')?$format=application/json", tenants),
-        expandRecord = Table.ExpandRecordColumn(data, "Column1", {"userPrincipalName", "displayName", "isDeleted", "deletedDate", "hasExchangeLicense", "hasOneDriveLicense", "hasSharePointLicense", "hasSkypeForBusinessLicense", "hasYammerLicense", "hasTeamsLicense", "exchangeLastActivityDate", "oneDriveLastActivityDate", "sharePointLastActivityDate", "skypeForBusinessLastActivityDate", "yammerLastActivityDate", "teamsLastActivityDate", "exchangeLicenseAssignDate", "oneDriveLicenseAssignDate", "sharePointLicenseAssignDate", "skypeForBusinessLicenseAssignDate", "yammerLicenseAssignDate", "teamsLicenseAssignDate", "assignedProducts"}, {"userPrincipalName", "displayName", "isDeleted", "deletedDate", "hasExchangeLicense", "hasOneDriveLicense", "hasSharePointLicense", "hasSkypeForBusinessLicense", "hasYammerLicense", "hasTeamsLicense", "exchangeLastActivityDate", "oneDriveLastActivityDate", "sharePointLastActivityDate", "skypeForBusinessLastActivityDate", "yammerLastActivityDate", "teamsLastActivityDate", "exchangeLicenseAssignDate", "oneDriveLicenseAssignDate", "sharePointLicenseAssignDate", "skypeForBusinessLicenseAssignDate", "yammerLicenseAssignDate", "teamsLicenseAssignDate", "assignedProducts"}),
-        changeType = Table.TransformColumnTypes(expandRecord, {{"isDeleted", type logical}, {"deletedDate", type date}, {"hasExchangeLicense", type logical}, {"hasOneDriveLicense", type logical}, {"hasSharePointLicense", type logical}, {"hasSkypeForBusinessLicense", type logical}, {"hasYammerLicense", type logical}, {"hasTeamsLicense", type logical}, {"exchangeLastActivityDate", type date}, {"oneDriveLastActivityDate", type date}, {"sharePointLastActivityDate", type date}, {"skypeForBusinessLastActivityDate", type date}, {"yammerLastActivityDate", type date}, {"teamsLastActivityDate", type date}, {"exchangeLicenseAssignDate", type date}, {"oneDriveLicenseAssignDate", type date}, {"sharePointLicenseAssignDate", type date}, {"skypeForBusinessLicenseAssignDate", type date}, {"yammerLicenseAssignDate", type date}, {"teamsLicenseAssignDate", type date}})
+        data = Request.GraphFeed("/beta/reports/getOffice365ActiveUserDetail(period='D30')?$format=application/json", tenants)
     in 
-        changeType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.Office365ServicesUserCounts = (optional tenants as list) as table =>
     let
-        data = Request.GetPagedData("reports/getOffice365ServicesUserCounts(period='D30')?$format=application/json", tenants),
-        expandRecord = Table.ExpandRecordColumn(data, "Column1", {"exchangeActive", "exchangeInactive", "oneDriveActive", "oneDriveInactive", "sharePointActive", "sharePointInactive", "skypeForBusinessActive", "skypeForBusinessInactive", "yammerActive", "yammerInactive", "teamsActive", "teamsInactive", "office365Active", "office365Inactive"}, {"exchangeActive", "exchangeInactive", "oneDriveActive", "oneDriveInactive", "sharePointActive", "sharePointInactive", "skypeForBusinessActive", "skypeForBusinessInactive", "yammerActive", "yammerInactive", "teamsActive", "teamsInactive", "office365Active", "office365Inactive"}),
-        changeType = Table.TransformColumnTypes(expandRecord, {{"exchangeActive", Int64.Type}, {"exchangeInactive", Int64.Type}, {"oneDriveActive", Int64.Type}, {"oneDriveInactive", Int64.Type}, {"sharePointActive", Int64.Type}, {"sharePointInactive", Int64.Type}, {"skypeForBusinessActive", Int64.Type}, {"skypeForBusinessInactive", Int64.Type}, {"yammerActive", Int64.Type}, {"yammerInactive", Int64.Type}, {"teamsActive", Int64.Type}, {"teamsInactive", Int64.Type}, {"office365Active", Int64.Type}, {"office365Inactive", Int64.Type}})
+        data = Request.GraphFeed("/beta/reports/getOffice365ServicesUserCounts(period='D30')?$format=application/json", tenants)
     in 
-        changeType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.OneDriveUsageAccountDetail = (optional tenants as list) as table =>
     let
-        data = Request.GetPagedData("reports/getOneDriveUsageAccountDetail(period='D30')?$format=application/json", tenants),
-        expandRecord = Table.ExpandRecordColumn(data, "Column1", {"siteUrl", "ownerDisplayName", "ownerPrincipalName", "isDeleted", "lastActivityDate", "fileCount", "activeFileCount", "storageUsedInBytes", "storageAllocatedInBytes"}, {"siteUrl", "ownerDisplayName", "ownerPrincipalName", "isDeleted", "lastActivityDate", "fileCount", "activeFileCount", "storageUsedInBytes", "storageAllocatedInBytes"}),
-        changeType = Table.TransformColumnTypes(expandRecord, {{"isDeleted", type logical}, {"lastActivityDate", type date}, {"fileCount", Int64.Type}, {"activeFileCount", Int64.Type}, {"storageUsedInBytes", Int64.Type}, {"storageAllocatedInBytes", Int64.Type}})
+        data = Request.GraphFeed("/beta/reports/getOneDriveUsageAccountDetail(period='D30')?$format=application/json", tenants)
     in 
-        changeType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SharePointSiteUsageDetail = (optional tenants as list) as table =>
     let
-        data = Request.GetPagedData("reports/getSharePointSiteUsageDetail(period='D30')?$format=application/json", tenants),
-        expandRecord = Table.ExpandRecordColumn(data, "Column1", {"siteId", "siteUrl", "ownerDisplayName", "ownerPrincipalName", "isDeleted", "lastActivityDate", "fileCount", "activeFileCount", "pageViewCount", "visitedPageCount", "storageUsedInBytes", "storageAllocatedInBytes", "rootWebTemplate"}, {"siteId", "siteUrl", "ownerDisplayName", "ownerPrincipalName", "isDeleted", "lastActivityDate", "fileCount", "activeFileCount", "pageViewCount", "visitedPageCount", "storageUsedInBytes", "storageAllocatedInBytes", "rootWebTemplate"}),
-        changeType = Table.TransformColumnTypes(expandRecord, {{"isDeleted", type logical}, {"lastActivityDate", type date}, {"fileCount", Int64.Type}, {"activeFileCount", Int64.Type}, {"pageViewCount", Int64.Type}, {"visitedPageCount", Int64.Type}, {"storageUsedInBytes", Int64.Type}, {"storageAllocatedInBytes", Int64.Type}})
+        data = Request.GraphFeed("/beta/reports/getSharePointSiteUsageDetail(period='D30')?$format=application/json", tenants)
     in 
-        changeType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.TeamsUserActivityUserDetail = (optional tenants as list) as table =>
     let
-        data = Request.GetPagedData("reports/getTeamsUserActivityUserDetail(period='D30')?$format=application/json", tenants),
-        expandRecord = Table.ExpandRecordColumn(data, "Column1", {"userPrincipalName", "lastActivityDate", "isDeleted", "deletedDate", "assignedProducts", "teamChatMessageCount", "privateChatMessageCount", "callCount", "meetingCount", "hasOtherAction"}, {"userPrincipalName", "lastActivityDate", "isDeleted", "deletedDate", "assignedProducts", "teamChatMessageCount", "privateChatMessageCount", "callCount", "meetingCount", "hasOtherAction"}),
-        changeType = Table.TransformColumnTypes(expandRecord, {{"lastActivityDate", type date}, {"isDeleted", type logical}, {"deletedDate", type date}, {"teamChatMessageCount", Int64.Type}, {"privateChatMessageCount", Int64.Type}, {"callCount", Int64.Type}, {"meetingCount", Int64.Type}, {"hasOtherAction", type logical}})
+        data = Request.GraphFeed("/beta/reports/getTeamsUserActivityUserDetail(period='D30')?$format=application/json", tenants)
     in 
-        changeType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.YammerActivityUserDetail = (optional tenants as list) as table =>
     let
-        data = Request.GetPagedData("reports/getYammerActivityUserDetail(period='D30')?$format=application/json", tenants),
-        expandRecord = Table.ExpandRecordColumn(data, "Column1", {"userPrincipalName", "displayName", "userState", "stateChangeDate", "lastActivityDate", "postedCount", "readCount", "likedCount", "assignedProducts"}, {"userPrincipalName", "displayName", "userState", "stateChangeDate", "lastActivityDate", "postedCount", "readCount", "likedCount", "assignedProducts"}),
-        changeType = Table.TransformColumnTypes(expandRecord, {{"stateChangeDate", type date}, {"lastActivityDate", type date}, {"postedCount", Int64.Type}, {"readCount", Int64.Type}, {"likedCount", Int64.Type}})
+        data = Request.GraphFeed("/beta/reports/getYammerActivityUserDetail(period='D30')?$format=application/json", tenants)
     in 
-        changeType;
+        data;
 
 // Office 365 Service Communication
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.ServiceCurrentStatus = (optional tenants as list) as table =>
     let
-        source = Request.GetServiceCommData("ServiceComms/CurrentStatus", tenants),
-        expandRecord = Table.ExpandRecordColumn(source, "Column1", {"FeatureStatus", "Id", "IncidentIds", "Status", "StatusDisplayName", "StatusTime", "Workload", "WorkloadDisplayName"}, {"FeatureStatus", "Id", "IncidentIds", "Status", "StatusDisplayName", "StatusTime", "Workload", "WorkloadDisplayName"}),
-        changeType = Table.TransformColumnTypes(expandRecord, {{"StatusTime", type datetimezone}})
+        data = Request.GetServiceCommData("ServiceComms/CurrentStatus", tenants)
     in
-        changeType;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.ServiceHistoricalStatus = (optional tenants as list) as table =>
     let
-        source = Request.GetServiceCommData("ServiceComms/HistoricalStatus", tenants),
-        expandRecord = Table.ExpandRecordColumn(source, "Column1", {"FeatureStatus", "Id", "IncidentIds", "Status", "StatusDisplayName", "StatusTime", "Workload", "WorkloadDisplayName"}, {"FeatureStatus", "Id", "IncidentIds", "Status", "StatusDisplayName", "StatusTime", "Workload", "WorkloadDisplayName"}),
-        changeType = Table.TransformColumnTypes(expandRecord, {{"StatusTime", type datetimezone}})
+        data = Request.GetServiceCommData("ServiceComms/HistoricalStatus", tenants)
     in
-        changeType;
+        data;
 
 // Tenant 
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.SubscribedSkus = (optional tenants as list) as table =>
     let
-        source = Request.GetPagedData("subscribedSkus", tenants),
-        expandColumn = Table.ExpandRecordColumn(source, "Column1", {"capabilityStatus", "consumedUnits", "id", "skuId", "skuPartNumber", "appliesTo", "prepaidUnits", "servicePlans"}, {"capabilityStatus", "consumedUnits", "id", "skuId", "skuPartNumber", "appliesTo", "prepaidUnits", "servicePlans"}),
-        expandServicePlans = Table.ExpandListColumn(expandColumn, "servicePlans"),
-        expandRecord = Table.ExpandRecordColumn(expandServicePlans, "servicePlans", {"servicePlanId", "servicePlanName", "provisioningStatus", "appliesTo"}, {"servicePlanId", "servicePlanName", "provisioningStatus", "servicePlans.appliesTo"}),
-        expandPrepaidUnits = Table.ExpandRecordColumn(expandRecord, "prepaidUnits", {"enabled", "suspended", "warning"}, {"prepaidUnits.enabled", "prepaidUnits.suspended", "prepaidUnits.warning"})
+        data = Request.GraphFeed("/v1.0/subscribedSkus", tenants)
     in
-        expandPrepaidUnits;
+        data;
