@@ -427,12 +427,15 @@ Request.GraphContents = (relativeUrl as text, optional tenants as list) =>
             in 
                 record, 
 
+        // BUG - The typing will be lost when the table column is expanded because the schema type is not included in the AddColumn call
         // DEBUG - Temporarily adding try otherwise null, need to find a way to expose the errors
         data = Table.AddColumn(source, "Custom", each try GetData([tenantId]) otherwise null),
-        listOfColumns = Record.FieldNames(data{0}[Custom]), 
+
+        nonNullRows = Table.SelectRows(data, each [Custom] <> null),
+        listOfColumns = Record.FieldNames(nonNullRows{0}[Custom]), 
         expandedTable = Table.ExpandRecordColumn(data, "Custom", listOfColumns, listOfColumns),
         
-        schema = Schema.GetTable(expandedTable[#"@odata.context"]{0}, "tenantId = text"),
+        schema = Schema.GetTable(nonNullRows{0}[Custom][#"@odata.context"], "tenantId = text"),
         value = if(schema = null) then Table.RemoveColumns(expandedTable, {"@odata.context", "@odata.type"}, MissingField.Ignore) else Table.ChangeType(expandedTable, schema)
    in
        value;
@@ -447,6 +450,7 @@ Request.GraphFeed = (relativeUrl as text, optional tenants as list) =>
             in 
                 data,
 
+        // BUG - The typing will be lost when the table column is expanded because the schema type is not included in the AddColumn call
         // DEBUG - Determine if we should return null or if there is a way to return the error without breaking the processing
         data = Table.AddColumn(source, "Custom", each try GetData([tenantId]) otherwise null),
         expandedCustom = Table.ExpandTableColumn(data, "Custom", {"Name", "Value"}, {"Name", "Value"}),
@@ -479,9 +483,18 @@ Request.GetServiceCommData = (relativeUrl as text, optional tenants as list) =>
                 data,
 
         source = if (tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
-        data = Table.AddColumn(source, "Custom", each try GetData([tenantId]) otherwise null)
+        data = Table.AddColumn(source, "Custom", each try GetData([tenantId]) otherwise null),
+
+        expandedCustom = Table.ExpandTableColumn(data, "Custom", {"Name", "Value"}, {"Name", "Value"}),
+
+        filteredRows = Table.SelectRows(expandedCustom, each [Name] = "value"), 
+        filteredColumns = Table.SelectColumns(filteredRows, {"tenantId", "Value"}),
+        expandedList = Table.ExpandListColumn(filteredColumns, "Value"),
+
+        listOfColumns = Record.FieldNames(expandedList{0}[Value]), 
+        expandedTable = Table.ExpandRecordColumn(expandedList, "Value", listOfColumns, listOfColumns)
     in
-        Table.ExpandData(data);
+        expandedTable;
 
 Request.GetTenant = () =>
     let
@@ -609,8 +622,6 @@ Table.ChangeType = Extension.LoadFunction("Table.ChangeType.pqm");
 
 Table.ExpandData = (data as table, optional columnsToRemove as list) =>
     let 
-        // TODO - optomize you are basically querying for non-null rows twice
-
         value = if(Table.IsEmpty(Table.SelectRows(data, each [Custom] <> null))) then 
                 data
             else
