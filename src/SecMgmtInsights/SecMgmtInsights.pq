@@ -8,6 +8,7 @@ graph_endpoint = "https://graph.microsoft.com";
 logout_uri = "https://login.microsoftonline.com/logout.srf";
 redirect_uri = "https://oauth.powerbi.com/views/oauthredirect.html";
 token_uri = "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
+version = "1.3";
 
 // Data Source Kind description
 
@@ -116,9 +117,10 @@ shared SecMgmtInsights.ConditionalAccessPolicies = (optional tenants as list) as
 shared SecMgmtInsights.Contracts = (optional tenants as list) as table =>
     let
         data = Request.GraphFeed("/v1.0/contracts", tenants),
-        removeColumn = try Table.RemoveColumns(data, "tenantId") otherwise data
+        removedColumn = try Table.RemoveColumns(data, "tenantId") otherwise data,
+        renamedColumn = Table.RenameColumns(removedColumn, {"customerId", "tenantId"}, MissingField.Ignore)
     in
-        data;
+        renamedColumn;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.CredentialUserRegistrationDetails = (optional tenants as list) as table =>
@@ -409,6 +411,14 @@ shared SecMgmtInsights.DeviceActions = (optional tenants as list, optional jsonT
 
 // Helper
 
+Diagnostics = Extension.LoadFunction("Diagnostics.pqm");
+
+Diagnostics.LogValue = Diagnostics[LogValue];
+
+Diagnostics.LogFailure = Diagnostics[LogFailure];
+
+Diagnostics.WrapHandlers = Diagnostics[WrapHandlers];
+
 Extension.LoadFunction = (name as text) =>
     let
         binary = Extension.Contents(name),
@@ -428,11 +438,10 @@ Request.GraphContents = (relativeUrl as text, optional tenants as list) =>
                 record, 
 
         // BUG - The typing will be lost when the table column is expanded because the schema type is not included in the AddColumn call
-        // DEBUG - Temporarily adding try otherwise null, need to find a way to expose the errors
         data = Table.AddColumn(source, "Custom", each try GetData([tenantId]) otherwise null),
 
         nonNullRows = Table.SelectRows(data, each [Custom] <> null),
-        listOfColumns = Record.FieldNames(nonNullRows{0}[Custom]), 
+        listOfColumns = if(Table.IsEmpty(nonNullRows)) then null else Record.FieldNames(nonNullRows{0}[Custom]), 
         expandedTable = Table.ExpandRecordColumn(data, "Custom", listOfColumns, listOfColumns),
         
         schema = Schema.GetTable(nonNullRows{0}[Custom][#"@odata.context"], "tenantId = text"),
@@ -451,26 +460,22 @@ Request.GraphFeed = (relativeUrl as text, optional tenants as list) =>
                 data,
 
         // BUG - The typing will be lost when the table column is expanded because the schema type is not included in the AddColumn call
-        // DEBUG - Determine if we should return null or if there is a way to return the error without breaking the processing
         data = Table.AddColumn(source, "Custom", each try GetData([tenantId]) otherwise null),
+    
         expandedCustom = Table.ExpandTableColumn(data, "Custom", {"Name", "Value"}, {"Name", "Value"}),
-        context = expandedCustom{0}[Value],
+        nonNullRows = Table.SelectRows(expandedCustom, each [Value] <> null),
+        context = nonNullRows{0}[Value],
 
         filteredRows = Table.SelectRows(expandedCustom, each [Name] = "value"), 
         filteredColumns = Table.SelectColumns(filteredRows, {"tenantId", "Value"}),
         expandedList = Table.ExpandListColumn(filteredColumns, "Value"),
         schema = Schema.GetTable(context, "tenantId = text"),
 
-        entries = if(expandedList{0}[Value] = null) then 
-                expandedList 
-            else 
-                let
-                    listOfColumns = Record.FieldNames(expandedList{0}[Value]), 
-                    expandedTable = Table.ExpandRecordColumn(expandedList, "Value", listOfColumns, listOfColumns)
-                in 
-                    expandedTable,
-
-        value = if(schema = null) then Table.RemoveColumns(entries, {"@odata.context", "@odata.type"}, MissingField.Ignore) else Table.ChangeType(entries, schema)
+        nonNullValues = Table.SelectRows(expandedList, each [Value] <> null),
+        listOfColumns = if(Table.IsEmpty(nonNullValues)) then null else Record.FieldNames(nonNullValues{0}[Value]), 
+        expandedTable = if(Table.IsEmpty(nonNullValues)) then expandedList else Table.ExpandRecordColumn(expandedList, "Value", listOfColumns, listOfColumns),
+        
+        value = if(schema = null) then Table.RemoveColumns(expandedTable, {"@odata.context", "@odata.type"}, MissingField.Ignore) else Table.ChangeType(expandedTable, schema)
    in
        value;
 
