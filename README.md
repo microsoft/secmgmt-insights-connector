@@ -2,6 +2,10 @@
 
 Microsoft 365 provides several advanced security and management features that empower you to improve your, or your customers, security posture. Knowing what features are configured and whether they adhere to the recommended configurations is challenging. Using this connector, you will be able gain insights what components have been adopted and how they are configured.  
 
+## Bug Bash
+
+As enhancements are made to the connector and new features added it can be difficult to test for every scenario. While we strive to ensure the solution is free of any complications and issues, there is a chance something might make it through testing. This means there is a possbility that the connector might not behave as expected. With this in mind from time to time we will have a virtual bug bash where everyone is encouraged to create bugs for any unexpected behavior. Often these events will happen when significant changes are made to the connector. See our [bug bash](BUG_BASH.md) guide for more details.  
+
 ## Getting Started
 
 Prior to utilizing this connector to gain insights from your, or your customers, environment there are some required actions that need to be taken. The remaining sections of this article will guide you through fulfilling the prerequisites, installing the connector, and how to leverage on the templates. If you have any questions about this process please open an [issue](https://github.com/microsoft/secmgmt-insights-connector/issues/new/choose) for help.
