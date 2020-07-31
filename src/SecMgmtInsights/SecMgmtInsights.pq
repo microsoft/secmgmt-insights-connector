@@ -463,9 +463,8 @@ Request.GraphFeed = (relativeUrl as text, optional tenants as list) =>
         schema = Schema.GetTable(context, "tenantId = text"),
 
         nonNullValues = Table.SelectRows(expandedList, each [Value] <> null),
-
-        listOfColumns = if(nonNullValues = null) then null else Record.FieldNames(nonNullValues{0}[Value]), 
-        expandedTable = Table.ExpandRecordColumn(expandedList, "Value", listOfColumns, listOfColumns),
+        listOfColumns = if(Table.IsEmpty(nonNullValues)) then null else Record.FieldNames(nonNullValues{0}[Value]), 
+        expandedTable = if(Table.IsEmpty(nonNullValues)) then expandedList else Table.ExpandRecordColumn(expandedList, "Value", listOfColumns, listOfColumns),
         
         value = if(schema = null) then Table.RemoveColumns(expandedTable, {"@odata.context", "@odata.type"}, MissingField.Ignore) else Table.ChangeType(expandedTable, schema)
    in
