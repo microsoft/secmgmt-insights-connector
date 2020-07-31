@@ -11,9 +11,9 @@
     <AllowNativeQuery>False</AllowNativeQuery>
     <AsAction>False</AsAction>
     <FastCombine>False</FastCombine>
-    <ClearLog>False</ClearLog>
+    <ClearLog>True</ClearLog>
     <ShowEngineTraces>False</ShowEngineTraces>
-    <ShowUserTraces>False</ShowUserTraces>
+    <ShowUserTraces>True</ShowUserTraces>
     <LegacyRedirects>False</LegacyRedirects>
     <SuppressRowErrors>False</SuppressRowErrors>
     <SuppressCellErrors>False</SuppressCellErrors>
@@ -22,6 +22,7 @@
     <Name>SecMgmtInsights</Name>
     <OutputPath>$(RepoArtifacts)$(Configuration)\</OutputPath>
     <PublishDir>$(OutputPath)</PublishDir>
+    <ThrowOnFoldingFailure>False</ThrowOnFoldingFailure>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>false</DebugSymbols>
@@ -71,6 +72,9 @@
       <SubType>Content</SubType>
     </Compile>
     <Compile Include="Table.ChangeType.pqm">
+      <SubType>Content</SubType>
+    </Compile>
+    <Compile Include="Diagnostics.pqm">
       <SubType>Content</SubType>
     </Compile>
     <Content Include="SecMgmtInsights.query.pq">

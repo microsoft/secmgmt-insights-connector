@@ -410,6 +410,14 @@ shared SecMgmtInsights.DeviceActions = (optional tenants as list, optional jsonT
 
 // Helper
 
+Diagnostics = Extension.LoadFunction("Diagnostics.pqm");
+
+Diagnostics.LogValue = Diagnostics[LogValue];
+
+Diagnostics.LogFailure = Diagnostics[LogFailure];
+
+Diagnostics.WrapHandlers = Diagnostics[WrapHandlers];
+
 Extension.LoadFunction = (name as text) =>
     let
         binary = Extension.Contents(name),
@@ -432,7 +440,7 @@ Request.GraphContents = (relativeUrl as text, optional tenants as list) =>
         data = Table.AddColumn(source, "Custom", each try GetData([tenantId]) otherwise null),
 
         nonNullRows = Table.SelectRows(data, each [Custom] <> null),
-        listOfColumns = Record.FieldNames(nonNullRows{0}[Custom]), 
+        listOfColumns = if(Table.IsEmpty(nonNullRows)) then null else Record.FieldNames(nonNullRows{0}[Custom]), 
         expandedTable = Table.ExpandRecordColumn(data, "Custom", listOfColumns, listOfColumns),
         
         schema = Schema.GetTable(nonNullRows{0}[Custom][#"@odata.context"], "tenantId = text"),
