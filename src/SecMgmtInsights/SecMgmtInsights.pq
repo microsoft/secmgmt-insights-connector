@@ -8,7 +8,7 @@ graph_endpoint = "https://graph.microsoft.com";
 logout_uri = "https://login.microsoftonline.com/logout.srf";
 redirect_uri = "https://oauth.powerbi.com/views/oauthredirect.html";
 token_uri = "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
-version = "1.3";
+version = "2.0";
 
 // Data Source Kind description
 
@@ -94,7 +94,7 @@ TokenMethod = (tokenUri, grantType, tokenField, parameter, optional scope as tex
                 #"Content-type" = "application/x-www-form-urlencoded",
                 #"Accept" = "application/json"
             ],
-            ManualStatusHandling = {400} 
+            ManualStatusHandling = {400, 401, 403} 
         ]),
         body = Json.Document(tokenResponse),
         result = if (Record.HasFields(body, {"error", "error_description"})) then 
@@ -103,6 +103,15 @@ TokenMethod = (tokenUri, grantType, tokenField, parameter, optional scope as tex
                     body
     in 
         result;
+
+Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
+    let 
+        authResult = if (tenantId <> null) then 
+            TokenMethod("https://login.microsoftonline.com/" & tenantId & "/oauth2/v2.0/token", "refresh_token", "refresh_token", Extension.CurrentCredential()[refresh_token], scope)
+        else
+            TokenMethod(token_uri, "refresh_token", "refresh_token", Extension.CurrentCredential()[refresh_token], scope)
+    in 
+        authResult[access_token];
 
 // Azure Active Directory
 
@@ -116,11 +125,11 @@ shared SecMgmtInsights.ConditionalAccessPolicies = (optional tenants as list) as
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.Contracts = (optional tenants as list) as table =>
     let
-        data = Request.GraphFeed("/v1.0/contracts", true, true, tenants),
-        removedColumn = try Table.RemoveColumns(data, "tenantId") otherwise data,
-        renamedColumn = Table.RenameColumns(removedColumn, {"customerId", "tenantId"}, MissingField.Ignore)
+        data = Request.GraphFeed("/v1.0/contracts", true, true, tenants)
+        //removedColumn = try Table.RemoveColumns(data, "tenantId") otherwise data,
+        //renamedColumn = Table.RenameColumns(removedColumn, {"customerId", "tenantId"}, MissingField.Ignore)
     in
-        renamedColumn;
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.CredentialUserRegistrationDetails = (optional tenants as list) as table =>
@@ -164,7 +173,7 @@ shared SecMgmtInsights.DetectedApps= (optional tenants as list) as table =>
     let 
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", true, false, tenants),
         renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
-        data = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId]  & "/detectedApps", true, true, {[tenantId]}) otherwise null)
+        data = Table.AddColumn(renamedColumns, "Column1", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId]  & "/detectedApps", true, true, {[tenantId]}) otherwise null)
     in
         Data.ChangeType(data, {"tenantId"});
 
@@ -173,7 +182,7 @@ shared SecMgmtInsights.DetectedMalwareState = (optional tenants as list) as tabl
     let 
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", true, false, tenants),
         renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
-        data = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState/detectedMalwareState", true, true, {[tenantId]}) otherwise null)
+        data = Table.AddColumn(renamedColumns, "Column1", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState/detectedMalwareState", true, true, {[tenantId]}) otherwise null)
     in 
         Data.ChangeType(data, {"tenantId"});
 
@@ -182,9 +191,9 @@ shared SecMgmtInsights.DeviceCompliancePolicySettingStates = (optional tenants a
     let
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", true, false, tenants),
         renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
-        policies = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates?$select=id", true, false, {[tenantId]}) otherwise null), 
-        expandedTable = Table.ExpandTableColumn(policies, "Custom", {"id"}, {"policyId"}),
-        data = Table.AddColumn(expandedTable, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates/" & [policyId] & "/settingStates", true , true, {[tenantId]}) otherwise null)    
+        policies = Table.AddColumn(renamedColumns, "Column1", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates?$select=id", true, false, {[tenantId]}) otherwise null), 
+        expandedTable = Table.ExpandTableColumn(policies, "Column1", {"id"}, {"policyId"}),
+        data = Table.AddColumn(expandedTable, "Column1", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates/" & [policyId] & "/settingStates", true , true, {[tenantId]}) otherwise null)    
     in 
         Data.ChangeType(data, {"tenantId"});
 
@@ -200,7 +209,7 @@ shared SecMgmtInsights.DeviceCompliancePolicyStates = (optional tenants as list)
     let
         source = Request.GraphFeed("/v1.0/deviceManagement/managedDevices?$select=id", true, false, tenants),
         renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
-        data = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates", true, true, {[tenantId]}) otherwise null)
+        data = Table.AddColumn(renamedColumns, "Column1", each try Request.GraphFeed("/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates", true, true, {[tenantId]}) otherwise null)
     in 
         Data.ChangeType(data, {"tenantId"});
 
@@ -216,9 +225,9 @@ shared SecMgmtInsights.DeviceConfigurationPolicySettingStates = (optional tenant
     let
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", true, false, tenants),
         renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
-        policies = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates?$select=id", true, false, {[tenantId]}) otherwise null), 
-        expandedTable = Table.ExpandTableColumn(policies, "Custom", {"id"}, {"policyId"}),
-        data = Table.AddColumn(expandedTable, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates/" & [policyId] & "/settingStates", true, true, {[tenantId]}) otherwise null)    
+        policies = Table.AddColumn(renamedColumns, "Column1", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates?$select=id", true, false, {[tenantId]}) otherwise null), 
+        expandedTable = Table.ExpandTableColumn(policies, "Column1", {"id"}, {"policyId"}),
+        data = Table.AddColumn(expandedTable, "Column1", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates/" & [policyId] & "/settingStates", true, true, {[tenantId]}) otherwise null)    
     in 
         Data.ChangeType(data, {"tenantId"});
 
@@ -227,7 +236,7 @@ shared SecMgmtInsights.DeviceConfigurationPolicyStates = (optional tenants as li
     let        
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", true, false, tenants),
         renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
-        data = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates", true, true, {[tenantId]}) otherwise null)
+        data = Table.AddColumn(renamedColumns, "Column1", each try Request.GraphFeed("/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates", true, true, {[tenantId]}) otherwise null)
     in 
         Data.ChangeType(data, {"tenantId"});
 
@@ -250,17 +259,16 @@ shared SecMgmtInsights.MobileAppDeviceStatuses = (optional tenants as list) as t
     let
         source = Request.GraphFeed("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true", true, false, tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
-        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GraphFeed("/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/deviceStatuses", true, true, {[tenantId]}) otherwise null)
+        data = Table.AddColumn(renamedColumn, "Column1", each try Request.GraphFeed("/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/deviceStatuses", true, true, {[tenantId]}) otherwise null)
     in 
         Data.ChangeType(data, {"tenantId"});
-
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.MobileAppInstallSummary = (optional tenants as list) as table =>
     let
         source = Request.GraphFeed("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true", true, false, tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
-        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GraphFeed("/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/installSummary", false, false, {[tenantId]}) otherwise null)
+        data = Table.AddColumn(renamedColumn, "Column1", each try Request.GraphFeed("/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/installSummary", false, false, {[tenantId]}) otherwise null)
     in 
         Data.ChangeType(data, {"tenantId"});
 
@@ -269,7 +277,7 @@ shared SecMgmtInsights.MobileAppUserStatuses = (optional tenants as list) as tab
     let
         source = Request.GraphFeed("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true", true, false, tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
-        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GraphFeed("/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/userStatuses", true, true, {[tenantId]}) otherwise null)
+        data = Table.AddColumn(renamedColumn, "Column1", each try Request.GraphFeed("/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/userStatuses", true, true, {[tenantId]}) otherwise null)
     in 
         Data.ChangeType(data, {"tenantId"});
 
@@ -285,9 +293,9 @@ shared SecMgmtInsights.SecurityBaselineSettingStates = (optional tenants as list
     let
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", true, true, tenants),
         renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
-        states = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates?$select=id", true, false, {[tenantId]}) otherwise null),
+        states = Table.AddColumn(renamedColumns, "Column1", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates?$select=id", true, false, {[tenantId]}) otherwise null),
         statesColumnsRenamed = Table.RenameColumns(Data.ChangeType(states, {"tenantId"}), {"id", "templateId"}),
-        data = Table.AddColumn(statesColumnsRenamed, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates/" & [templateId] & "/settingStates", true, true, {[tenantId]}) otherwise null)
+        data = Table.AddColumn(statesColumnsRenamed, "Column1", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates/" & [templateId] & "/settingStates", true, true, {[tenantId]}) otherwise null)
     in 
         Data.ChangeType(data, {"tenantId"});
 
@@ -296,7 +304,7 @@ shared SecMgmtInsights.SecurityBaselineStates = (optional tenants as list) as ta
     let        
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", true, false, tenants),
         renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
-        data = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates", true, true, {[tenantId]}) otherwise null)
+        data = Table.AddColumn(renamedColumns, "Column1", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates", true, true, {[tenantId]}) otherwise null)
     in 
         Data.ChangeType(data, {"tenantId"});
 
@@ -354,31 +362,16 @@ shared SecMgmtInsights.WindowsProtectionState = (optional tenants as list) as ta
     let 
         source = Request.GraphFeed("/v1.0/deviceManagement/managedDevices?$select=id", true, false, tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
-        data = Table.AddColumn(renamedColumn, "Custom", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState", false, true, {[tenantId]}) otherwise null)
+        data = Table.AddColumn(renamedColumn, "Column1", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState", false, true, {[tenantId]}) otherwise null)
     in
         Data.ChangeType(data, {"id", "tenantId"});
 
-// Extensions 
-
-Data.ChangeType = (value as table, optional columnsToRemove as list) =>
-    let 
-        context = value{0}[Column1]{0}[#"@odata.context"], 
-        schema = Schema.GetTable(context, "tenantId = text"),
-
-        removedColumns = if(columnsToRemove <> null) then Table.RemoveColumns(value{0}[Column1], columnsToRemove, MissingField.Ignore) else value{0}[Column1],
-        listOfColumns = Table.ColumnNames(removedColumns),
-        expandedTable = Table.ExpandTableColumn(value, "Column1", listOfColumns),
-
-        changedType = Table.ChangeType(expandedTable, schema)
-    in  
-        changedType;
+// Extensions
 
 Diagnostics = Extension.LoadFunction("Diagnostics.pqm");
 
 Diagnostics.LogValue = Diagnostics[LogValue];
-
 Diagnostics.LogFailure = Diagnostics[LogFailure];
-
 Diagnostics.WrapHandlers = Diagnostics[WrapHandlers];
 
 Extension.LoadFunction = (name as text) =>
@@ -389,47 +382,8 @@ Extension.LoadFunction = (name as text) =>
         Expression.Evaluate(asText, #shared);
 
 Table.ChangeType = Extension.LoadFunction("Table.ChangeType.pqm");
-
-Table.GenerateByPage = (getNextPage as function) as table =>
-    let        
-        listOfPages = List.Generate(
-            () => getNextPage(null),            
-            (lastPage) => lastPage <> null,     
-            (lastPage) => getNextPage(lastPage) 
-        ),
-        tableOfPages = Table.FromList(listOfPages, Splitter.SplitByNothing(), {"Column1"}),
-        firstRow = tableOfPages{0}?
-    in
-        if (firstRow = null) then
-            Table.FromRows({})
-        else        
-            Value.ReplaceType(
-                Table.ExpandTableColumn(tableOfPages, "Column1", Table.ColumnNames(firstRow[Column1])),
-                Value.Type(firstRow[Column1])
-            );
-
-Table.ToNavigationTable = (
-    table as table,
-    keyColumns as list,
-    nameColumn as text,
-    dataColumn as text,
-    itemKindColumn as text,
-    itemNameColumn as text,
-    isLeafColumn as text
-) as table =>
-    let
-        tableType = Value.Type(table),
-        newTableType = Type.AddTableKey(tableType, keyColumns, true) meta 
-        [
-            NavigationTable.NameColumn = nameColumn, 
-            NavigationTable.DataColumn = dataColumn,
-            NavigationTable.ItemKindColumn = itemKindColumn, 
-            Preview.DelayColumn = itemNameColumn, 
-            NavigationTable.IsLeafColumn = isLeafColumn
-        ],
-        navigationTable = Value.ReplaceType(table, newTableType)
-    in
-        navigationTable;
+Table.GenerateByPage = Extension.LoadFunction("Table.GenerateByPage.pqm");
+Table.ToNavigationTable = Extension.LoadFunction("Table.ToNavigationTable.pqm");
 
 // GitHub
 
@@ -484,79 +438,18 @@ shared SecMgmtInsights.DeviceActions = (optional tenants as list, optional jsonT
 
 // Helper
 
-Request.GraphFeed = (relativeUrl as text, isResponsePaged as logical, isSchemaRequired as logical, optional tenants as list) =>
+Data.ChangeType = (value as table, optional columnsToRemove as list) =>
     let 
-        source = if (tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
+        context = value{0}[Column1]{0}[#"@odata.context"], 
+        schema = Schema.GetTable(context, "tenantId = text"),
 
-        GetContext = (tenantId as text) =>
-            let
-                parts = Uri.Parts(graph_endpoint & relativeUrl),
-                data = Rest.GetContents(Text.Format("#{0}://#{1}:#{2}/#{3}?$top=1", {parts[Scheme], parts[Host], parts[Port], parts[Path]}), Token.GetAccessToken(tenantId))
-            in
-                data,
+        removedColumns = if(columnsToRemove <> null) then Table.RemoveColumns(value{0}[Column1], columnsToRemove, MissingField.Ignore) else value{0}[Column1],
+        listOfColumns = Table.ColumnNames(removedColumns),
+        expandedTable = Table.ExpandTableColumn(value, "Column1", listOfColumns),
 
-         GetData = (tenantId as text) =>
-            let
-                data = if(isResponsePaged) then 
-                        Rest.GetPage(graph_endpoint & relativeUrl, Token.GetAccessToken(tenantId))
-                    else
-                        Rest.GetContents(graph_endpoint & relativeUrl, Token.GetAccessToken(tenantId))
-            in 
-                data,
-    
-        schema = if(isResponsePaged and isSchemaRequired) then
-            let
-                contextTable = Table.AddColumn(source, "Custom", each GetContext([tenantId])),
-                context = contextTable{0}[Custom][#"@odata.context"]{0}, 
-                value = Schema.GetTable(context, "tenantId = text")
-            in 
-                value
-        else
-            null,
-
-        data = Table.AddColumn(source, "Custom", each GetData([tenantId]), schema),
-        // TODO - Need to convert to the schema to avoid issues with empty data sets. 
-        value = Table.ExpandTableColumn(data, "Custom", Table.ColumnNames(data{0}?[Custom]))
-    in 
-        value;
-
-Request.GetServiceCommData = (relativeUrl as text, optional tenants as list) =>
-    let 
-        GetData = (tenantId as text) =>
-            let
-                data = Rest.GetContents("https://manage.office.com/api/v1.0/" & tenantId & "/" & relativeUrl, Token.GetAccessToken(tenantId, "https://manage.office.com/.default"))
-            in 
-                data,
-
-        source = if (tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
-        data = Table.AddColumn(source, "Custom", each try GetData([tenantId]) otherwise null),
-
-        expandedCustom = Table.ExpandTableColumn(data, "Custom", {"Name", "Value"}, {"Name", "Value"}),
-
-        filteredRows = Table.SelectRows(expandedCustom, each [Name] = "value"), 
-        filteredColumns = Table.SelectColumns(filteredRows, {"tenantId", "Value"}),
-        expandedList = Table.ExpandListColumn(filteredColumns, "Value"),
-
-        listOfColumns = Record.FieldNames(expandedList{0}[Value]), 
-        expandedTable = Table.ExpandRecordColumn(expandedList, "Value", listOfColumns, listOfColumns)
-    in
-        expandedTable;
-
-Request.GetTenant = () =>
-    let
-        data = Rest.GetContents(graph_endpoint & "/v1.0/organization?$select=id", Extension.CurrentCredential()[access_token], true),
-        renamedColumns = Table.RenameColumns(data, {{"id", "tenantId"}}, MissingField.Ignore)
-    in
-        renamedColumns;
-
-Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
-    let 
-        authResult = if (tenantId <> null) then 
-            TokenMethod("https://login.microsoftonline.com/" & tenantId & "/oauth2/v2.0/token", "refresh_token", "refresh_token", Extension.CurrentCredential()[refresh_token], scope)
-        else
-            TokenMethod(token_uri, "refresh_token", "refresh_token", Extension.CurrentCredential()[refresh_token], scope)
-    in 
-        authResult[access_token];
+        changedType = Table.ChangeType(expandedTable, schema)
+    in  
+        changedType;
 
 // Identity Protection
 
@@ -583,7 +476,7 @@ shared SecMgmtInsights.UserDataLossPreventionPolicies = (optional tenants as lis
     let
         source = Request.GraphFeed("/v1.0/users?$select=id", true, false, tenants),
         renamedColumns = Table.RenameColumns(source, {"id", "userId"}), 
-        data = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/beta/users/" & [userId] & "/informationProtection/dataLossPreventionPolicies", true, true, {[tenantId]}) otherwise null)
+        data = Table.AddColumn(renamedColumns, "Column1", each try Request.GraphFeed("/beta/users/" & [userId] & "/informationProtection/dataLossPreventionPolicies", true, true, {[tenantId]}) otherwise null)
     in
         Data.ChangeType(data, {"tenantId"});
 
@@ -592,7 +485,7 @@ shared SecMgmtInsights.UserSensitivityLabels = (optional tenants as list) as tab
     let
         source = Request.GraphFeed("/v1.0/users?$select=id", true, false, tenants),
         renamedColumns = Table.RenameColumns(source, {"id", "userId"}), 
-        data = Table.AddColumn(renamedColumns, "Custom", each try Request.GraphFeed("/beta/users/" & [userId] & "/informationProtection/sensitivityLabels", true, true, {[tenantId]}) otherwise null)
+        data = Table.AddColumn(renamedColumns, "Column1", each try Request.GraphFeed("/beta/users/" & [userId] & "/informationProtection/sensitivityLabels", true, true, {[tenantId]}) otherwise null)
     in 
         Data.ChangeType(data, {"tenantId"});
 
@@ -676,7 +569,7 @@ shared SecMgmtInsights.Contents = (optional tenants as list) as table =>
         navTable = Table.ToNavigationTable(source, {"Name"}, "Name", "Data", "ItemKind", "ItemName", "IsLeaf")
     in 
         navTable;
-  
+
 // Network
 
 GitHub.GetContent = (url as text) =>
@@ -696,22 +589,22 @@ GitHub.GetContent = (url as text) =>
     in 
         result;
 
-Rest.GetContents = (url as text, token as text, optional isResponsePaged as logical) =>
+Rest.GetContents = (url as text, optional token as text, optional isResponsePaged as logical) =>
     let
+        headers = [
+            #"Accept" = "application/json;odata.metadata=minimal;odata.streaming=false;IEEE754Compatible=false",
+            #"Accept-encoding" = "gzip",
+            #"User-Agent" = "secmgmt-insights-connector"],
+        addHeader = if(token = null or token = "") then headers else Record.AddField(headers, "Authorization", "Bearer " & token),
         source = Web.Contents(url,
             [
-                Headers = [
-                    #"Accept" = "application/json;odata.metadata=minimal;odata.streaming=false;IEEE754Compatible=false",
-                    #"Accept-encoding" = "gzip",
-                    #"Authorization" = "Bearer " & token,
-                    #"User-Agent" = "secmgmt-insights-connector"
-                ], 
-                ManualCredentials = true,
+                Headers = addHeader, 
+                ManualCredentials = if(token = null or token = "") then false else true,
                 ManualStatusHandling = {400, 401, 403}
             ]),
         body = Json.Document(source),
         data = if(isResponsePaged <> null and isResponsePaged) then 
-                Table.FromRecords(body[value]) 
+                Table.FromRecords(body[value])
             else 
                 let
                     contents = Table.FromList({body}, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
@@ -798,6 +691,92 @@ shared SecMgmtInsights.ServiceHistoricalStatus = (optional tenants as list) as t
         data = Request.GetServiceCommData("ServiceComms/HistoricalStatus", tenants)
     in
         data;
+
+// Debug 
+
+[DataSource.Kind="SecMgmtInsights"]
+shared SecMgmtInsights.Debug = (optional tenants as list) as table =>
+    let
+        data = Rest.GetContents(graph_endpoint & "/v1.0/organization?$select=id", Extension.CurrentCredential()[access_token], true),
+        renamedColumns = Table.RenameColumns(data, {{"id", "tenantId"}}, MissingField.Ignore)
+    in
+        renamedColumns;
+
+// Request
+
+Request.GraphFeed = (relativeUrl as text, isResponsePaged as logical, isSchemaRequired as logical, optional tenants as list) =>
+    let 
+        source = if (tenants = null or List.IsEmpty(tenants)) then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
+
+        GetContext = (tenantId as text) =>
+            let
+                parts = Uri.Parts(graph_endpoint & relativeUrl),
+                data = Rest.GetContents(Text.Format("#{0}://#{1}:#{2}/#{3}?$top=1", {parts[Scheme], parts[Host], parts[Port], parts[Path]}))
+            in
+                data,
+
+         GetData = (tenantId as text) =>
+            let
+                data = if(isResponsePaged) then 
+                        Rest.GetPage(graph_endpoint & relativeUrl, Token.GetAccessToken(tenantId))
+                    else
+                        Rest.GetContents(graph_endpoint & relativeUrl, Token.GetAccessToken(tenantId)),
+                value = if(data = null) then null else 
+                    let 
+                        addedColumn = if(Table.HasColumns(data, "tenantId")) then data else Table.AddColumn(data, "tenantId", each tenantId),
+                        value = Table.ToRecords(addedColumn)
+                    in
+                        value
+            in 
+                value,
+    
+        schema = if(isResponsePaged and isSchemaRequired) then
+            let
+                contextTable = Table.AddColumn(source, "Custom", each GetContext([tenantId])),
+                context = contextTable{0}[Custom][#"@odata.context"]{0}, 
+                value = Schema.GetTable(context, "tenantId = text")
+            in 
+                value
+        else
+            null,
+
+        data = Table.AddColumn(source, "Custom", each GetData([tenantId]), schema),
+        
+        nonNullRows = Table.SelectRows(data, each [Custom] <> null),
+        mergedLists = if(Table.IsEmpty(nonNullRows)) then null else List.Combine(data[Custom]),
+        
+        changedType = if(schema = null) then data else if (mergedLists = null) then Table.ChangeType(data, schema) else Table.ChangeType(mergedLists, schema)
+    in 
+        changedType;
+
+Request.GetServiceCommData = (relativeUrl as text, optional tenants as list) =>
+    let 
+        GetData = (tenantId as text) =>
+            let
+                data = Rest.GetContents("https://manage.office.com/api/v1.0/" & tenantId & "/" & relativeUrl, Token.GetAccessToken(tenantId, "https://manage.office.com/.default"))
+            in 
+                data,
+
+        source = if (tenants = null or tenants = "") then Request.GetTenant() else Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
+        data = Table.AddColumn(source, "Custom", each try GetData([tenantId]) otherwise null),
+
+        expandedCustom = Table.ExpandTableColumn(data, "Custom", {"Name", "Value"}, {"Name", "Value"}),
+
+        filteredRows = Table.SelectRows(expandedCustom, each [Name] = "value"), 
+        filteredColumns = Table.SelectColumns(filteredRows, {"tenantId", "Value"}),
+        expandedList = Table.ExpandListColumn(filteredColumns, "Value"),
+
+        listOfColumns = Record.FieldNames(expandedList{0}[Value]), 
+        expandedTable = Table.ExpandRecordColumn(expandedList, "Value", listOfColumns, listOfColumns)
+    in
+        expandedTable;
+
+Request.GetTenant = () =>
+    let
+        data = Rest.GetContents(graph_endpoint & "/v1.0/organization?$select=id", Extension.CurrentCredential()[access_token], true),
+        renamedColumns = Table.RenameColumns(data, {{"id", "tenantId"}}, MissingField.Ignore)
+    in
+        renamedColumns;
 
 // Schema
 

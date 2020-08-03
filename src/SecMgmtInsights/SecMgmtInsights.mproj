@@ -80,6 +80,12 @@
     <Content Include="SecMgmtInsights.query.pq">
       <SubType>Code</SubType>
     </Content>
+    <Compile Include="Table.GenerateByPage.pqm">
+      <SubType>Content</SubType>
+    </Compile>
+    <Compile Include="Table.ToNavigationTable.pqm">
+      <SubType>Content</SubType>
+    </Compile>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <UsingTask TaskName="BuildExtension" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v12.0.dll">
