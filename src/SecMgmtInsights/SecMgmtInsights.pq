@@ -125,11 +125,11 @@ shared SecMgmtInsights.ConditionalAccessPolicies = (optional tenants as list) as
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.Contracts = (optional tenants as list) as table =>
     let
-        data = Request.GraphFeed("/v1.0/contracts", true, true, tenants)
-        //removedColumn = try Table.RemoveColumns(data, "tenantId") otherwise data,
-        //renamedColumn = Table.RenameColumns(removedColumn, {"customerId", "tenantId"}, MissingField.Ignore)
+        data = Request.GraphFeed("/v1.0/contracts", true, true, tenants),
+        removedColumn = try Table.RemoveColumns(data, "tenantId") otherwise data,
+        renamedColumn = Table.RenameColumns(removedColumn, {"customerId", "tenantId"}, MissingField.Ignore)
     in
-        data;
+        renamedColumn;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.CredentialUserRegistrationDetails = (optional tenants as list) as table =>
@@ -216,7 +216,7 @@ shared SecMgmtInsights.DeviceCompliancePolicyStates = (optional tenants as list)
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.DeviceConfigurationPolicies = (optional tenants as list) as table =>
     let 
-        data = Request.GraphFeed("/beta/deviceManagement/deviceConfigurations", true, false, tenants)
+        data = Request.GraphFeed("/beta/deviceManagement/deviceConfigurations", true, true, tenants)
     in
         data;
 
@@ -602,14 +602,20 @@ Rest.GetContents = (url as text, optional token as text, optional isResponsePage
                 ManualCredentials = if(token = null or token = "") then false else true,
                 ManualStatusHandling = {400, 401, 403}
             ]),
-        body = Json.Document(source),
-        data = if(isResponsePaged <> null and isResponsePaged) then 
-                Table.FromRecords(body[value])
-            else 
-                let
-                    contents = Table.FromList({body}, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
-                    firstRow = contents{0}?,
-                    value = if(firstRow = null) then Table.FromRows({}) else Table.ExpandRecordColumn(contents, "Column1", Record.FieldNames(firstRow[Column1]))
+        buffered = Binary.Buffer(source),
+        status = Value.Metadata(source)[Response.Status],
+        body = Json.Document(buffered),
+        data = if (status = 401 or status = 403) then Error.Record("Access denied", "Have you verified the expected permissions are in place?", body) else 
+            let
+                value = if(isResponsePaged <> null and isResponsePaged) then 
+                    Table.FromRecords(body[value])
+                else 
+                    let
+                        contents = Table.FromList({body}, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+                        firstRow = contents{0}?,
+                        value = if(firstRow = null) then Table.FromRows({}) else Table.ExpandRecordColumn(contents, "Column1", Record.FieldNames(firstRow[Column1]))
+                    in
+                        value
                 in
                     value,
         link = Record.FieldOrDefault(body, "@odata.nextLink")
