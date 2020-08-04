@@ -115,9 +115,8 @@ Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
 
 // Azure Active Directory
 
-// TODO - Add as table back
 [DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.ConditionalAccessPolicies = (optional tenants as list) =>
+shared SecMgmtInsights.ConditionalAccessPolicies = (optional tenants as list) as table =>
     let
         data = Request.GraphFeed("/beta/identity/conditionalAccess/policies", true, true, tenants)
     in 
@@ -149,7 +148,8 @@ shared SecMgmtInsights.Devices = (optional tenants as list) as table =>
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy = (optional tenants as list) as table =>
     let
-       data = Request.GraphFeed("/v1.0/policies/identitySecurityDefaultsEnforcementPolicy", false, true, tenants)
+        // BUG - This data will not be expanded because the schema is not evaluated due to the response from the API not being paged
+        data = Request.GraphFeed("/v1.0/policies/identitySecurityDefaultsEnforcementPolicy", false, true, tenants)
     in 
         data;
 
@@ -181,6 +181,7 @@ shared SecMgmtInsights.DetectedApps= (optional tenants as list) as table =>
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.DetectedMalwareState = (optional tenants as list) as table =>
     let 
+        // BUG - There is an issue if the API does not return any devices, then the resulting table will be null. So, this means our response here will result in an error.
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", true, false, tenants),
         renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
         data = Table.AddColumn(renamedColumns, "Column1", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState/detectedMalwareState", true, true, {[tenantId]}) otherwise null)
@@ -254,7 +255,7 @@ shared SecMgmtInsights.ManagedDevices = (optional tenants as list) =>
     let 
         data = Request.GraphFeed("/beta/deviceManagement/managedDevices", true, true, tenants)
     in 
-        data;
+        Data.ChangeType(data);
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.MobileAppDeviceStatuses = (optional tenants as list) as table =>
@@ -317,8 +318,9 @@ shared SecMgmtInsights.SoftwareUpdateStatusSummary = (optional tenants as list) 
     in 
         data;
 
+// TODO - Add as table back
 [DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.SubscriptionState = (optional tenants as list) as table =>
+shared SecMgmtInsights.SubscriptionState = (optional tenants as list) =>
     let 
         data = Request.GraphFeed("/beta/deviceManagement/subscriptionState", false, true, tenants)
     in
@@ -383,6 +385,7 @@ Extension.LoadFunction = (name as text) =>
     in
         Expression.Evaluate(asText, #shared);
 
+Schema.GetTable = Extension.LoadFunction("Schema.GetTable.pqm");
 Table.ChangeType = Extension.LoadFunction("Table.ChangeType.pqm");
 Table.GenerateByPage = Extension.LoadFunction("Table.GenerateByPage.pqm");
 Table.ToNavigationTable = Extension.LoadFunction("Table.ToNavigationTable.pqm");
@@ -739,10 +742,30 @@ Request.GraphFeed = (relativeUrl as text, isResponsePaged as logical, isSchemaRe
         else
             null,
 
-        data = Table.AddColumn(source, "Custom", each GetData([tenantId]), schema),
+        data = Table.AddColumn(source, "Column1", each GetData([tenantId]), schema),
         
-        nonNullRows = Table.SelectRows(data, each [Custom] <> null),
-        mergedLists = if(Table.IsEmpty(nonNullRows)) then null else List.Combine(nonNullRows[Custom]),
+        nonNullRows = Table.SelectRows(data, each [Column1] <> null),
+        mergedLists = if(Table.IsEmpty(nonNullRows)) then null else List.Combine(nonNullRows[Column1]),
+
+        // So, the problem is that we cannot call $top=1 for features of the API that do not return a collection.
+        // Which means the @odata.context will be included in the response from the above function call. All of this 
+        // ulimately means you have two design options. The first would be to make the call twice; alternatively you 
+        // could use the response to determine the schema and return the result. The down side of using the second 
+        // option is that the column has already been added to table, so you will loose typing and Table.ChangeType will 
+        // need to be invoked seperately or the columns would need to be updated in the report later.
+
+        // The following code will not work for the subscriptionState query because the API returns an enumeration instead of an entity.
+        // Currently the Schema.GetTable function does not support this type and a null value will be returned. Which means the value 
+        // will not be extracted
+
+        test = if(not isResponsePaged and isSchemaRequired) then 
+            let 
+                context = mergedLists{0}[#"@odata.context"],
+                schema = Schema.GetTable(context, "tenantId = text")
+            in 
+                schema 
+            else 
+                null,
         
         // TODO - With this design any row that does not have data will not be included in the response.
         // Need to confirm that this is not going to cause any issues. It is suspected that there will 
@@ -780,121 +803,6 @@ Request.GetTenant = () =>
         renamedColumns = Table.RenameColumns(data, {{"id", "tenantId"}}, MissingField.Ignore)
     in
         renamedColumns;
-
-// Schema
-
-Schema.GetEntityFromEntitySet = (entityContainer as table, value as text) =>
-    let
-        entity = if(Text.Contains(value, "microsoft.graph.")) then List.Last(Text.Split(value, ".")) else if(Text.Contains(value, "Collection(")) then
-                null
-            else
-                let
-                    entitySetTable = entityContainer{0}[EntitySet],
-                    entityValue = Table.SelectRows(entitySetTable, each [#"Attribute:Name"] = Text.BeforeDelimiter(value, "(")),
-                    entity = Text.Split(entityValue{0}[#"Attribute:EntityType"], "."){2}
-                in 
-                    entity
-    in 
-        entity;
-
-Schema.GetEntityFromSingleton = (entityContainer as table, entityType as table, values as list) =>
-    let 
-        singletonTable = entityContainer{0}[Singleton],
-        singletonValue = Table.SelectRows(singletonTable, each [#"Attribute:Name"] = values{0}),
-        singleton = Text.Split(singletonValue{0}[#"Attribute:Type"], "."){2},
-        
-        filtered = Table.SelectRows(entityType, each [#"Attribute:Name"] = singleton),
-        property = if(filtered{0}[Property] <> null) then Table.SelectRows(filtered{0}[Property], each [#"Attribute:Name"] = values{1}) else null,
-
-        entity = if(property <> null and not Table.IsEmpty(property)) then 
-            let 
-                value = Text.Split(property{0}[#"Attribute:Type"], "."){1}
-            in 
-                value
-            else 
-                Schema.GetTypeFromNavigationProperty(entityType, singleton, values)
-    in 
-        entity;
-
-Schema.GetEntityProperties = (entityType as table, entity as text, tables as list) =>
-    let 
-        entry = Table.SelectRows(entityType, each [#"Attribute:Name"] = entity),
-        properties = List.InsertRange(tables, 0, entry[Property]),
-        value = if(entry{0}[#"Attribute:BaseType"] = null) then properties else @Schema.GetEntityProperties(entityType, Text.AfterDelimiter(entry{0}[#"Attribute:BaseType"], "."), properties)
-    in 
-        value;
-
-Schema.GetEntityType = (entityContainer as table, entityType as table, value as text) => 
-    let 
-        parts = Text.Split(value, "/"),
-        removedEntity = if(List.Last(parts) = "$entity") then List.RemoveLastN(parts, 1) else parts,
-        entity = if(List.Count(removedEntity) = 1) then Schema.GetEntityFromEntitySet(entityContainer, value) else Schema.GetEntityFromSingleton(entityContainer, entityType, removedEntity)
-    in 
-        entity;
-
-Schema.GetTable = (context as text, optional additionalTypes as text) =>
-    let
-        schema = Xml.Tables(Web.Contents(Text.BeforeDelimiter(context, "$") & "$metadata")){0}[DataServices]{0}[#"http://docs.oasis-open.org/odata/ns/edm"]{0}[Schema],
-
-        entity = Schema.GetEntityType(schema{0}[EntityContainer], schema{0}[EntityType], Text.AfterDelimiter(context, "#")),
-        entityType = Table.SelectRows(schema{0}[EntityType], each [#"Attribute:Name"] = entity),
-  
-        GetData = (row as any) => 
-            let
-                data = if(Record.HasFields(row, "Attribute:Nullable") and row[#"Attribute:Nullable"] <> null and row[#"Attribute:Nullable"] = true) then 
-                    [Entity = row[#"Attribute:Name"], Type = " nullable " & GetDataType(row[#"Attribute:Type"])] 
-                else 
-                    [Entity = row[#"Attribute:Name"], Type = GetDataType(row[#"Attribute:Type"])]
-            in 
-                data,
-
-        GetDataType = (value) as text =>
-            if (value = "Edm.Boolean") then "logical" else if (value = "Collection(Edm.String)") then "list" 
-                else if (value = "Edm.DateTimeOffset") then "datetimezone"  else if (value = "Edm.Int32") then "number" 
-                else if(value = "Edm.String") then "text" else "any",
-
-        output = if(Table.IsEmpty(entityType)) then 
-            null 
-        else
-            let 
-                // Build the schema table based on data from the property table
-                propertyTableList = Schema.GetEntityProperties(schema{0}[EntityType], entity, {}),
-                convertedTable = Table.FromList(propertyTableList, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
-                propertyTable = Table.ExpandTableColumn(convertedTable, "Column1", {"Attribute:Name", "Attribute:Type", "Attribute:Nullable"}, {"Attribute:Name", "Attribute:Type", "Attribute:Nullable"}),
-                addedSchema = Table.AddColumn(propertyTable, "schema", each GetData(_)),
-                schemaTable = Table.FromList(addedSchema[schema], Splitter.SplitByNothing(), null, null, ExtraValues.Error),
-                expandedColumn = Table.ExpandRecordColumn(schemaTable, "Column1", {"Entity", "Type"}, {"Entity", "Type"}),
-
-                // Build the filter 
-                parts = Text.Split(Text.AfterDelimiter(context, "#"), "/"),
-                filter = if(List.Last(parts) = "$entity") then Text.BetweenDelimiters(List.LastN(parts, 2){0}, "(", ")") else Text.BetweenDelimiters(List.Last(parts), "(", ")"),
-                filterList = Text.Split(filter, ","),
-
-                // Remove the columns that are not included in the filter
-                filteredTable = if(filter = null or filter = "") then expandedColumn else Table.SelectRows(expandedColumn, each List.Contains(filterList, [Entity])),
-
-                custom = Table.AddColumn(filteredTable, "Expression", each [Entity] & " = " & [Type]),
-                output = if(additionalTypes = null or additionalTypes = "") then Expression.Evaluate("type table [" & Text.Combine(custom[Expression], ", ") & "]") else Expression.Evaluate("type table [" & additionalTypes & "," & Text.Combine(custom[Expression], ", ") & "]")
-            in 
-                output
-    in
-        output;
-
-Schema.GetTypeFromNavigationProperty = (entityType as table, entityName as text, values as list) =>
-    let
-        filtered = Table.SelectRows(entityType, each [#"Attribute:Name"] = entityName),
-
-        dataTable = if(filtered{0}[NavigationProperty] = null) then 
-                    Table.SelectRows(filtered{0}[Property], each [#"Attribute:Name"] = Text.BeforeDelimiter(values{1}, "("))
-                else
-                    Table.SelectRows(filtered{0}[NavigationProperty], each [#"Attribute:Name"] = Text.BeforeDelimiter(values{1}, "(")), 
-
-        resource = dataTable{0}[#"Attribute:Type"], 
-        entity = if(Text.Contains(resource, "(")) then Text.AfterDelimiter(Text.BetweenDelimiters(resource, "(", ")"), ".") else Text.AfterDelimiter(resource, "."),
-
-        value = if(List.Count(values) <= 2) then entity else @Schema.GetTypeFromNavigationProperty(entityType, entity, List.RemoveFirstN(values, 1))
-    in 
-        value;
 
 // Tenant 
 
