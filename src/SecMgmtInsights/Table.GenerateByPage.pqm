@@ -10,6 +10,8 @@
     in
         if (firstRow = null) then
             Table.FromRows({})
+        else if (Table.IsEmpty(firstRow[Column1])) then
+			firstRow[Column1]
         else        
             Value.ReplaceType(
                 Table.ExpandTableColumn(tableOfPages, "Column1", Table.ColumnNames(firstRow[Column1])),

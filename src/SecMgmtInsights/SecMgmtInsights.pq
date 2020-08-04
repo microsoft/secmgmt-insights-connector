@@ -115,8 +115,9 @@ Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
 
 // Azure Active Directory
 
+//TODO - Add as table back
 [DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.ConditionalAccessPolicies = (optional tenants as list) as table =>
+shared SecMgmtInsights.ConditionalAccessPolicies = (optional tenants as list) =>
     let
         data = Request.GraphFeed("/beta/identity/conditionalAccess/policies", true, true, tenants)
     in 
@@ -723,10 +724,11 @@ Request.GraphFeed = (relativeUrl as text, isResponsePaged as logical, isSchemaRe
 
          GetData = (tenantId as text) =>
             let
-                data = if(isResponsePaged) then 
+                data = try if(isResponsePaged) then 
                         Rest.GetPage(graph_endpoint & relativeUrl, Token.GetAccessToken(tenantId))
                     else
-                        Rest.GetContents(graph_endpoint & relativeUrl, Token.GetAccessToken(tenantId)),
+                        Rest.GetContents(graph_endpoint & relativeUrl, Token.GetAccessToken(tenantId))
+                    otherwise null,
                 value = if(data = null) then null else 
                     let 
                         addedColumn = if(Table.HasColumns(data, "tenantId")) then data else Table.AddColumn(data, "tenantId", each tenantId),
@@ -749,8 +751,12 @@ Request.GraphFeed = (relativeUrl as text, isResponsePaged as logical, isSchemaRe
         data = Table.AddColumn(source, "Custom", each GetData([tenantId]), schema),
         
         nonNullRows = Table.SelectRows(data, each [Custom] <> null),
-        mergedLists = if(Table.IsEmpty(nonNullRows)) then null else List.Combine(data[Custom]),
+        mergedLists = if(Table.IsEmpty(nonNullRows)) then null else List.Combine(nonNullRows[Custom]),
         
+        // TODO - With this design any row that does not have data will not be included in the response.
+        // Need to confirm that this is not going to cause any issues. It is suspected that there will 
+        // not be an issue because the API will either not return data or it will encounter an error.
+
         changedType = if(schema = null) then data else if (mergedLists = null) then Table.ChangeType(data, schema) else Table.ChangeType(mergedLists, schema)
     in 
         changedType;
