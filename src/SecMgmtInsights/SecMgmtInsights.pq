@@ -115,9 +115,8 @@ Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
 
 // Azure Active Directory
 
-//TODO - Add as table back
 [DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.ConditionalAccessPolicies = (optional tenants as list) =>
+shared SecMgmtInsights.ConditionalAccessPolicies = (optional tenants as list) as table =>
     let
         data = Request.GraphFeed("/beta/identity/conditionalAccess/policies", true, true, tenants)
     in 
@@ -248,8 +247,9 @@ shared SecMgmtInsights.Intents = (optional tenants as list) as table =>
     in
         data;
 
+// TODO - Need to add the as table back
 [DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.ManagedDevices = (optional tenants as list) as table =>
+shared SecMgmtInsights.ManagedDevices = (optional tenants as list) =>
     let 
         data = Request.GraphFeed("/beta/deviceManagement/managedDevices", true, true, tenants)
     in 
@@ -592,14 +592,13 @@ GitHub.GetContent = (url as text) =>
 
 Rest.GetContents = (url as text, optional token as text, optional isResponsePaged as logical) =>
     let
-        headers = [
-            #"Accept" = "application/json;odata.metadata=minimal;odata.streaming=false;IEEE754Compatible=false",
-            #"Accept-encoding" = "gzip",
-            #"User-Agent" = "secmgmt-insights-connector"],
-        addHeader = if(token = null or token = "") then headers else Record.AddField(headers, "Authorization", "Bearer " & token),
         source = Web.Contents(url,
             [
-                Headers = addHeader, 
+                Headers = [
+                    #"Accept" = "application/json;odata.metadata=minimal;odata.streaming=false;IEEE754Compatible=false",
+                    #"Accept-encoding" = "gzip",
+                    #"Authorization" = "Bearer " & token,
+                    #"User-Agent" = "secmgmt-insights-connector"], 
                 ManualCredentials = if(token = null or token = "") then false else true,
                 ManualStatusHandling = {400, 401, 403}
             ]),
@@ -699,16 +698,6 @@ shared SecMgmtInsights.ServiceHistoricalStatus = (optional tenants as list) as t
     in
         data;
 
-// Debug 
-
-[DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.Debug = (optional tenants as list) as table =>
-    let
-        data = Rest.GetContents(graph_endpoint & "/v1.0/organization?$select=id", Extension.CurrentCredential()[access_token], true),
-        renamedColumns = Table.RenameColumns(data, {{"id", "tenantId"}}, MissingField.Ignore)
-    in
-        renamedColumns;
-
 // Request
 
 Request.GraphFeed = (relativeUrl as text, isResponsePaged as logical, isSchemaRequired as logical, optional tenants as list) =>
@@ -718,7 +707,7 @@ Request.GraphFeed = (relativeUrl as text, isResponsePaged as logical, isSchemaRe
         GetContext = (tenantId as text) =>
             let
                 parts = Uri.Parts(graph_endpoint & relativeUrl),
-                data = Rest.GetContents(Text.Format("#{0}://#{1}:#{2}/#{3}?$top=1", {parts[Scheme], parts[Host], parts[Port], parts[Path]}))
+                data = Rest.GetContents(Text.Format("#{0}://#{1}:#{2}/#{3}?$top=1", {parts[Scheme], parts[Host], parts[Port], parts[Path]}), Token.GetAccessToken(tenantId))
             in
                 data,
 
