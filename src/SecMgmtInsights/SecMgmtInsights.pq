@@ -249,13 +249,12 @@ shared SecMgmtInsights.Intents = (optional tenants as list) as table =>
     in
         data;
 
-// TODO - Need to add the as table back
 [DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.ManagedDevices = (optional tenants as list) =>
+shared SecMgmtInsights.ManagedDevices = (optional tenants as list) as table =>
     let 
         data = Request.GraphFeed("/beta/deviceManagement/managedDevices", true, true, tenants)
-    in 
-        Data.ChangeType(data);
+    in
+        data;
 
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.MobileAppDeviceStatuses = (optional tenants as list) as table =>
@@ -318,9 +317,8 @@ shared SecMgmtInsights.SoftwareUpdateStatusSummary = (optional tenants as list) 
     in 
         data;
 
-// TODO - Add as table back
 [DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.SubscriptionState = (optional tenants as list) =>
+shared SecMgmtInsights.SubscriptionState = (optional tenants as list) as table =>
     let 
         data = Request.GraphFeed("/beta/deviceManagement/subscriptionState", false, true, tenants)
     in
@@ -711,6 +709,8 @@ Request.GraphFeed = (relativeUrl as text, isResponsePaged as logical, isSchemaRe
         GetContext = (tenantId as text) =>
             let
                 parts = Uri.Parts(graph_endpoint & relativeUrl),
+                // BUG - The request for https://docs.microsoft.com/en-us/graph/api/subscribedsku-list?view=graph-rest-1.0&tabs=http does not support custom page size. 
+                // So, this means the following query will fail which means the schema while detectable will be set to null and the table will not be expanded as excepted
                 data = try Rest.GetContents(Text.Format("#{0}://#{1}:#{2}/#{3}?$top=1", {parts[Scheme], parts[Host], parts[Port], parts[Path]}), Token.GetAccessToken(tenantId)) otherwise null
             in
                 data,
