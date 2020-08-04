@@ -115,8 +115,9 @@ Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
 
 // Azure Active Directory
 
+// TODO - Add as table back
 [DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.ConditionalAccessPolicies = (optional tenants as list) as table =>
+shared SecMgmtInsights.ConditionalAccessPolicies = (optional tenants as list) =>
     let
         data = Request.GraphFeed("/beta/identity/conditionalAccess/policies", true, true, tenants)
     in 
@@ -707,7 +708,7 @@ Request.GraphFeed = (relativeUrl as text, isResponsePaged as logical, isSchemaRe
         GetContext = (tenantId as text) =>
             let
                 parts = Uri.Parts(graph_endpoint & relativeUrl),
-                data = Rest.GetContents(Text.Format("#{0}://#{1}:#{2}/#{3}?$top=1", {parts[Scheme], parts[Host], parts[Port], parts[Path]}), Token.GetAccessToken(tenantId))
+                data = try Rest.GetContents(Text.Format("#{0}://#{1}:#{2}/#{3}?$top=1", {parts[Scheme], parts[Host], parts[Port], parts[Path]}), Token.GetAccessToken(tenantId)) otherwise null
             in
                 data,
 
@@ -729,9 +730,10 @@ Request.GraphFeed = (relativeUrl as text, isResponsePaged as logical, isSchemaRe
     
         schema = if(isResponsePaged and isSchemaRequired) then
             let
-                contextTable = Table.AddColumn(source, "Custom", each GetContext([tenantId])),
-                context = contextTable{0}[Custom][#"@odata.context"]{0}, 
-                value = Schema.GetTable(context, "tenantId = text")
+                data = Table.AddColumn(source, "Column1", each GetContext([tenantId])),
+                nonNullRows = Table.SelectRows(data, each [Column1] <> null),
+                context = if(Table.IsEmpty(nonNullRows)) then null else nonNullRows{0}[Column1][#"@odata.context"]{0},
+                value = if(context = null) then null else Schema.GetTable(context, "tenantId = text")
             in 
                 value
         else
