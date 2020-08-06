@@ -181,10 +181,10 @@ shared SecMgmtInsights.DetectedApps = (optional tenants as list) as table =>
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.DetectedMalwareState = (optional tenants as list) as table =>
     let 
-        // BUG - There is an issue if the API does not return any devices, then the resulting table will be null. So, this means our response here will result in an error.
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", true, false, tenants),
-        renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
-        data = Table.AddColumn(renamedColumns, "Column1", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState/detectedMalwareState", true, true, {[tenantId]}) otherwise null)
+        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState/detectedMalwareState"),
+        data = Request.NewGraphFeed(requests, true, true, {"id", "tenantId"}, "deviceId = text")
     in 
         data;
 
@@ -192,10 +192,12 @@ shared SecMgmtInsights.DetectedMalwareState = (optional tenants as list) as tabl
 shared SecMgmtInsights.DeviceCompliancePolicySettingStates = (optional tenants as list) as table => 
     let
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", true, false, tenants),
-        renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
-        policies = Table.AddColumn(renamedColumns, "Column1", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates?$select=id", true, false, {[tenantId]}) otherwise null), 
-        expandedTable = Table.ExpandTableColumn(policies, "Column1", {"id"}, {"policyId"}),
-        data = Table.AddColumn(expandedTable, "Column1", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates/" & [policyId] & "/settingStates", true , true, {[tenantId]}) otherwise null)    
+        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        policyRequests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates?$select=id"),
+        policies = Request.NewGraphFeed(policyRequests, true, false, {"id", "tenantId"}, "deviceId = text"),
+        policyIdRenamed = Table.RenameColumns(policies, {"id", "policyId"}),
+        statesRequest = Table.AddColumn(policyIdRenamed, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates/" & [policyId] & "/settingStates"),
+        data = Request.NewGraphFeed(statesRequest, true, true, {"id", "tenantId"}, "deviceId = text, policyId = text") 
     in 
         data;
 
@@ -210,8 +212,9 @@ shared SecMgmtInsights.DeviceCompliancePolicies = (optional tenants as list) as 
 shared SecMgmtInsights.DeviceCompliancePolicyStates = (optional tenants as list) as table =>
     let
         source = Request.GraphFeed("/v1.0/deviceManagement/managedDevices?$select=id", true, false, tenants),
-        renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
-        data = Table.AddColumn(renamedColumns, "Column1", each try Request.GraphFeed("/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates", true, true, {[tenantId]}) otherwise null)
+        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates"),
+        data = Request.NewGraphFeed(requests, true, true, {"id", "tenantId"}, "deviceId = text")
     in 
         data;
 
@@ -711,7 +714,7 @@ Request.NewGraphFeed = (requests as table, isResponsePaged as logical, isSchemaR
                 value = if(data = null) then null else 
                     let 
                         baseInfo = Table.AddColumn(data, "Base Info", each input), 
-                        listOfFields = Record.FieldNames(input),
+                        listOfFields = List.RemoveMatchingItems(Record.FieldNames(input), { "relativeUrl" }),
                         expandedRecord = Table.ExpandRecordColumn(baseInfo, "Base Info", listOfFields),
                         value = Table.ToRecords(expandedRecord)
                     in
