@@ -276,7 +276,8 @@ shared SecMgmtInsights.MobileAppInstallSummary = (optional tenants as list) as t
     let
         source = Request.GraphFeed("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true", true, false, tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
-        data = Table.AddColumn(renamedColumn, "Column1", each try Request.GraphFeed("/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/installSummary", false, false, {[tenantId]}) otherwise null)
+        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/installSummary"),
+        data = Request.NewGraphFeed(requests, true, true, {"id", "tenantId"}, "mobileAppId = text")
     in 
         data;
 
@@ -285,7 +286,8 @@ shared SecMgmtInsights.MobileAppUserStatuses = (optional tenants as list) as tab
     let
         source = Request.GraphFeed("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true", true, false, tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
-        data = Table.AddColumn(renamedColumn, "Column1", each try Request.GraphFeed("/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/userStatuses", true, true, {[tenantId]}) otherwise null)
+        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/userStatuses"),
+        data = Request.NewGraphFeed(requests, true, true, {"id", "tenantId"}, "mobileAppId = text")
     in 
         data;
 
@@ -473,8 +475,9 @@ shared SecMgmtInsights.RiskyUsers = (optional tenants as list) as table =>
 shared SecMgmtInsights.UserDataLossPreventionPolicies = (optional tenants as list) as table =>
     let
         source = Request.GraphFeed("/v1.0/users?$select=id", true, false, tenants),
-        renamedColumns = Table.RenameColumns(source, {"id", "userId"}), 
-        data = Table.AddColumn(renamedColumns, "Column1", each try Request.GraphFeed("/beta/users/" & [userId] & "/informationProtection/dataLossPreventionPolicies", true, true, {[tenantId]}) otherwise null)
+        renamedColumn = Table.RenameColumns(source, {"id", "userId"}), 
+        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/users/" & [userId] & "/informationProtection/dataLossPreventionPolicies"),
+        data = Request.NewGraphFeed(requests, true, true, {"id", "tenantId"}, "userId = text")
     in
         data;
 
@@ -482,8 +485,9 @@ shared SecMgmtInsights.UserDataLossPreventionPolicies = (optional tenants as lis
 shared SecMgmtInsights.UserSensitivityLabels = (optional tenants as list) as table =>
     let
         source = Request.GraphFeed("/v1.0/users?$select=id", true, false, tenants),
-        renamedColumns = Table.RenameColumns(source, {"id", "userId"}), 
-        data = Table.AddColumn(renamedColumns, "Column1", each try Request.GraphFeed("/beta/users/" & [userId] & "/informationProtection/sensitivityLabels", true, true, {[tenantId]}) otherwise null)
+        renamedColumn = Table.RenameColumns(source, {"id", "userId"}), 
+        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/users/" & [userId] & "/informationProtection/sensitivityLabels"),
+        data = Request.NewGraphFeed(requests, true, true, {"id", "tenantId"}, "userId = text")
     in 
         data;
 
