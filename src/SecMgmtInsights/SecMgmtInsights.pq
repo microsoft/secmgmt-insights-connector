@@ -240,8 +240,9 @@ shared SecMgmtInsights.DeviceConfigurationPolicySettingStates = (optional tenant
 shared SecMgmtInsights.DeviceConfigurationPolicyStates = (optional tenants as list) as table =>
     let        
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", true, false, tenants),
-        renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
-        data = Table.AddColumn(renamedColumns, "Column1", each try Request.GraphFeed("/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates", true, true, {[tenantId]}) otherwise null)
+        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates"),
+        data = Request.NewGraphFeed(requests, true, true, {"id", "tenantId"}, "deviceId = text")
     in 
         data;
 
@@ -259,12 +260,14 @@ shared SecMgmtInsights.ManagedDevices = (optional tenants as list) as table =>
     in
         data;
 
+// BUG - There weren't enough elements in the enumeration to complete the operation.
 [DataSource.Kind="SecMgmtInsights"]
 shared SecMgmtInsights.MobileAppDeviceStatuses = (optional tenants as list) as table =>
     let
         source = Request.GraphFeed("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true", true, false, tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
-        data = Table.AddColumn(renamedColumn, "Column1", each try Request.GraphFeed("/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/deviceStatuses", true, true, {[tenantId]}) otherwise null)
+        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/deviceStatuses"),
+        data = Request.NewGraphFeed(requests, true, true, {"id", "tenantId"}, "mobileAppId = text")
     in 
         data;
 
@@ -297,10 +300,12 @@ shared SecMgmtInsights.MobileApps = (optional tenants as list) as table =>
 shared SecMgmtInsights.SecurityBaselineSettingStates = (optional tenants as list) as table =>
     let
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", true, true, tenants),
-        renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
-        states = Table.AddColumn(renamedColumns, "Column1", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates?$select=id", true, false, {[tenantId]}) otherwise null),
-        statesColumnsRenamed = null, // TODO - Table.RenameColumns(Data.ChangeType(states, {"tenantId"}), {"id", "templateId"}),
-        data = Table.AddColumn(statesColumnsRenamed, "Column1", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates/" & [templateId] & "/settingStates", true, true, {[tenantId]}) otherwise null)
+        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates?$select=id"),
+        states = Request.NewGraphFeed(requests, true, false, {"id", "tenantId"}, "deviceId = text"),
+        templateIdRenamed = Table.RenameColumns(states,{"id", "templateId"}),
+        statesRequests = Table.AddColumn(templateIdRenamed, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates/" & [templateId] & "/settingStates"),
+        data = Request.NewGraphFeed(statesRequests, true, true, {"id", "tenantId"}, "deviceId = text, templateId = text")
     in 
         data;
 
@@ -308,8 +313,9 @@ shared SecMgmtInsights.SecurityBaselineSettingStates = (optional tenants as list
 shared SecMgmtInsights.SecurityBaselineStates = (optional tenants as list) as table =>
     let        
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", true, false, tenants),
-        renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}, MissingField.Ignore),
-        data = Table.AddColumn(renamedColumns, "Column1", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates", true, true, {[tenantId]}) otherwise null)
+        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates"),
+        data = Request.NewGraphFeed(requests, true, true, {"id", "tenantId"}, "deviceId = text")
     in 
         data; 
 
