@@ -169,11 +169,12 @@ shared SecMgmtInsights.Users = (optional tenants as list) as table =>
 // Device Management
 
 [DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.DetectedApps= (optional tenants as list) as table =>
+shared SecMgmtInsights.DetectedApps = (optional tenants as list) as table =>
     let 
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", true, false, tenants),
-        renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
-        data = Table.AddColumn(renamedColumns, "Column1", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId]  & "/detectedApps", true, true, {[tenantId]}) otherwise null)
+        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId]  & "/detectedApps"),
+        data = Request.NewGraphFeed(requests, true, true, {"id", "tenantId"}, "deviceId = text")
     in
         data;
 
@@ -358,14 +359,13 @@ shared SecMgmtInsights.WindowsMalwareInformation = (optional tenants as list) as
     in
         data;
 
-// TODO -- Add the as table back
 [DataSource.Kind="SecMgmtInsights"]
-shared SecMgmtInsights.WindowsProtectionState = (optional tenants as list) =>
+shared SecMgmtInsights.WindowsProtectionState = (optional tenants as list) as table =>
     let 
         source = Request.GraphFeed("/v1.0/deviceManagement/managedDevices?$select=id", true, false, tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState"),
-        data = Request.NewGraphFeed(requests, false, true, {"id", "tenantId"})
+        data = Request.NewGraphFeed(requests, false, true, {"id", "tenantId"}, "deviceId = text")
     in  
         data; 
 
@@ -688,7 +688,7 @@ shared SecMgmtInsights.ServiceHistoricalStatus = (optional tenants as list) as t
 
 // Request
 
-Request.NewGraphFeed = (requests as table, isResponsePaged as logical, isSchemaRequired as logical, optional columnsToRemove as list) =>
+Request.NewGraphFeed = (requests as table, isResponsePaged as logical, isSchemaRequired as logical, optional columnsToRemove as list, optional additionalSchema as text) =>
     let
         GetContext = (relativeUrl as text, tenantId as text) =>
             let
@@ -704,49 +704,29 @@ Request.NewGraphFeed = (requests as table, isResponsePaged as logical, isSchemaR
         NewGetData = (input as record) =>
             let
                 data = try if(isResponsePaged) then 
-                        Rest.GetPage(graph_endpoint & input[relativeUrl], Token.GetAccessToken([tenantId]))
+                        Rest.GetPage(graph_endpoint & input[relativeUrl], Token.GetAccessToken(input[tenantId]))
                     else
                         Rest.GetContents(graph_endpoint & input[relativeUrl], Token.GetAccessToken(input[tenantId]))
                     otherwise null,
                 value = if(data = null) then null else 
                     let 
-                        addTenantColumn = if(Table.HasColumns(data, "tenantId")) then data else Table.AddColumn(data, "tenantId", each input[tenantId]),
-                        // 
-                        fieldNames = Record.FieldNames(input),
-            
-                        // TODO - This was just a test, new code will be written to clone the field and values between 
-                        // the data table and input. Also, it is worth mentioning that the response from the API used 
-                        // in the testing contains the id field which is the same as the deviceId value of interest
-                        test = Table.AddColumn(addTenantColumn, "deviceId", each input[deviceId]),
-
-                        value = Table.ToRecords(test)
+                        baseInfo = Table.AddColumn(data, "Base Info", each input), 
+                        listOfFields = Record.FieldNames(input),
+                        expandedRecord = Table.ExpandRecordColumn(baseInfo, "Base Info", listOfFields),
+                        value = Table.ToRecords(expandedRecord)
                     in
                         value
             in 
                 value,
 
-         GetData = (relativeUrl as text, tenantId as text) =>
-            let
-                data = try if(isResponsePaged) then 
-                        Rest.GetPage(graph_endpoint & relativeUrl, Token.GetAccessToken(tenantId))
-                    else
-                        Rest.GetContents(graph_endpoint & relativeUrl, Token.GetAccessToken(tenantId))
-                    otherwise null,
-                value = if(data = null) then null else 
-                    let 
-                        addTenantColumn = if(Table.HasColumns(data, "tenantId")) then data else Table.AddColumn(data, "tenantId", each tenantId),
-                        value = Table.ToRecords(addTenantColumn)
-                    in
-                        value
-            in 
-                value,
+        additionalSchmeaValue = if(additionalSchema = null or additionalSchema = "") then "tenantId = text" else "tenantId = text, " & additionalSchema,
 
         pagedSchema = if(isResponsePaged and isSchemaRequired) then
             let
                 data = Table.AddColumn(requests, "Column1", each GetContext([relativeUrl], [tenantId])),
                 nonNullRows = Table.SelectRows(data, each [Column1] <> null),
                 context = if(Table.IsEmpty(nonNullRows)) then null else nonNullRows{0}[Column1][#"@odata.context"]{0},
-                value = if(context = null) then null else Schema.GetTable(context, "tenantId = text")
+                value = if(context = null) then null else Schema.GetTable(context, additionalSchmeaValue)
             in 
                 value
         else
@@ -760,7 +740,7 @@ Request.NewGraphFeed = (requests as table, isResponsePaged as logical, isSchemaR
         resourceSchema = if(not isResponsePaged and isSchemaRequired) then 
             let 
                 context = mergedLists{0}[#"@odata.context"],
-                schema = Schema.GetTable(context, "tenantId = text, deviceId = text")
+                schema = Schema.GetTable(context, additionalSchmeaValue)
             in 
                 schema 
             else 

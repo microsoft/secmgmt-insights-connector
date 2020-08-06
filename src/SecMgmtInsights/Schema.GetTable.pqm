@@ -42,11 +42,21 @@ let
 
     Schema.GetEntityType = (entityContainer as table, entityType as table, value as text) => 
         let 
-            parts = Text.Split(value, "/"),
-            removedEntity = if(List.Last(parts) = "$entity") then List.RemoveLastN(parts, 1) else parts,
-            entity = if(List.Count(removedEntity) = 1) then Schema.GetEntityFromEntitySet(entityContainer, value) else Schema.GetEntityFromSingleton(entityContainer, entityType, removedEntity)
+            value = if(Text.Contains(value, "Collection(")) then 
+                    let 
+                        source = Text.Split(Text.BetweenDelimiters(value, "(", ")"), "."),
+                        output = List.Last(source)
+                    in
+                        output
+                else 
+                    let
+                        parts = Text.Split(value, "/"),
+                        removedEntity = if(List.Last(parts) = "$entity") then List.RemoveLastN(parts, 1) else parts,
+                        entity = if(List.Count(removedEntity) = 1) then Schema.GetEntityFromEntitySet(entityContainer, value) else Schema.GetEntityFromSingleton(entityContainer, entityType, removedEntity)
+                    in 
+                        entity
         in 
-            entity,
+            value,
 
     Schema.GetTable = (context as text, optional additionalTypes as text) =>
         let
@@ -81,9 +91,9 @@ let
                     schemaTable = Table.FromList(addedSchema[schema], Splitter.SplitByNothing(), null, null, ExtraValues.Error),
                     expandedColumn = Table.ExpandRecordColumn(schemaTable, "Column1", {"Entity", "Type"}, {"Entity", "Type"}),
 
-                    // Build the filter 
+                    // Build the filter (e.g. https://graph.microsoft.com/v1.0/$metadata#users(id) which is the context for https://graph.microsoft.com/v1.0/users?$select=id)
                     parts = Text.Split(Text.AfterDelimiter(context, "#"), "/"),
-                    filter = if(List.Last(parts) = "$entity") then Text.BetweenDelimiters(List.LastN(parts, 2){0}, "(", ")") else Text.BetweenDelimiters(List.Last(parts), "(", ")"),
+                    filter = if(Text.Contains(parts{0}, "Collection(")) then null else if(List.Last(parts) = "$entity") then Text.BetweenDelimiters(List.LastN(parts, 2){0}, "(", ")") else Text.BetweenDelimiters(List.Last(parts), "(", ")"),
                     filterList = Text.Split(filter, ","),
 
                     // Remove the columns that are not included in the filter
