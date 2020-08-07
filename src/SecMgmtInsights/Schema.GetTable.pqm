@@ -75,9 +75,8 @@ let
                     data,
 
             GetDataType = (value) as text =>
-                if (value = "Edm.Boolean") then "logical" else if (value = "Collection(Edm.String)") then "list" 
-                    else if (value = "Edm.DateTimeOffset") then "datetimezone"  else if (value = "Edm.Int32") then "number" 
-                    else if(value = "Edm.String") then "text" else "any",
+                if (value = "Edm.Boolean") then "logical" else if (value = "Edm.DateTimeOffset") then "datetimezone"  
+                else if (value = "Edm.Int32") then "number" else if(value = "Edm.String") then "text" else "any",
 
             output = if(Table.IsEmpty(entityType)) then 
                 null 

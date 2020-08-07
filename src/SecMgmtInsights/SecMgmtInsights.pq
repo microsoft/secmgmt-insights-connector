@@ -174,7 +174,7 @@ shared SecMgmtInsights.DetectedApps = (optional tenants as list) as table =>
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", true, false, tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId]  & "/detectedApps"),
-        data = Request.NewGraphFeed(requests, true, true, {"id", "tenantId"}, "deviceId = text")
+        data = Request.NewGraphFeed(requests, true, true, "deviceId = text")
     in
         data;
 
@@ -184,7 +184,7 @@ shared SecMgmtInsights.DetectedMalwareState = (optional tenants as list) as tabl
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", true, false, tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState/detectedMalwareState"),
-        data = Request.NewGraphFeed(requests, true, true, {"id", "tenantId"}, "deviceId = text")
+        data = Request.NewGraphFeed(requests, true, true, "deviceId = text")
     in 
         data;
 
@@ -194,10 +194,10 @@ shared SecMgmtInsights.DeviceCompliancePolicySettingStates = (optional tenants a
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", true, false, tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
         policyRequests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates?$select=id"),
-        policies = Request.NewGraphFeed(policyRequests, true, false, {"id", "tenantId"}, "deviceId = text"),
+        policies = Request.NewGraphFeed(policyRequests, true, false),
         policyIdRenamed = Table.RenameColumns(policies, {"id", "policyId"}),
         statesRequest = Table.AddColumn(policyIdRenamed, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates/" & [policyId] & "/settingStates"),
-        data = Request.NewGraphFeed(statesRequest, true, true, {"id", "tenantId"}, "deviceId = text, policyId = text") 
+        data = Request.NewGraphFeed(statesRequest, true, true, "deviceId = text, policyId = text") 
     in 
         data;
 
@@ -214,7 +214,7 @@ shared SecMgmtInsights.DeviceCompliancePolicyStates = (optional tenants as list)
         source = Request.GraphFeed("/v1.0/deviceManagement/managedDevices?$select=id", true, false, tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates"),
-        data = Request.NewGraphFeed(requests, true, true, {"id", "tenantId"}, "deviceId = text")
+        data = Request.NewGraphFeed(requests, true, true, "deviceId = text")
     in 
         data;
 
@@ -229,10 +229,12 @@ shared SecMgmtInsights.DeviceConfigurationPolicies = (optional tenants as list) 
 shared SecMgmtInsights.DeviceConfigurationPolicySettingStates = (optional tenants as list) as table =>
     let
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", true, false, tenants),
-        renamedColumns = Table.RenameColumns(source, {"id", "deviceId"}),
-        policies = Table.AddColumn(renamedColumns, "Column1", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates?$select=id", true, false, {[tenantId]}) otherwise null), 
-        expandedTable = Table.ExpandTableColumn(policies, "Column1", {"id"}, {"policyId"}),
-        data = Table.AddColumn(expandedTable, "Column1", each try Request.GraphFeed("/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates/" & [policyId] & "/settingStates", true, true, {[tenantId]}) otherwise null)    
+        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        policyRequests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates?$select=id"),
+        policies = Request.NewGraphFeed(policyRequests, true, false),
+        policyIdRenamed = Table.RenameColumns(policies, {"id", "policyId"}), 
+        stateRequests = Table.AddColumn(policyIdRenamed, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates/" & [policyId] & "/settingStates"),
+        data = Request.NewGraphFeed(stateRequests, true, true, "deviceId = text, policyId = text")
     in 
         data;
 
@@ -242,7 +244,7 @@ shared SecMgmtInsights.DeviceConfigurationPolicyStates = (optional tenants as li
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", true, false, tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates"),
-        data = Request.NewGraphFeed(requests, true, true, {"id", "tenantId"}, "deviceId = text")
+        data = Request.NewGraphFeed(requests, true, true, "deviceId = text")
     in 
         data;
 
@@ -267,7 +269,7 @@ shared SecMgmtInsights.MobileAppDeviceStatuses = (optional tenants as list) as t
         source = Request.GraphFeed("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true", true, false, tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/deviceStatuses"),
-        data = Request.NewGraphFeed(requests, true, true, {"id", "tenantId"}, "mobileAppId = text")
+        data = Request.NewGraphFeed(requests, true, true, "mobileAppId = text")
     in 
         data;
 
@@ -277,7 +279,7 @@ shared SecMgmtInsights.MobileAppInstallSummary = (optional tenants as list) as t
         source = Request.GraphFeed("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true", true, false, tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/installSummary"),
-        data = Request.NewGraphFeed(requests, true, true, {"id", "tenantId"}, "mobileAppId = text")
+        data = Request.NewGraphFeed(requests, true, true, "mobileAppId = text")
     in 
         data;
 
@@ -287,7 +289,7 @@ shared SecMgmtInsights.MobileAppUserStatuses = (optional tenants as list) as tab
         source = Request.GraphFeed("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true", true, false, tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/userStatuses"),
-        data = Request.NewGraphFeed(requests, true, true, {"id", "tenantId"}, "mobileAppId = text")
+        data = Request.NewGraphFeed(requests, true, true, "mobileAppId = text")
     in 
         data;
 
@@ -304,10 +306,10 @@ shared SecMgmtInsights.SecurityBaselineSettingStates = (optional tenants as list
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", true, true, tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates?$select=id"),
-        states = Request.NewGraphFeed(requests, true, false, {"id", "tenantId"}, "deviceId = text"),
+        states = Request.NewGraphFeed(requests, true, false),
         templateIdRenamed = Table.RenameColumns(states,{"id", "templateId"}),
         statesRequests = Table.AddColumn(templateIdRenamed, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates/" & [templateId] & "/settingStates"),
-        data = Request.NewGraphFeed(statesRequests, true, true, {"id", "tenantId"}, "deviceId = text, templateId = text")
+        data = Request.NewGraphFeed(statesRequests, true, true, "deviceId = text, templateId = text")
     in 
         data;
 
@@ -317,7 +319,7 @@ shared SecMgmtInsights.SecurityBaselineStates = (optional tenants as list) as ta
         source = Request.GraphFeed("/beta/deviceManagement/managedDevices?$select=id", true, false, tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates"),
-        data = Request.NewGraphFeed(requests, true, true, {"id", "tenantId"}, "deviceId = text")
+        data = Request.NewGraphFeed(requests, true, true, "deviceId = text")
     in 
         data; 
 
@@ -376,7 +378,7 @@ shared SecMgmtInsights.WindowsProtectionState = (optional tenants as list) as ta
         source = Request.GraphFeed("/v1.0/deviceManagement/managedDevices?$select=id", true, false, tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState"),
-        data = Request.NewGraphFeed(requests, false, true, {"id", "tenantId"}, "deviceId = text")
+        data = Request.NewGraphFeed(requests, false, true, "deviceId = text")
     in  
         data; 
 
@@ -477,7 +479,7 @@ shared SecMgmtInsights.UserDataLossPreventionPolicies = (optional tenants as lis
         source = Request.GraphFeed("/v1.0/users?$select=id", true, false, tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "userId"}), 
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/users/" & [userId] & "/informationProtection/dataLossPreventionPolicies"),
-        data = Request.NewGraphFeed(requests, true, true, {"id", "tenantId"}, "userId = text")
+        data = Request.NewGraphFeed(requests, true, true, "userId = text")
     in
         data;
 
@@ -487,7 +489,7 @@ shared SecMgmtInsights.UserSensitivityLabels = (optional tenants as list) as tab
         source = Request.GraphFeed("/v1.0/users?$select=id", true, false, tenants),
         renamedColumn = Table.RenameColumns(source, {"id", "userId"}), 
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/users/" & [userId] & "/informationProtection/sensitivityLabels"),
-        data = Request.NewGraphFeed(requests, true, true, {"id", "tenantId"}, "userId = text")
+        data = Request.NewGraphFeed(requests, true, true, "userId = text")
     in 
         data;
 
@@ -701,7 +703,7 @@ shared SecMgmtInsights.ServiceHistoricalStatus = (optional tenants as list) as t
 
 // Request
 
-Request.NewGraphFeed = (requests as table, isResponsePaged as logical, isSchemaRequired as logical, optional columnsToRemove as list, optional additionalSchema as text) =>
+Request.NewGraphFeed = (requests as table, isResponsePaged as logical, isSchemaRequired as logical, optional additionalSchema as text) =>
     let
         GetContext = (relativeUrl as text, tenantId as text) =>
             let
