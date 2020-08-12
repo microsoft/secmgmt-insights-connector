@@ -174,6 +174,22 @@ SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy = (schemaOnly as logic
     in 
         data;
 
+SecMgmtInsights.SignIns = (schemaOnly as logical, optional queryString as text) =>
+    let
+        requests = Graph.BuildRequests("/beta/auditLogs/signIns", queryString),
+        // TODO - There is an issue here that needs to be investigated. Currently you are getting @odata.context was not found
+        data = Graph.Feed(requests, true, true, schemaOnly)
+    in 
+        data;
+
+SecMgmtInsights.SubscribedSkus = (schemaOnly as logical, optional queryString as text) as table =>
+    let
+        requests = Graph.BuildRequests("/v1.0/subscribedSkus", queryString),
+        // TODO - Expression.Error: The column '@odata.context' of the table wasn't found.
+        data = Graph.Feed(requests, true, true, schemaOnly)
+    in
+        data;
+
 SecMgmtInsights.Users = (schemaOnly as logical, optional queryString as text) =>
     let 
         requests = Graph.BuildRequests("/v1.0/users", queryString),
@@ -196,13 +212,25 @@ SecMgmtInsights.WindowsProtectionState = (schemaOnly as logical, optional queryS
 // Entities
 
 EntityTable = #table({"Entity", "Action"}, {
+    {"Alerts", SecMgmtInsights.Alerts},
     {"ConditionalAccessPolicies", SecMgmtInsights.ConditionalAccessPolicies},
     {"Contracts", SecMgmtInsights.Contracts},
     {"CredentialUserRegistrationDetails", SecMgmtInsights.CredentialUserRegistrationDetails},
     {"Devices", SecMgmtInsights.Devices},
     {"IdentitySecurityDefaultsEnforcementPolicy", SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy},
+    {"MailboxUsageDetail", SecMgmtInsights.MailboxUsageDetail},
+    {"Office365ActiveUserDetails", SecMgmtInsights.Office365ActiveUserDetails},
+    {"Office365ServicesUserCounts", SecMgmtInsights.Office365ServicesUserCounts},
+    {"OneDriveUsageAccountDetail", SecMgmtInsights.OneDriveUsageAccountDetail},
+    {"SharePointSiteUsageDetail", SecMgmtInsights.SharePointSiteUsageDetail},
+    {"SecureScore", SecMgmtInsights.SecureScore},
+    {"SecureScoreControlProfile", SecMgmtInsights.SecureScoreControlProfiles},
+    {"SingIns", SecMgmtInsights.SignIns},
+    {"SubscribedSkus", SecMgmtInsights.SubscribedSkus},
+    {"TeamsUserActivityUserDetail", SecMgmtInsights.TeamsUserActivityUserDetail},
     {"Users", SecMgmtInsights.Users},
-    {"WindowsProtectionState", SecMgmtInsights.WindowsProtectionState}
+    {"WindowsProtectionState", SecMgmtInsights.WindowsProtectionState}, 
+    {"YammerActivityUserDetail", SecMgmtInsights.YammerActivityUserDetail}
 });
 
 GetActionForEntity = (entity as text) =>
@@ -235,6 +263,29 @@ Schema.GetTable = Extension.LoadFunction("Schema.GetTable.pqm");
 Table.ChangeType = Extension.LoadFunction("Table.ChangeType.pqm");
 Table.GenerateByPage = Extension.LoadFunction("Table.GenerateByPage.pqm");
 Table.ToNavigationTable = Extension.LoadFunction("Table.ToNavigationTable.pqm");
+
+// Intelligent Security Graph
+
+SecMgmtInsights.Alerts = (schemaOnly as logical, optional queryString as text) =>
+    let 
+        requests = Graph.BuildRequests("/v1.0/security/alerts", queryString),
+        data = Graph.Feed(requests, true, true, schemaOnly)
+    in 
+        data;
+
+SecMgmtInsights.SecureScore = (schemaOnly as logical, optional queryString as text) =>
+    let 
+        requests = Graph.BuildRequests("/v1.0/security/secureScores", queryString),
+        data = Graph.Feed(requests, true, true, schemaOnly)
+    in 
+        data;
+
+SecMgmtInsights.SecureScoreControlProfiles = (schemaOnly as logical, optional queryString as text) =>
+    let 
+        requests = Graph.BuildRequests("/v1.0/security/secureScoreControlProfiles", queryString),
+        data = Graph.Feed(requests, true, true, schemaOnly)
+    in
+        data;
 
 // Navigation
 
@@ -304,7 +355,8 @@ SecMgmtInsights.View = (operatingModel as text, entity as text) as table =>
             // The count value should be >= 0.
             OnTake = (count as number) =>
                 let
-                    newState = state & [ Top = count ]
+                    size = if(count >= 1000) then 999 else count,
+                    newState = state & [ Top = size ]
                 in
                     @View(newState),
 
@@ -467,15 +519,67 @@ Rest.GetPage = (url as text, token as text) => Table.GenerateByPage((previous) =
     in
         page);
 
+// Office 365
+
+// TODO - Due to the current implementation in the get schema functions each of the Office 365 report operations will return 
+// Error: We cannot convert the value null to type Type.
+
+SecMgmtInsights.MailboxUsageDetail = (schemaOnly as logical, optional queryString as text) =>
+    let 
+        requests = Graph.BuildRequests("/beta/reports/getMailboxUsageDetail(period='D30')?$format=application/json", queryString),
+        data = Graph.Feed(requests, true, false, schemaOnly)
+    in 
+        data;
+
+SecMgmtInsights.Office365ActiveUserDetails = (schemaOnly as logical, optional queryString as text) =>
+    let
+        requests = Graph.BuildRequests("/beta/reports/getOffice365ActiveUserDetail(period='D30')?$format=application/json", queryString),
+        data = Graph.Feed(requests, true, false, schemaOnly)
+    in 
+        data;
+
+SecMgmtInsights.Office365ServicesUserCounts = (schemaOnly as logical, optional queryString as text) =>
+    let
+        requests = Graph.BuildRequests("/beta/reports/getOffice365ServicesUserCounts(period='D30')?$format=application/json", queryString),
+        data = Graph.Feed(requests, true, false, schemaOnly)
+    in 
+        data;
+
+SecMgmtInsights.OneDriveUsageAccountDetail = (schemaOnly as logical, optional queryString as text) =>
+    let
+        requests = Graph.BuildRequests("/beta/reports/getOneDriveUsageAccountDetail(period='D30')?$format=application/json", queryString),
+        data = Graph.Feed(requests, true, false, schemaOnly)
+    in 
+        data;
+
+SecMgmtInsights.SharePointSiteUsageDetail = (schemaOnly as logical, optional queryString as text) =>
+    let
+        requests = Graph.BuildRequests("/beta/reports/getSharePointSiteUsageDetail(period='D30')?$format=application/json", queryString),
+        data = Graph.Feed(requests, true, false, schemaOnly)
+    in 
+        data;
+
+SecMgmtInsights.TeamsUserActivityUserDetail = (schemaOnly as logical, optional queryString as text) =>
+    let
+        requests = Graph.BuildRequests("/beta/reports/getTeamsUserActivityUserDetail(period='D30')?$format=application/json", queryString),
+        data = Graph.Feed(requests, true, false, schemaOnly)
+    in 
+        data;
+
+SecMgmtInsights.YammerActivityUserDetail = (schemaOnly as logical, optional queryString as text) =>
+    let
+        requests = Graph.BuildRequests("/beta/reports/getYammerActivityUserDetail(period='D30')?$format=application/json", queryString),
+        data = Graph.Feed(requests, true, false, schemaOnly)
+    in 
+        data;
+
 // Requests
 
-Graph.BuildRequests = (relativeUrl as text, optional queryStringz) =>
+Graph.BuildRequests = (relativeUrl as text, optional queryString as text) =>
     let 
-        // relativeAddress = if(queryString = null or queryString = "") then relativeUrl else relativeUrl & queryString,
-        // TODO - This should check the operating model and if the specified list is null
+        relativeAddress = if(queryString = null or queryString = "") then relativeUrl else relativeUrl & queryString,
         // tenantsList = if(tenants = null or List.IsEmpty(tenants)) then null else tenants,
-        // data = #table({"relativeUrl", "tenantId"}, {{relativeUrl, ""}})
-        data =  #table({"relativeUrl", "tenantId"}, {{relativeUrl, null}})
+        data =  #table({"relativeUrl", "tenantId"}, {{relativeAddress, null}})
         // expandedList = Table.ExpandListColumn(data, "tenantId")
     in 
         data;
