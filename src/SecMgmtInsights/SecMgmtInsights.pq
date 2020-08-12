@@ -119,18 +119,90 @@ TokenMethod = (tokenUri, grantType, tokenField, parameter, optional scope as tex
     in 
         result;
 
+Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
+    let 
+        authResult = if (tenantId <> null) then 
+            TokenMethod("https://login.microsoftonline.com/" & tenantId & "/oauth2/v2.0/token", "refresh_token", "refresh_token", Extension.CurrentCredential()[refresh_token], scope)
+        else
+            TokenMethod(token_uri, "refresh_token", "refresh_token", Extension.CurrentCredential()[refresh_token], scope)
+    in 
+        authResult[access_token];
+
 // Azure Active Directory
 
-SecMgmtInsights.Users = (operatingModel as text, schemaOnly as logical, optional queryString as text, optional tenants as list) as table =>
+SecMgmtInsights.ConditionalAccessPolicies = (schemaOnly as logical, optional queryString as text) =>
+    let
+        requests = Graph.BuildRequests("/beta/identity/conditionalAccess/policies", queryString),
+        data = Graph.Feed(requests, true, true, schemaOnly)
+    in 
+        data;
+
+SecMgmtInsights.Contracts = (schemaOnly as logical, optional queryString as text) =>
+    let
+        requests = Graph.BuildRequests("/v1.0/contracts", queryString),
+        data = Graph.Feed(requests, true, true, schemaOnly),       
+
+        value = if(schemaOnly) then data else 
+            let 
+                removedColumn = try Table.RemoveColumns(data, "tenantId") otherwise data,
+                renamedColumn = Table.RenameColumns(removedColumn, {"customerId", "tenantId"}, MissingField.Ignore)
+            in
+                renamedColumn
+    in
+        value;
+
+SecMgmtInsights.CredentialUserRegistrationDetails = (schemaOnly as logical, optional queryString as text) =>
     let 
-        data = Request.GraphFeed("/v1.0/users", true, true, tenants)
+        requests = Graph.BuildRequests("/beta/reports/credentialUserRegistrationDetails", queryString),
+        // TODO - If the tenant does not have an entiltment, then this request will fail with a HTTP 403
+        data = Graph.Feed(requests, true, true, schemaOnly)
     in
         data;
+
+SecMgmtInsights.Devices = (schemaOnly as logical, optional queryString as text) =>
+    let 
+        requests = Graph.BuildRequests("/v1.0/devices", queryString),
+        data = Graph.Feed(requests, true, true, schemaOnly)
+    in
+        data;
+
+SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy = (schemaOnly as logical, optional queryString as text) =>
+    let
+        requests = Graph.BuildRequests("/v1.0/policies/identitySecurityDefaultsEnforcementPolicy", queryString),
+        // TODO - Due to one of the todo statements in the Graph.Feed function the schema will be null. THis is due to the data coming back from Microsoft Graph not being paged
+        data = Graph.Feed(requests, false, true, schemaOnly)
+    in 
+        data;
+
+SecMgmtInsights.Users = (schemaOnly as logical, optional queryString as text) =>
+    let 
+        requests = Graph.BuildRequests("/v1.0/users", queryString),
+        data = Graph.Feed(requests, true, true, schemaOnly)
+    in
+        data;
+
+// Device Management
+
+SecMgmtInsights.WindowsProtectionState = (schemaOnly as logical, optional queryString as text) =>
+    let 
+         firstRequests = Graph.BuildRequests("/v1.0/deviceManagement/managedDevices?$select=id"),
+         source = Graph.Feed(firstRequests, true, false, false),
+         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState"),
+         data = Graph.Feed(requests, false, true, schemaOnly, "deviceId = text")
+     in  
+         source; 
 
 // Entities
 
 EntityTable = #table({"Entity", "Action"}, {
-    {"Users", SecMgmtInsights.Users}
+    {"ConditionalAccessPolicies", SecMgmtInsights.ConditionalAccessPolicies},
+    {"Contracts", SecMgmtInsights.Contracts},
+    {"CredentialUserRegistrationDetails", SecMgmtInsights.CredentialUserRegistrationDetails},
+    {"Devices", SecMgmtInsights.Devices},
+    {"IdentitySecurityDefaultsEnforcementPolicy", SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy},
+    {"Users", SecMgmtInsights.Users},
+    {"WindowsProtectionState", SecMgmtInsights.WindowsProtectionState}
 });
 
 GetActionForEntity = (entity as text) =>
@@ -202,8 +274,8 @@ SecMgmtInsights.View = (operatingModel as text, entity as text) as table =>
             GetRows = () => 
                 let
                     finalSchema = CalculateSchema(state),
-                    finalQueryString = CalculateQueryString(state),
-                    result = GetActionForEntity(entity)(false, finalQueryString, finalSchema),
+                    finalUrl = CalculateUrl(state),
+                    result = GetActionForEntity(entity)(false, finalUrl),
                     appliedType = Table.ChangeType(result, finalSchema)
                 in
                     appliedType,
@@ -221,8 +293,8 @@ SecMgmtInsights.View = (operatingModel as text, entity as text) as table =>
                 else
                     let
                         newState = state & [ RowCountOnly = true ],
-                        finalQueryString = CalculateQueryString(newState),
-                        value = GetActionForEntity(entity)(false, finalQueryString),
+                        finalUrl = CalculateUrl(newState),
+                        value =  GetActionForEntity(entity)(false, finalUrl),
                         converted = Number.FromText(value)
                     in
                         converted,
@@ -300,18 +372,18 @@ SecMgmtInsights.View = (operatingModel as text, entity as text) as table =>
                 else
                     state[Schema],
 
-            // Calculates the final query string based on the current state.
-            CalculateQueryString = (state) as text => 
+            // Calculates the final URL based on the current state.
+            CalculateUrl = (state) as text => 
                 let
-                    baseEntity = "",
+                    entity = "",
 
                     // Check for $count. If all we want is a row count,
                     // then we add /$count to the path value (following the entity name).
                     urlWithRowCount =
                         if (state[RowCountOnly]? = true) then
-                            baseEntity & "/$count"
+                            entity & "/$count"
                         else
-                            baseEntity,
+                            entity,
 
                     // Uri.BuildQueryString requires that all field values
                     // are text literals.
@@ -350,7 +422,7 @@ SecMgmtInsights.View = (operatingModel as text, entity as text) as table =>
                     finalUrl
         ]))
     in
-        View([Entity = entity, OperatingModel = operatingModel]);
+        View([OperatingModel = operatingModel, Entity = entity]);
 
 // Network
 
@@ -397,8 +469,94 @@ Rest.GetPage = (url as text, token as text) => Table.GenerateByPage((previous) =
 
 // Requests
 
-Request.GraphFeed = (relativeUrl as text, isPaged as logical, schemaRequired as logical, schemaOnly as logical, optional queryString as text, optional tenants as list) =>
-    let
-        source = ""
+Graph.BuildRequests = (relativeUrl as text, optional queryStringz) =>
+    let 
+        // relativeAddress = if(queryString = null or queryString = "") then relativeUrl else relativeUrl & queryString,
+        // TODO - This should check the operating model and if the specified list is null
+        // tenantsList = if(tenants = null or List.IsEmpty(tenants)) then null else tenants,
+        // data = #table({"relativeUrl", "tenantId"}, {{relativeUrl, ""}})
+        data =  #table({"relativeUrl", "tenantId"}, {{relativeUrl, null}})
+        // expandedList = Table.ExpandListColumn(data, "tenantId")
     in 
-        source;
+        data;
+
+Graph.Feed = (requests as table, isPaged as logical, isSchemaRequired as logical, schemaOnly as logical, optional additionalSchema as text) => 
+    let
+        GetContext = (relativeUrl as text, optional tenantId as text) =>
+            let
+                parts = Uri.Parts(graph_endpoint & relativeUrl),
+                // BUG - The request for https://docs.microsoft.com/en-us/graph/api/subscribedsku-list?view=graph-rest-1.0&tabs=http does not support custom page size. 
+                // So, this means the following query will fail which means the schema while detectable will be set to null and the table will not be expanded as excepted
+                
+                // TODO - This does not need to be called for each type, only if the type has not been discovered yet.
+                data = try Rest.GetContents(Text.Format("#{0}://#{1}:#{2}/#{3}?$top=1", {parts[Scheme], parts[Host], parts[Port], parts[Path]}), Token.GetAccessToken(tenantId)) otherwise null
+            in
+                data,
+
+        GetData = (input as record) =>
+            let
+                data = try if(isPaged) then 
+                        Rest.GetPage(graph_endpoint & input[relativeUrl], Token.GetAccessToken(input[tenantId]))
+                    else
+                        Rest.GetContents(graph_endpoint & input[relativeUrl], Token.GetAccessToken(input[tenantId]))
+                    otherwise null,
+                value = if(data = null) then null else 
+                    let 
+                        baseInfo = Table.AddColumn(data, "Base Info", each input), 
+                        listOfFields = List.RemoveMatchingItems(Record.FieldNames(input), { "relativeUrl" }),
+                        expandedRecord = Table.ExpandRecordColumn(baseInfo, "Base Info", listOfFields),
+                        value = Table.ToRecords(expandedRecord)
+                    in
+                        value
+            in 
+                value,
+
+        additionalSchmeaValue = if(additionalSchema = null or additionalSchema = "") then "tenantId = text" else "tenantId = text, " & additionalSchema,
+
+        pagedSchema = if(isPaged and isSchemaRequired) then
+            let
+                data = Table.AddColumn(requests, "Column1", each GetContext([relativeUrl], [tenantId])),
+                nonNullRows = Table.SelectRows(data, each [Column1] <> null),
+                context = if(Table.IsEmpty(nonNullRows)) then null else nonNullRows{0}[Column1][#"@odata.context"]{0},
+                value = if(context = null) then null else Schema.GetTable(context, additionalSchmeaValue)
+            in 
+                value
+        else
+            null,
+
+        // TODO - Implement the required logic to leverage List.ParallelInvoke with concurrancy of five to ten. This should decrease the time it takes to get data from Microsoft Graph for larger environments
+
+        // TODO - Currently this design will only work for paged resources (talking about returning the pagedSchema variable when the schemaOnly flag is true
+        value = if(schemaOnly) then pagedSchema else 
+            let
+                data = Table.AddColumn(requests, "Column1", each GetData(_), pagedSchema),
+        
+                nonNullRows = Table.SelectRows(data, each [Column1] <> null),
+                mergedLists = if(Table.IsEmpty(nonNullRows)) then null else List.Combine(nonNullRows[Column1]),
+
+                resourceSchema = if(not isPaged and isSchemaRequired) then 
+                    let 
+                        context = mergedLists{0}[#"@odata.context"],
+                        schema = Schema.GetTable(context, additionalSchmeaValue)
+                    in 
+                        schema 
+                    else 
+                        null,
+
+                schema = if(isPaged and isSchemaRequired) then pagedSchema else resourceSchema,
+       
+                changedType = if(mergedLists <> null and schema = null) then 
+                    let
+                        tableFromList = Table.FromList(mergedLists, Splitter.SplitByNothing(), {"Column1"}),
+                        listOfColumns = Record.FieldNames(tableFromList{0}[Column1]),
+                        expandedRecord = Table.ExpandRecordColumn(tableFromList, "Column1", listOfColumns)
+                    in
+                        expandedRecord
+                else if (mergedLists = null) then 
+                    Table.ChangeType(data, schema) 
+                else 
+                    Table.ChangeType(mergedLists, schema)
+            in 
+                changedType
+        in
+            value;
