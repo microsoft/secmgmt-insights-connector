@@ -169,7 +169,6 @@ SecMgmtInsights.Devices = (schemaOnly as logical, optional queryString as text) 
 SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy = (schemaOnly as logical, optional queryString as text) =>
     let
         requests = Graph.BuildRequests("/v1.0/policies/identitySecurityDefaultsEnforcementPolicy", queryString),
-        // TODO - Due to one of the todo statements in the Graph.Feed function the schema will be null. THis is due to the data coming back from Microsoft Graph not being paged
         data = Graph.Feed(requests, false, true, schemaOnly)
     in 
         data;
@@ -496,7 +495,7 @@ Rest.GetContents = (url as text, token as text, optional isPaged as logical) =>
         value = if(status = 400) then 
             let 
                 // TODO - Determine if this should be body[error][message] = "This resource does not support custom page sizes. Please retry without a page size argument."
-                value = if(Record.HasFields(body, "error") and body[error][code] = "Request_UnsupportedQuery") then
+                value = if(Record.HasFields(body, "error") and (body[error][code] = "Request_UnsupportedQuery" or Text.Contains(body[error][message], "Query option 'Top'"))) then
                     // TODO - This should only remove the top parameter and not the entire query string
                     Rest.GetContents(Text.BeforeDelimiter(url, "?"), token, isPaged)
                 else 
@@ -539,49 +538,49 @@ Rest.GetPage = (url as text, token as text) => Table.GenerateByPage((previous) =
 SecMgmtInsights.MailboxUsageDetail = (schemaOnly as logical, optional queryString as text) =>
     let 
         requests = Graph.BuildRequests("/beta/reports/getMailboxUsageDetail(period='D30')?$format=application/json", queryString),
-        data = Graph.Feed(requests, true, false, schemaOnly)
+        data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
 
 SecMgmtInsights.Office365ActiveUserDetails = (schemaOnly as logical, optional queryString as text) =>
     let
         requests = Graph.BuildRequests("/beta/reports/getOffice365ActiveUserDetail(period='D30')?$format=application/json", queryString),
-        data = Graph.Feed(requests, true, false, schemaOnly)
+        data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
 
 SecMgmtInsights.Office365ServicesUserCounts = (schemaOnly as logical, optional queryString as text) =>
     let
         requests = Graph.BuildRequests("/beta/reports/getOffice365ServicesUserCounts(period='D30')?$format=application/json", queryString),
-        data = Graph.Feed(requests, true, false, schemaOnly)
+        data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
 
 SecMgmtInsights.OneDriveUsageAccountDetail = (schemaOnly as logical, optional queryString as text) =>
     let
         requests = Graph.BuildRequests("/beta/reports/getOneDriveUsageAccountDetail(period='D30')?$format=application/json", queryString),
-        data = Graph.Feed(requests, true, false, schemaOnly)
+        data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
 
 SecMgmtInsights.SharePointSiteUsageDetail = (schemaOnly as logical, optional queryString as text) =>
     let
         requests = Graph.BuildRequests("/beta/reports/getSharePointSiteUsageDetail(period='D30')?$format=application/json", queryString),
-        data = Graph.Feed(requests, true, false, schemaOnly)
+        data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
 
 SecMgmtInsights.TeamsUserActivityUserDetail = (schemaOnly as logical, optional queryString as text) =>
     let
         requests = Graph.BuildRequests("/beta/reports/getTeamsUserActivityUserDetail(period='D30')?$format=application/json", queryString),
-        data = Graph.Feed(requests, true, false, schemaOnly)
+        data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
 
 SecMgmtInsights.YammerActivityUserDetail = (schemaOnly as logical, optional queryString as text) =>
     let
         requests = Graph.BuildRequests("/beta/reports/getYammerActivityUserDetail(period='D30')?$format=application/json", queryString),
-        data = Graph.Feed(requests, true, false, schemaOnly)
+        data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
 
@@ -598,22 +597,25 @@ Graph.BuildRequests = (relativeUrl as text, optional queryString as text) =>
 
 Graph.Feed = (requests as table, isPaged as logical, isSchemaRequired as logical, schemaOnly as logical, optional additionalSchema as text) => 
     let
+        // TODO - This can be optomized by checking if the requests are paged. If not then the first request does not need to be made because it will always return a HTTP 400
         GetContext = (relativeUrl as text, optional tenantId as text) =>
-            let
-                // TODO - This does not need to be called for each type, only if the type has not been discovered yet.
-                
-                parts = Uri.Parts(graph_endpoint & relativeUrl),
-                data = try Rest.GetContents(Text.Format("#{0}://#{1}:#{2}/#{3}?$top=1", {parts[Scheme], parts[Host], parts[Port], parts[Path]}), Token.GetAccessToken(tenantId)) otherwise null,
-                // TODO - Need to follow up regarding the comment in the GetContents functions about handling HTTP 400 errors
-                value = if(data = null or Table.HasColumns(data, "error")) then 
-                    let
-                        contents = Rest.GetContents(graph_endpoint & relativeUrl, Token.GetAccessToken(tenantId))
-                    in 
-                        contents
-                else 
-                    data
-            in
-                value,
+            let 
+                context = try schemaCache{[entity = relativeUrl]}[schema] otherwise
+                    let 
+                        parts = Uri.Parts(graph_endpoint & relativeUrl),
+                        data = try Rest.GetContents(Text.Format("#{0}://#{1}:#{2}/#{3}?$top=1", {parts[Scheme], parts[Host], parts[Port], parts[Path]}), Token.GetAccessToken(tenantId)) otherwise null,
+                        value = if(data = null or Table.HasColumns(data, "error")) then 
+                            let
+                                contents = Rest.GetContents(graph_endpoint & relativeUrl, Token.GetAccessToken(tenantId))
+                            in 
+                                contents
+                        else 
+                            data,
+                        addValueToCache = Table.InsertRows(schemaCache, 0, {[entity] = relativeUrl, [schema] = value})
+                    in
+                        value
+            in 
+                context,
 
         GetData = (input as record) =>
             let
@@ -634,39 +636,35 @@ Graph.Feed = (requests as table, isPaged as logical, isSchemaRequired as logical
                 value,
 
         additionalSchmeaValue = if(additionalSchema = null or additionalSchema = "") then "tenantId = text" else "tenantId = text, " & additionalSchema,
+        schemaCache = #table({"entity", "schema"}, {}),
 
-        pagedSchema = if(isPaged and isSchemaRequired) then
+        schema = if(not isSchemaRequired) then 
+            null 
+        else 
             let
                 data = Table.AddColumn(requests, "Column1", each GetContext([relativeUrl], [tenantId])),
                 nonNullRows = Table.SelectRows(data, each [Column1] <> null),
-                context = if(Table.IsEmpty(nonNullRows)) then null else nonNullRows{0}[Column1][#"@odata.context"]{0},
+                context = if(Table.IsEmpty(nonNullRows)) then 
+                    null 
+                else if(Table.HasColumns(nonNullRows[Column1]{0}, "@odata.context")) then 
+                    nonNullRows{0}[Column1][#"@odata.context"]{0}
+                else 
+                    nonNullRows{0}[Column1][#"@odata.type"]{0},
                 value = if(context = null) then null else Schema.GetTable(context, additionalSchmeaValue)
             in 
-                value
-        else
-            null,
+                value,
 
-        // TODO - Implement the required logic to leverage List.ParallelInvoke with concurrancy of five to ten. This should decrease the time it takes to get data from Microsoft Graph for larger environments
-        // TODO - Currently this design will only work for paged resources (talking about returning the pagedSchema variable when the schemaOnly flag is true
-        
-        value = if(schemaOnly) then pagedSchema else 
+        response = if(schemaOnly) then 
+            schema
+        else
             let
-                data = Table.AddColumn(requests, "Column1", each GetData(_), pagedSchema),
+                data = Table.AddColumn(requests, "Column1", each GetData(_), schema),
         
                 nonNullRows = Table.SelectRows(data, each [Column1] <> null),
                 mergedLists = if(Table.IsEmpty(nonNullRows)) then null else List.Combine(nonNullRows[Column1]),
+    
+                // TODO - Only need to expand the data here. There is no need to call Table.ChangeType because one of the calling functions will invoke it
 
-                resourceSchema = if(not isPaged and isSchemaRequired) then 
-                    let 
-                        context = mergedLists{0}[#"@odata.context"],
-                        schema = Schema.GetTable(context, additionalSchmeaValue)
-                    in 
-                        schema 
-                    else 
-                        null,
-
-                schema = if(isPaged and isSchemaRequired) then pagedSchema else resourceSchema,
-       
                 changedType = if(mergedLists <> null and schema = null) then 
                     let
                         tableFromList = Table.FromList(mergedLists, Splitter.SplitByNothing(), {"Column1"}),
@@ -680,5 +678,5 @@ Graph.Feed = (requests as table, isPaged as logical, isSchemaRequired as logical
                     Table.ChangeType(mergedLists, schema)
             in 
                 changedType
-        in
-            value;
+    in 
+        response;
