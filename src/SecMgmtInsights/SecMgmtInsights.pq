@@ -477,29 +477,37 @@ SecMgmtInsights.View = (operatingModel as text, entity as text) as table =>
 
 // Network
 
-Rest.GetContents = (url as text, optional token as text, optional isResponsePaged as logical) =>
-    let
-        source = Web.Contents(url,
+Rest.GetContents = (url as text, token as text, optional isPaged as logical) =>
+    let 
+        contents = Web.Contents(url,
             [
                 Headers = [
                     #"Accept" = "application/json;odata.metadata=minimal;odata.streaming=false;IEEE754Compatible=false",
-                    #"Accept-encoding" = "gzip",
                     #"Authorization" = "Bearer " & token,
-                    #"User-Agent" = "secmgmt-insights-connector"], 
-                ManualCredentials = if(token = null or token = "") then false else true,
+                    #"User-Agent" = "secmgmt-insights-connector" 
+                ],
+                ManualCredentials = true,
                 ManualStatusHandling = {400, 401, 403}
             ]),
-        buffered = Binary.Buffer(source),
-        status = Value.Metadata(source)[Response.Status],
+        buffered = Binary.Buffer(contents),
+        status = Value.Metadata(contents)[Response.Status],
         body = Json.Document(buffered),
-        // TODO - Microsoft Graph does not support top for each feature. When not support the API will return a HTTP 400 with an error message 
-        //        that can be used for retrying the request. Before retrying the request the $top=# value will need to be removed. So, to address
-        //        this and the error below we will need to add a check for when the status value equals 400. When it does then we need to check 
-        //        for errors that can be retried by stripping the query string parameters.
-        // TODO - Decide if there needs to be logic for when the status equals 400
-        data = if (status = 401 or status = 403) then Error.Record("Access denied", "Have you verified the expected permissions are in place?", body) else 
+
+        value = if(status = 400) then 
+            let 
+                // TODO - Determine if this should be body[error][message] = "This resource does not support custom page sizes. Please retry without a page size argument."
+                value = if(Record.HasFields(body, "error") and body[error][code] = "Request_UnsupportedQuery") then
+                    // TODO - This should only remove the top parameter and not the entire query string
+                    Rest.GetContents(Text.BeforeDelimiter(url, "?"), token, isPaged)
+                else 
+                    error Error.Record(body[error][code], body[error][message], body)
+            in 
+                value
+        else if(status = 401 or status = 403) then 
+            error Error.Record(body[error][code], body[error][message], body)
+        else 
             let
-                value = if(isResponsePaged <> null and isResponsePaged) then 
+                value = if(isPaged <> null and isPaged) then 
                     Table.FromRecords(body[value])
                 else 
                     let
@@ -512,7 +520,7 @@ Rest.GetContents = (url as text, optional token as text, optional isResponsePage
                     value,
         link = Record.FieldOrDefault(body, "@odata.nextLink")
     in 
-        data meta [Next = link];
+        value meta [Next = link];
 
 Rest.GetPage = (url as text, token as text) => Table.GenerateByPage((previous) => 
     let
