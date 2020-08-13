@@ -588,7 +588,12 @@ SecMgmtInsights.YammerActivityUserDetail = (schemaOnly as logical, optional quer
 
 Graph.BuildRequests = (relativeUrl as text, optional queryString as text) =>
     let 
-        relativeAddress = if(queryString = null or queryString = "") then relativeUrl else relativeUrl & queryString,
+        relativeAddress = if(queryString = null or queryString = "") then 
+            relativeUrl 
+        else if(Text.Contains(relativeUrl, "?")) then 
+            relativeUrl & "&" & Text.AfterDelimiter(queryString, "?")
+        else 
+            relativeUrl & queryString,
         // tenantsList = if(tenants = null or List.IsEmpty(tenants)) then null else tenants,
         data = #table({"relativeUrl", "tenantId"}, {{relativeAddress, null}})
         // expandedList = Table.ExpandListColumn(data, "tenantId")
