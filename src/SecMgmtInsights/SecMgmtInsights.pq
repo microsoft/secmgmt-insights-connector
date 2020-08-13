@@ -182,10 +182,9 @@ SecMgmtInsights.SignIns = (schemaOnly as logical, optional queryString as text) 
     in 
         data;
 
-SecMgmtInsights.SubscribedSkus = (schemaOnly as logical, optional queryString as text) as table =>
+SecMgmtInsights.SubscribedSkus = (schemaOnly as logical, optional queryString as text) =>
     let
         requests = Graph.BuildRequests("/v1.0/subscribedSkus", queryString),
-        // TODO - Expression.Error: The column '@odata.context' of the table wasn't found.
         data = Graph.Feed(requests, true, true, schemaOnly)
     in
         data;
@@ -493,6 +492,11 @@ Rest.GetContents = (url as text, optional token as text, optional isResponsePage
         buffered = Binary.Buffer(source),
         status = Value.Metadata(source)[Response.Status],
         body = Json.Document(buffered),
+        // TODO - Microsoft Graph does not support top for each feature. When not support the API will return a HTTP 400 with an error message 
+        //        that can be used for retrying the request. Before retrying the request the $top=# value will need to be removed. So, to address
+        //        this and the error below we will need to add a check for when the status value equals 400. When it does then we need to check 
+        //        for errors that can be retried by stripping the query string parameters.
+        // TODO - Decide if there needs to be logic for when the status equals 400
         data = if (status = 401 or status = 403) then Error.Record("Access denied", "Have you verified the expected permissions are in place?", body) else 
             let
                 value = if(isResponsePaged <> null and isResponsePaged) then 
@@ -579,7 +583,7 @@ Graph.BuildRequests = (relativeUrl as text, optional queryString as text) =>
     let 
         relativeAddress = if(queryString = null or queryString = "") then relativeUrl else relativeUrl & queryString,
         // tenantsList = if(tenants = null or List.IsEmpty(tenants)) then null else tenants,
-        data =  #table({"relativeUrl", "tenantId"}, {{relativeAddress, null}})
+        data = #table({"relativeUrl", "tenantId"}, {{relativeAddress, null}})
         // expandedList = Table.ExpandListColumn(data, "tenantId")
     in 
         data;
@@ -588,14 +592,20 @@ Graph.Feed = (requests as table, isPaged as logical, isSchemaRequired as logical
     let
         GetContext = (relativeUrl as text, optional tenantId as text) =>
             let
-                parts = Uri.Parts(graph_endpoint & relativeUrl),
-                // BUG - The request for https://docs.microsoft.com/en-us/graph/api/subscribedsku-list?view=graph-rest-1.0&tabs=http does not support custom page size. 
-                // So, this means the following query will fail which means the schema while detectable will be set to null and the table will not be expanded as excepted
-                
                 // TODO - This does not need to be called for each type, only if the type has not been discovered yet.
-                data = try Rest.GetContents(Text.Format("#{0}://#{1}:#{2}/#{3}?$top=1", {parts[Scheme], parts[Host], parts[Port], parts[Path]}), Token.GetAccessToken(tenantId)) otherwise null
+                
+                parts = Uri.Parts(graph_endpoint & relativeUrl),
+                data = try Rest.GetContents(Text.Format("#{0}://#{1}:#{2}/#{3}?$top=1", {parts[Scheme], parts[Host], parts[Port], parts[Path]}), Token.GetAccessToken(tenantId)) otherwise null,
+                // TODO - Need to follow up regarding the comment in the GetContents functions about handling HTTP 400 errors
+                value = if(data = null or Table.HasColumns(data, "error")) then 
+                    let
+                        contents = Rest.GetContents(graph_endpoint & relativeUrl, Token.GetAccessToken(tenantId))
+                    in 
+                        contents
+                else 
+                    data
             in
-                data,
+                value,
 
         GetData = (input as record) =>
             let
@@ -629,8 +639,8 @@ Graph.Feed = (requests as table, isPaged as logical, isSchemaRequired as logical
             null,
 
         // TODO - Implement the required logic to leverage List.ParallelInvoke with concurrancy of five to ten. This should decrease the time it takes to get data from Microsoft Graph for larger environments
-
         // TODO - Currently this design will only work for paged resources (talking about returning the pagedSchema variable when the schemaOnly flag is true
+        
         value = if(schemaOnly) then pagedSchema else 
             let
                 data = Table.AddColumn(requests, "Column1", each GetData(_), pagedSchema),
