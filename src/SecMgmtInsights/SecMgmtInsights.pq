@@ -139,6 +139,7 @@ SecMgmtInsights.ConditionalAccessPolicies = (schemaOnly as logical, optional que
 
 SecMgmtInsights.Contracts = (schemaOnly as logical, optional queryString as text) =>
     let
+        // TODO - Bug has happened due to the changes to build requests. So, this function might need to call Rest.GetPage directly
         requests = Graph.BuildRequests("/v1.0/contracts", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly),       
 
@@ -176,7 +177,6 @@ SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy = (schemaOnly as logic
 SecMgmtInsights.SignIns = (schemaOnly as logical, optional queryString as text) =>
     let
         requests = Graph.BuildRequests("/beta/auditLogs/signIns", queryString),
-        // TODO - There is an issue here that needs to be investigated. Currently you are getting @odata.context was not found
         data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
@@ -197,6 +197,234 @@ SecMgmtInsights.Users = (schemaOnly as logical, optional queryString as text) =>
 
 // Device Management
 
+SecMgmtInsights.DetectedApps = (schemaOnly as logical, optional queryString as text) =>
+    let 
+        firstRequests = Graph.BuildRequests("/v1.0/deviceManagement/managedDevices?$select=id"),
+        source = Graph.Feed(firstRequests, true, false, false),
+        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId]  & "/detectedApps"),
+        data = Graph.Feed(requests, true, true, schemaOnly, "deviceId = text")
+    in
+        data;
+
+SecMgmtInsights.DetectedMalwareState = (schemaOnly as logical, optional queryString as text) =>
+    let 
+        firstRequests = Graph.BuildRequests("/v1.0/deviceManagement/managedDevices?$select=id"),
+        source = Graph.Feed(firstRequests, true, false, false),
+        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState/detectedMalwareState"),
+        data = Graph.Feed(requests, true, true, schemaOnly, "deviceId = text")
+    in 
+        data;
+
+SecMgmtInsights.DeviceCompliancePolicySettingStates = (schemaOnly as logical, optional queryString as text) => 
+    let
+        // TODO
+        // Expression.Error: We cannot convert the value null to type Type.
+        // Details:
+        //     Value=
+        //     Type=[Type]
+        firstRequests = Graph.BuildRequests("/v1.0/deviceManagement/managedDevices?$select=id"),
+        source = Graph.Feed(firstRequests, true, false, false),
+        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        policyRequests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates?$select=id"),
+        policies = Graph.Feed(policyRequests, true, false, false, "deviceId = text"),
+        policyIdRenamed = Table.RenameColumns(policies, {"id", "policyId"}),
+        requests = Table.AddColumn(policyIdRenamed, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates/" & [policyId] & "/settingStates"),
+        data = Graph.Feed(requests, true, true, schemaOnly, "deviceId = text")
+    in 
+        data;
+
+SecMgmtInsights.DeviceCompliancePolicies = (schemaOnly as logical, optional queryString as text) =>
+    let 
+        requests = Graph.BuildRequests("/beta/deviceManagement/deviceCompliancePolicies", queryString),
+        data = Graph.Feed(requests, true, true, schemaOnly)
+    in
+        data;
+
+SecMgmtInsights.DeviceCompliancePolicyStates = (schemaOnly as logical, optional queryString as text) =>
+    let
+        firstRequests = Graph.BuildRequests("/v1.0/deviceManagement/managedDevices?$select=id"),
+        source = Graph.Feed(firstRequests, true, false, false),
+        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates"),
+        data = Graph.Feed(requests, true, true, schemaOnly, "deviceId = text")
+    in 
+        data;
+
+SecMgmtInsights.DeviceConfigurationPolicies = (schemaOnly as logical, optional queryString as text) =>
+    let 
+        requests = Graph.BuildRequests("/beta/deviceManagement/deviceConfigurations", queryString),
+        data = Graph.Feed(requests, true, true, schemaOnly)
+    in
+        data;
+
+SecMgmtInsights.DeviceConfigurationPolicySettingStates = (schemaOnly as logical, optional queryString as text) =>
+    let
+        // TODO
+        // Expression.Error: We cannot convert the value null to type Type.
+        // Details:
+        //     Value=
+        //     Type=[Type]
+        firstRequests = Graph.BuildRequests("/v1.0/deviceManagement/managedDevices?$select=id"),
+        source = Graph.Feed(firstRequests, true, false, false),
+        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        policyRequests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates?$select=id"),
+        policies = Graph.Feed(policyRequests, true, false, false, "deviceId = text"),
+        policyIdRenamed = Table.RenameColumns(policies, {"id", "policyId"}),
+        requests = Table.AddColumn(policyIdRenamed, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates/" & [policyId] & "/settingStates"),
+        data = Graph.Feed(requests, true, true, schemaOnly, "deviceId = text")
+    in 
+        data;
+
+SecMgmtInsights.DeviceConfigurationPolicyStates = (schemaOnly as logical, optional queryString as text) =>
+    let        
+        firstRequests = Graph.BuildRequests("/v1.0/deviceManagement/managedDevices?$select=id"),
+        source = Graph.Feed(firstRequests, true, false, false),
+        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates"),
+        data = Graph.Feed(requests, true, true, schemaOnly, "deviceId = text")
+    in 
+        data;
+
+SecMgmtInsights.Intents = (schemaOnly as logical, optional queryString as text) =>
+    let 
+        requests = Graph.BuildRequests("/beta/deviceManagement/intents", queryString),
+        data = Graph.Feed(requests, true, true, schemaOnly)
+    in
+        data;
+
+SecMgmtInsights.ManagedDevices = (schemaOnly as logical, optional queryString as text) =>
+    let 
+        requests = Graph.BuildRequests("/beta/deviceManagement/managedDevices", queryString),
+        data = Graph.Feed(requests, true, true, schemaOnly)
+    in
+        data;
+
+SecMgmtInsights.MobileAppDeviceStatuses = (schemaOnly as logical, optional queryString as text) =>
+    let
+        // TODO
+        // Expression.Error: The field 'mobileAppId' of the record wasn't found.
+        // Details:
+        //     @odata.type=#microsoft.graph.windowsMicrosoftEdgeApp
+        //     deviceId=ca8dbede-6c4c-488b-9a7c-06c9ef151f0d
+        //     tenantId=1d2d7d4b-6a5f-4cc0-8d18-234d969dde03
+        firstRequests = Graph.BuildRequests("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
+        source = Graph.Feed(firstRequests, true, false, false),
+        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/deviceStatuses"),
+        data = Graph.Feed(requests, true, true, schemaOnly, "deviceId = text")
+    in 
+        data;
+
+SecMgmtInsights.MobileAppInstallSummary = (schemaOnly as logical, optional queryString as text) =>
+    let
+        // TODO
+        // Expression.Error: The field 'mobileAppId' of the record wasn't found.
+        // Details:
+        //     @odata.type=#microsoft.graph.windowsMicrosoftEdgeApp
+        //     deviceId=ca8dbede-6c4c-488b-9a7c-06c9ef151f0d
+        //     tenantId=1d2d7d4b-6a5f-4cc0-8d18-234d969dde03
+        firstRequests = Graph.BuildRequests("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
+        source = Graph.Feed(firstRequests, true, false, false),
+        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/installSummary"),
+        data = Graph.Feed(requests, true, true, schemaOnly, "deviceId = text")
+    in 
+        data;
+
+SecMgmtInsights.MobileAppUserStatuses = (schemaOnly as logical, optional queryString as text) =>
+    let
+        // TODO
+        // Expression.Error: The field 'mobileAppId' of the record wasn't found.
+        // Details:
+        //     @odata.type=#microsoft.graph.windowsMicrosoftEdgeApp
+        //     deviceId=ca8dbede-6c4c-488b-9a7c-06c9ef151f0d
+        //     tenantId=1d2d7d4b-6a5f-4cc0-8d18-234d969dde03
+        firstRequests = Graph.BuildRequests("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
+        source = Graph.Feed(firstRequests, true, false, false),
+        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/userStatuses"),
+        data = Graph.Feed(requests, true, true, schemaOnly, "deviceId = text")
+    in 
+        data;
+
+SecMgmtInsights.MobileApps = (schemaOnly as logical, optional queryString as text) =>
+    let 
+        requests = Graph.BuildRequests("/beta/deviceAppManagement/mobileApps", queryString),
+        data = Graph.Feed(requests, true, true, schemaOnly)
+    in 
+        data;
+
+SecMgmtInsights.SecurityBaselineSettingStates = (schemaOnly as logical, optional queryString as text) =>
+    let
+        // TODO - There weren't enough elements in the enumeration to complete the operation.
+        firstRequests = Graph.BuildRequests("/v1.0/deviceManagement/managedDevices?$select=id"),
+        source = Graph.Feed(firstRequests, true, false, false),
+        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        templateRequests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates?$select=id"),
+        templates = Graph.Feed(templateRequests, true, false, false, "deviceId = text"),
+        templateIdRenamed = Table.RenameColumns(templates, {"id", "templateId"}),
+        requests = Table.AddColumn(templateIdRenamed, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates/" & [templateId] & "/settingStates"),
+        data = Graph.Feed(requests, true, true, schemaOnly, "deviceId = text, templateId = text")
+    in 
+        data;
+
+SecMgmtInsights.SecurityBaselineStates = (schemaOnly as logical, optional queryString as text) =>
+    let        
+        firstRequests = Graph.BuildRequests("/v1.0/deviceManagement/managedDevices?$select=id"),
+        source = Graph.Feed(firstRequests, true, false, false),
+        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates"),
+        data = Graph.Feed(requests, true, true, schemaOnly, "deviceId = text")
+    in 
+        data; 
+
+SecMgmtInsights.SoftwareUpdateStatusSummary = (schemaOnly as logical, optional queryString as text) =>
+    let
+        // TODO -  The query specified in the URI is not valid. The requested resource is not a collection. Query options $filter, $orderby, $count, $skip, and $top can be applied only on collections.
+        requests = Graph.BuildRequests("/beta/deviceManagement/softwareUpdateStatusSummary", queryString),
+        data = Graph.Feed(requests, false, true, schemaOnly)
+    in 
+        data;
+
+SecMgmtInsights.SubscriptionState = (schemaOnly as logical, optional queryString as text) =>
+    let 
+        // TODO - Expression.Error: We cannot convert the value null to type Type.
+        requests = Graph.BuildRequests("/beta/deviceManagement/subscriptionState", queryString),
+        data = Graph.Feed(requests, false, true, schemaOnly)
+    in
+        data;
+
+SecMgmtInsights.WindowsAutopilotDeviceIdentities = (schemaOnly as logical, optional queryString as text) =>
+    let
+        requests = Graph.BuildRequests("/beta/deviceManagement/windowsAutopilotDeviceIdentities", queryString),
+        data = Graph.Feed(requests, true, true, schemaOnly)
+    in 
+        data;
+
+SecMgmtInsights.WindowsAutopilotProfiles = (schemaOnly as logical, optional queryString as text) =>
+    let 
+        requests = Graph.BuildRequests("/beta/deviceManagement/windowsAutopilotDeploymentProfiles", queryString),
+        data = Graph.Feed(requests, true, true, schemaOnly)
+    in 
+        data;
+
+SecMgmtInsights.WindowsAutopilotSettings = (schemaOnly as logical, optional queryString as text) =>
+    let 
+        // TODO - HTTP 404 NOT FOUND 'https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotSettings' 
+        requests = Graph.BuildRequests("/beta/deviceManagement/windowsAutopilotSettings", queryString),
+        data = Graph.Feed(requests, false, true, schemaOnly)
+    in 
+        data;
+
+SecMgmtInsights.WindowsMalwareInformation = (schemaOnly as logical, optional queryString as text) =>
+    let 
+        requests = Graph.BuildRequests("/beta/deviceManagement/windowsMalwareInformation", queryString),
+        data = Graph.Feed(requests, true, true, schemaOnly)
+    in
+        data;
+
 SecMgmtInsights.WindowsProtectionState = (schemaOnly as logical, optional queryString as text) =>
     let 
          firstRequests = Graph.BuildRequests("/v1.0/deviceManagement/managedDevices?$select=id"),
@@ -205,30 +433,58 @@ SecMgmtInsights.WindowsProtectionState = (schemaOnly as logical, optional queryS
          requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState"),
          data = Graph.Feed(requests, false, true, schemaOnly, "deviceId = text")
      in  
-         source; 
+         data; 
 
 // Entities
 
 EntityTable = #table({"Entity", "Action"}, {
-    {"Alerts", SecMgmtInsights.Alerts},
-    {"ConditionalAccessPolicies", SecMgmtInsights.ConditionalAccessPolicies},
-    {"Contracts", SecMgmtInsights.Contracts},
-    {"CredentialUserRegistrationDetails", SecMgmtInsights.CredentialUserRegistrationDetails},
-    {"Devices", SecMgmtInsights.Devices},
-    {"IdentitySecurityDefaultsEnforcementPolicy", SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy},
-    {"MailboxUsageDetail", SecMgmtInsights.MailboxUsageDetail},
-    {"Office365ActiveUserDetails", SecMgmtInsights.Office365ActiveUserDetails},
-    {"Office365ServicesUserCounts", SecMgmtInsights.Office365ServicesUserCounts},
-    {"OneDriveUsageAccountDetail", SecMgmtInsights.OneDriveUsageAccountDetail},
-    {"SharePointSiteUsageDetail", SecMgmtInsights.SharePointSiteUsageDetail},
-    {"SecureScore", SecMgmtInsights.SecureScore},
-    {"SecureScoreControlProfile", SecMgmtInsights.SecureScoreControlProfiles},
-    {"SingIns", SecMgmtInsights.SignIns},
-    {"SubscribedSkus", SecMgmtInsights.SubscribedSkus},
-    {"TeamsUserActivityUserDetail", SecMgmtInsights.TeamsUserActivityUserDetail},
-    {"Users", SecMgmtInsights.Users},
-    {"WindowsProtectionState", SecMgmtInsights.WindowsProtectionState}, 
-    {"YammerActivityUserDetail", SecMgmtInsights.YammerActivityUserDetail}
+    { "Alerts", SecMgmtInsights.Alerts },
+    { "ConditionalAccessPolicies", SecMgmtInsights.ConditionalAccessPolicies },
+    { "Contracts", SecMgmtInsights.Contracts },
+    // { "Controls", SecMgmtInsights.Controls },
+    { "CredentialUserRegistrationDetails", SecMgmtInsights.CredentialUserRegistrationDetails },
+    { "DetectApps", SecMgmtInsights.DetectedApps },
+    { "DetectedMalwareState", SecMgmtInsights.DetectedMalwareState },
+    // { "DeviceActions", SecMgmtInsights.DeviceActions },
+    { "DeviceCompliancePolicySettingStates", SecMgmtInsights.DeviceCompliancePolicySettingStates },
+    { "DeviceCompliancePolicies", SecMgmtInsights.DeviceCompliancePolicies },
+    { "DeviceCompliancePolicyStates", SecMgmtInsights.DeviceCompliancePolicyStates },
+    { "DeviceConfigurationPolicies", SecMgmtInsights.DeviceConfigurationPolicies },
+    { "DeviceConfigurationPolicySettingStates", SecMgmtInsights.DeviceConfigurationPolicySettingStates },
+    { "DeviceConfigurationPolicyStates", SecMgmtInsights.DeviceConfigurationPolicyStates },
+    { "Devices", SecMgmtInsights.Devices },
+    { "IdentitySecurityDefaultsEnforcementPolicy", SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy },
+    { "Intents", SecMgmtInsights.Intents },
+    { "MailboxUsageDetail", SecMgmtInsights.MailboxUsageDetail },
+    { "ManagedDevices", SecMgmtInsights.ManagedDevices },
+    { "MobileAppDeviceStatuses", SecMgmtInsights.MobileAppDeviceStatuses },
+    { "MobileAppInstallSummary", SecMgmtInsights.MobileAppInstallSummary },
+    { "MobileAppUserStatuses", SecMgmtInsights.MobileAppUserStatuses },
+    { "Office365ActiveUserDetails", SecMgmtInsights.Office365ActiveUserDetails },
+    { "Office365ServicesUserCounts", SecMgmtInsights.Office365ServicesUserCounts },
+    { "OneDriveUsageAccountDetail", SecMgmtInsights.OneDriveUsageAccountDetail },
+    // { "RiskDetections", SecMgmtInsights.RiskDetections },
+    // { "RiskyUsers", SecMgmtInsights.RiskyUsers },
+    { "SecureScore", SecMgmtInsights.SecureScore },
+    { "SecureScoreControlProfiles", SecMgmtInsights.SecureScoreControlProfiles },
+    { "SecurityBaselineSettingStates", SecMgmtInsights.SecurityBaselineSettingStates },
+    { "SecurityBaselineStates", SecMgmtInsights.SecurityBaselineStates },
+    // { "ServiceCurrentStatus", SecMgmtInsights.ServiceCurrentStatus },
+    // { "ServiceHistoricalStatus", SecMgmtInsights.ServiceHistoricalStatus },
+    { "SharePointSiteUsageDetail", SecMgmtInsights.SharePointSiteUsageDetail },
+    { "SignIns", SecMgmtInsights.SignIns },
+    { "SoftwareUpdateStatusSummary", SecMgmtInsights.SoftwareUpdateStatusSummary },
+    { "SubscribedSkus", SecMgmtInsights.SubscribedSkus }, 
+    { "SubscriptionState", SecMgmtInsights.SubscriptionState },
+    { "TeamsUserActivityUserDetail", SecMgmtInsights.TeamsUserActivityUserDetail },
+    // { "UserSensitivityLabels", SecMgmtInsights.UserSensitivityLabels },
+    { "Users", SecMgmtInsights.Users },
+    { "WindowsAutopilotDeviceIdentities", SecMgmtInsights.WindowsAutopilotDeviceIdentities },
+    { "WindowsAutopilotProfiles", SecMgmtInsights.WindowsAutopilotProfiles },
+    { "WindowsAutopilotSettings", SecMgmtInsights.WindowsAutopilotSettings },
+    { "WindowsMalwareInformation", SecMgmtInsights.WindowsMalwareInformation }, 
+    { "WindowsProtectionState", SecMgmtInsights.WindowsProtectionState },
+    { "YammerActivityUserDetail", SecMgmtInsights.YammerActivityUserDetail }
 });
 
 GetActionForEntity = (entity as text) =>
@@ -594,11 +850,15 @@ Graph.BuildRequests = (relativeUrl as text, optional queryString as text) =>
             relativeUrl & "&" & Text.AfterDelimiter(queryString, "?")
         else 
             relativeUrl & queryString,
+        
+        // TODO - Currently this is being used for testing purposes. This will need to be optomized
+        contracts = Rest.GetPage(graph_endpoint & "/v1.0/contracts", Token.GetAccessToken()),
+
         // tenantsList = if(tenants = null or List.IsEmpty(tenants)) then null else tenants,
-        data = #table({"relativeUrl", "tenantId"}, {{relativeAddress, null}})
-        // expandedList = Table.ExpandListColumn(data, "tenantId")
+        data = #table({"relativeUrl", "tenantId"}, {{relativeAddress, contracts[customerId]}}),
+        expandedList = Table.ExpandListColumn(data, "tenantId")
     in 
-        data;
+        expandedList;
 
 Graph.Feed = (requests as table, isPaged as logical, isSchemaRequired as logical, schemaOnly as logical, optional additionalSchema as text) => 
     let
