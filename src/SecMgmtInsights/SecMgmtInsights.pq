@@ -303,49 +303,31 @@ SecMgmtInsights.ManagedDevices = (schemaOnly as logical, optional queryString as
 
 SecMgmtInsights.MobileAppDeviceStatuses = (schemaOnly as logical, optional queryString as text) =>
     let
-        // TODO
-        // Expression.Error: The field 'mobileAppId' of the record wasn't found.
-        // Details:
-        //     @odata.type=#microsoft.graph.windowsMicrosoftEdgeApp
-        //     deviceId=ca8dbede-6c4c-488b-9a7c-06c9ef151f0d
-        //     tenantId=1d2d7d4b-6a5f-4cc0-8d18-234d969dde03
         firstRequests = Graph.BuildRequests("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
         source = Graph.Feed(firstRequests, true, false, false),
-        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/deviceStatuses"),
-        data = Graph.Feed(requests, true, true, schemaOnly, "deviceId = text")
+        data = Graph.Feed(requests, true, true, schemaOnly, "mobileAppId = text")
     in 
         data;
 
 SecMgmtInsights.MobileAppInstallSummary = (schemaOnly as logical, optional queryString as text) =>
     let
-        // TODO
-        // Expression.Error: The field 'mobileAppId' of the record wasn't found.
-        // Details:
-        //     @odata.type=#microsoft.graph.windowsMicrosoftEdgeApp
-        //     deviceId=ca8dbede-6c4c-488b-9a7c-06c9ef151f0d
-        //     tenantId=1d2d7d4b-6a5f-4cc0-8d18-234d969dde03
         firstRequests = Graph.BuildRequests("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
         source = Graph.Feed(firstRequests, true, false, false),
-        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/installSummary"),
-        data = Graph.Feed(requests, true, true, schemaOnly, "deviceId = text")
+        data = Graph.Feed(requests, true, true, schemaOnly, "mobileAppId = text")
     in 
         data;
 
 SecMgmtInsights.MobileAppUserStatuses = (schemaOnly as logical, optional queryString as text) =>
     let
-        // TODO
-        // Expression.Error: The field 'mobileAppId' of the record wasn't found.
-        // Details:
-        //     @odata.type=#microsoft.graph.windowsMicrosoftEdgeApp
-        //     deviceId=ca8dbede-6c4c-488b-9a7c-06c9ef151f0d
-        //     tenantId=1d2d7d4b-6a5f-4cc0-8d18-234d969dde03
         firstRequests = Graph.BuildRequests("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
         source = Graph.Feed(firstRequests, true, false, false),
-        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+        renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/userStatuses"),
-        data = Graph.Feed(requests, true, true, schemaOnly, "deviceId = text")
+        data = Graph.Feed(requests, true, true, schemaOnly, "mobileAppId = text")
     in 
         data;
 
