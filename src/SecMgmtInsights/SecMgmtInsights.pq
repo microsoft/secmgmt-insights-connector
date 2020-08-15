@@ -130,17 +130,16 @@ Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
 
 // Azure Active Directory
 
-SecMgmtInsights.ConditionalAccessPolicies = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.ConditionalAccessPolicies = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
-        requests = Graph.BuildRequests("/beta/identity/conditionalAccess/policies", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/identity/conditionalAccess/policies", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
 
-SecMgmtInsights.Contracts = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.Contracts = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
-        // TODO - Bug has happened due to the changes to build requests. So, this function might need to call Rest.GetPage directly
-        requests = Graph.BuildRequests("/v1.0/contracts", queryString),
+        requests = Graph.BuildRequests(tenants, "/v1.0/contracts", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly),       
 
         value = if(schemaOnly) then data else 
@@ -152,54 +151,54 @@ SecMgmtInsights.Contracts = (schemaOnly as logical, optional queryString as text
     in
         value;
 
-SecMgmtInsights.CredentialUserRegistrationDetails = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.CredentialUserRegistrationDetails = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        requests = Graph.BuildRequests("/beta/reports/credentialUserRegistrationDetails", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/reports/credentialUserRegistrationDetails", queryString),
         // TODO - If the tenant does not have an entiltment, then this request will fail with a HTTP 403
         data = Graph.Feed(requests, true, true, schemaOnly)
     in
         data;
 
-SecMgmtInsights.Devices = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.Devices = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        requests = Graph.BuildRequests("/v1.0/devices", queryString),
+        requests = Graph.BuildRequests(tenants, "/v1.0/devices", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in
         data;
 
-SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
-        requests = Graph.BuildRequests("/v1.0/policies/identitySecurityDefaultsEnforcementPolicy", queryString),
+        requests = Graph.BuildRequests(tenants, "/v1.0/policies/identitySecurityDefaultsEnforcementPolicy", queryString),
         data = Graph.Feed(requests, false, true, schemaOnly)
     in 
         data;
 
-SecMgmtInsights.SignIns = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.SignIns = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
-        requests = Graph.BuildRequests("/beta/auditLogs/signIns", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/auditLogs/signIns", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
 
-SecMgmtInsights.SubscribedSkus = (schemaOnly as logical, optional queryString as text) =>
+ SecMgmtInsights.SubscribedSkus = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
-        requests = Graph.BuildRequests("/v1.0/subscribedSkus", queryString),
+        requests = Graph.BuildRequests(tenants, "/v1.0/subscribedSkus", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in
         data;
 
-SecMgmtInsights.Users = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.Users = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        requests = Graph.BuildRequests("/v1.0/users", queryString),
+        requests = Graph.BuildRequests(tenants, "/v1.0/users", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in
         data;
 
 // Device Management
 
-SecMgmtInsights.DetectedApps = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.DetectedApps = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        firstRequests = Graph.BuildRequests("/v1.0/deviceManagement/managedDevices?$select=id"),
+        firstRequests = Graph.BuildRequests(tenants, "/v1.0/deviceManagement/managedDevices?$select=id"),
         source = Graph.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId]  & "/detectedApps"),
@@ -207,9 +206,10 @@ SecMgmtInsights.DetectedApps = (schemaOnly as logical, optional queryString as t
     in
         data;
 
-SecMgmtInsights.DetectedMalwareState = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.DetectedMalwareState = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        firstRequests = Graph.BuildRequests("/v1.0/deviceManagement/managedDevices?$select=id"),
+        // TODO - Expression.Error: There weren't enough elements in the enumeration to complete the operation.
+        firstRequests = Graph.BuildRequests(tenants, "/v1.0/deviceManagement/managedDevices?$select=id"),
         source = Graph.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState/detectedMalwareState"),
@@ -217,14 +217,14 @@ SecMgmtInsights.DetectedMalwareState = (schemaOnly as logical, optional queryStr
     in 
         data;
 
-SecMgmtInsights.DeviceCompliancePolicySettingStates = (schemaOnly as logical, optional queryString as text) => 
+SecMgmtInsights.DeviceCompliancePolicySettingStates = (tenants as list, schemaOnly as logical, optional queryString as text) => 
     let
         // TODO
         // Expression.Error: We cannot convert the value null to type Type.
         // Details:
         //     Value=
         //     Type=[Type]
-        firstRequests = Graph.BuildRequests("/v1.0/deviceManagement/managedDevices?$select=id"),
+        firstRequests = Graph.BuildRequests(tenants, "/v1.0/deviceManagement/managedDevices?$select=id"),
         source = Graph.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
         policyRequests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates?$select=id"),
@@ -235,16 +235,16 @@ SecMgmtInsights.DeviceCompliancePolicySettingStates = (schemaOnly as logical, op
     in 
         data;
 
-SecMgmtInsights.DeviceCompliancePolicies = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.DeviceCompliancePolicies = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        requests = Graph.BuildRequests("/beta/deviceManagement/deviceCompliancePolicies", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/deviceCompliancePolicies", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in
         data;
 
-SecMgmtInsights.DeviceCompliancePolicyStates = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.DeviceCompliancePolicyStates = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
-        firstRequests = Graph.BuildRequests("/v1.0/deviceManagement/managedDevices?$select=id"),
+        firstRequests = Graph.BuildRequests(tenants, "/v1.0/deviceManagement/managedDevices?$select=id"),
         source = Graph.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates"),
@@ -252,21 +252,21 @@ SecMgmtInsights.DeviceCompliancePolicyStates = (schemaOnly as logical, optional 
     in 
         data;
 
-SecMgmtInsights.DeviceConfigurationPolicies = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.DeviceConfigurationPolicies = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        requests = Graph.BuildRequests("/beta/deviceManagement/deviceConfigurations", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/deviceConfigurations", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in
         data;
 
-SecMgmtInsights.DeviceConfigurationPolicySettingStates = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.DeviceConfigurationPolicySettingStates = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
         // TODO
         // Expression.Error: We cannot convert the value null to type Type.
         // Details:
         //     Value=
         //     Type=[Type]
-        firstRequests = Graph.BuildRequests("/v1.0/deviceManagement/managedDevices?$select=id"),
+        firstRequests = Graph.BuildRequests(tenants, "/v1.0/deviceManagement/managedDevices?$select=id"),
         source = Graph.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
         policyRequests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates?$select=id"),
@@ -277,9 +277,9 @@ SecMgmtInsights.DeviceConfigurationPolicySettingStates = (schemaOnly as logical,
     in 
         data;
 
-SecMgmtInsights.DeviceConfigurationPolicyStates = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.DeviceConfigurationPolicyStates = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let        
-        firstRequests = Graph.BuildRequests("/v1.0/deviceManagement/managedDevices?$select=id"),
+        firstRequests = Graph.BuildRequests(tenants, "/v1.0/deviceManagement/managedDevices?$select=id"),
         source = Graph.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates"),
@@ -287,23 +287,23 @@ SecMgmtInsights.DeviceConfigurationPolicyStates = (schemaOnly as logical, option
     in 
         data;
 
-SecMgmtInsights.Intents = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.Intents = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        requests = Graph.BuildRequests("/beta/deviceManagement/intents", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/intents", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in
         data;
 
-SecMgmtInsights.ManagedDevices = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.ManagedDevices = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        requests = Graph.BuildRequests("/beta/deviceManagement/managedDevices", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/managedDevices", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in
         data;
 
-SecMgmtInsights.MobileAppDeviceStatuses = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.MobileAppDeviceStatuses = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
-        firstRequests = Graph.BuildRequests("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
+        firstRequests = Graph.BuildRequests(tenants, "/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
         source = Graph.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/deviceStatuses"),
@@ -311,9 +311,9 @@ SecMgmtInsights.MobileAppDeviceStatuses = (schemaOnly as logical, optional query
     in 
         data;
 
-SecMgmtInsights.MobileAppInstallSummary = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.MobileAppInstallSummary = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
-        firstRequests = Graph.BuildRequests("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
+        firstRequests = Graph.BuildRequests(tenants, "/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
         source = Graph.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/installSummary"),
@@ -321,9 +321,9 @@ SecMgmtInsights.MobileAppInstallSummary = (schemaOnly as logical, optional query
     in 
         data;
 
-SecMgmtInsights.MobileAppUserStatuses = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.MobileAppUserStatuses = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
-        firstRequests = Graph.BuildRequests("/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
+        firstRequests = Graph.BuildRequests(tenants, "/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
         source = Graph.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/userStatuses"),
@@ -331,17 +331,17 @@ SecMgmtInsights.MobileAppUserStatuses = (schemaOnly as logical, optional querySt
     in 
         data;
 
-SecMgmtInsights.MobileApps = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.MobileApps = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        requests = Graph.BuildRequests("/beta/deviceAppManagement/mobileApps", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/deviceAppManagement/mobileApps", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
 
-SecMgmtInsights.SecurityBaselineSettingStates = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.SecurityBaselineSettingStates = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
         // TODO - There weren't enough elements in the enumeration to complete the operation.
-        firstRequests = Graph.BuildRequests("/v1.0/deviceManagement/managedDevices?$select=id"),
+        firstRequests = Graph.BuildRequests(tenants, "/v1.0/deviceManagement/managedDevices?$select=id"),
         source = Graph.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
         templateRequests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates?$select=id"),
@@ -352,9 +352,9 @@ SecMgmtInsights.SecurityBaselineSettingStates = (schemaOnly as logical, optional
     in 
         data;
 
-SecMgmtInsights.SecurityBaselineStates = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.SecurityBaselineStates = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let        
-        firstRequests = Graph.BuildRequests("/v1.0/deviceManagement/managedDevices?$select=id"),
+        firstRequests = Graph.BuildRequests(tenants, "/v1.0/deviceManagement/managedDevices?$select=id"),
         source = Graph.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates"),
@@ -362,54 +362,54 @@ SecMgmtInsights.SecurityBaselineStates = (schemaOnly as logical, optional queryS
     in 
         data; 
 
-SecMgmtInsights.SoftwareUpdateStatusSummary = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.SoftwareUpdateStatusSummary = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
         // TODO -  The query specified in the URI is not valid. The requested resource is not a collection. Query options $filter, $orderby, $count, $skip, and $top can be applied only on collections.
-        requests = Graph.BuildRequests("/beta/deviceManagement/softwareUpdateStatusSummary", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/softwareUpdateStatusSummary", queryString),
         data = Graph.Feed(requests, false, true, schemaOnly)
     in 
         data;
 
-SecMgmtInsights.SubscriptionState = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.SubscriptionState = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
         // TODO - Expression.Error: We cannot convert the value null to type Type.
-        requests = Graph.BuildRequests("/beta/deviceManagement/subscriptionState", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/subscriptionState", queryString),
         data = Graph.Feed(requests, false, true, schemaOnly)
     in
         data;
 
-SecMgmtInsights.WindowsAutopilotDeviceIdentities = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.WindowsAutopilotDeviceIdentities = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
-        requests = Graph.BuildRequests("/beta/deviceManagement/windowsAutopilotDeviceIdentities", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/windowsAutopilotDeviceIdentities", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
 
-SecMgmtInsights.WindowsAutopilotProfiles = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.WindowsAutopilotProfiles = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        requests = Graph.BuildRequests("/beta/deviceManagement/windowsAutopilotDeploymentProfiles", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/windowsAutopilotDeploymentProfiles", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
 
-SecMgmtInsights.WindowsAutopilotSettings = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.WindowsAutopilotSettings = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
         // TODO - HTTP 404 NOT FOUND 'https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotSettings' 
-        requests = Graph.BuildRequests("/beta/deviceManagement/windowsAutopilotSettings", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/windowsAutopilotSettings", queryString),
         data = Graph.Feed(requests, false, true, schemaOnly)
     in 
         data;
 
-SecMgmtInsights.WindowsMalwareInformation = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.WindowsMalwareInformation = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        requests = Graph.BuildRequests("/beta/deviceManagement/windowsMalwareInformation", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/windowsMalwareInformation", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in
         data;
 
-SecMgmtInsights.WindowsProtectionState = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.WindowsProtectionState = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-         firstRequests = Graph.BuildRequests("/v1.0/deviceManagement/managedDevices?$select=id"),
+         firstRequests = Graph.BuildRequests(tenants, "/v1.0/deviceManagement/managedDevices?$select=id"),
          source = Graph.Feed(firstRequests, true, false, false),
          renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
          requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState"),
@@ -439,6 +439,7 @@ EntityTable = #table({"Entity", "Action"}, {
     { "Intents", SecMgmtInsights.Intents },
     { "MailboxUsageDetail", SecMgmtInsights.MailboxUsageDetail },
     { "ManagedDevices", SecMgmtInsights.ManagedDevices },
+    { "MobileApps", SecMgmtInsights.MobileApps },
     { "MobileAppDeviceStatuses", SecMgmtInsights.MobileAppDeviceStatuses },
     { "MobileAppInstallSummary", SecMgmtInsights.MobileAppInstallSummary },
     { "MobileAppUserStatuses", SecMgmtInsights.MobileAppUserStatuses },
@@ -478,7 +479,7 @@ GetActionForEntity = (entity as text) =>
          in
              Diagnostics.Trace(TraceLevel.Error, message, () => error message, true);
 
-GetSchemaForEntity = (entity as text) as type => GetActionForEntity(entity)(true);
+GetSchemaForEntity = (tenants as list, entity as text) as type => GetActionForEntity(entity)(tenants, true);
 
 // Extensions
 
@@ -502,23 +503,23 @@ Table.ToNavigationTable = Extension.LoadFunction("Table.ToNavigationTable.pqm");
 
 // Intelligent Security Graph
 
-SecMgmtInsights.Alerts = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.Alerts = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        requests = Graph.BuildRequests("/v1.0/security/alerts", queryString),
+        requests = Graph.BuildRequests(tenants, "/v1.0/security/alerts", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
 
-SecMgmtInsights.SecureScore = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.SecureScore = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        requests = Graph.BuildRequests("/v1.0/security/secureScores", queryString),
+        requests = Graph.BuildRequests(tenants, "/v1.0/security/secureScores", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
 
-SecMgmtInsights.SecureScoreControlProfiles = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.SecureScoreControlProfiles = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        requests = Graph.BuildRequests("/v1.0/security/secureScoreControlProfiles", queryString),
+        requests = Graph.BuildRequests(tenants, "/v1.0/security/secureScoreControlProfiles", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in
         data;
@@ -530,11 +531,13 @@ shared SecMgmtInsights.Contents = Value.ReplaceType(SecMgmtInsights.NavigationTa
 
 SecMgmtInsights.NavigationTable = (operatingModel as text) as table =>
     let
+        contracts = Rest.GetPage(graph_endpoint & "/v1.0/contracts", Token.GetAccessToken()),
+
         // Use our schema table as the source of top level items in the navigation tree
         entities = Table.SelectColumns(EntityTable, {"Entity"}),
         rename = Table.RenameColumns(entities, {{"Entity", "Name"}}),
         // Add Data as a calculated column
-        withData = Table.AddColumn(rename, "Data", each SecMgmtInsights.View(operatingModel, [Name]), type table),
+        withData = Table.AddColumn(rename, "Data", each SecMgmtInsights.View([Name], contracts[customerId]), type table),
         // Add ItemKind and ItemName as fixed text values
         withItemKind = Table.AddColumn(withData, "ItemKind", each "Table", type text),
         withItemName = Table.AddColumn(withItemKind, "ItemName", each "Table", type text),
@@ -545,7 +548,7 @@ SecMgmtInsights.NavigationTable = (operatingModel as text) as table =>
     in
         navTable;
 
-SecMgmtInsights.View = (operatingModel as text, entity as text) as table =>
+SecMgmtInsights.View = (entity as text, tenants as list) as table =>
     let
         // Implementation of Table.View handlers.
         //
@@ -562,7 +565,7 @@ SecMgmtInsights.View = (operatingModel as text, entity as text) as table =>
                 let
                     finalSchema = CalculateSchema(state),
                     finalUrl = CalculateUrl(state),
-                    result = GetActionForEntity(entity)(false, finalUrl),
+                    result = GetActionForEntity(entity)(tenants, false, finalUrl),
                     appliedType = Table.ChangeType(result, finalSchema)
                 in
                     appliedType,
@@ -581,7 +584,7 @@ SecMgmtInsights.View = (operatingModel as text, entity as text) as table =>
                     let
                         newState = state & [ RowCountOnly = true ],
                         finalUrl = CalculateUrl(newState),
-                        value =  GetActionForEntity(entity)(false, finalUrl),
+                        value =  GetActionForEntity(entity)(tenants, false, finalUrl, tenants),
                         converted = Number.FromText(value)
                     in
                         converted,
@@ -656,7 +659,7 @@ SecMgmtInsights.View = (operatingModel as text, entity as text) as table =>
             // entity name that was passed into the function.
             CalculateSchema = (state) as type =>
                 if (state[Schema]? = null) then
-                    GetSchemaForEntity(entity)
+                    GetSchemaForEntity(tenants, entity)
                 else
                     state[Schema],
 
@@ -710,13 +713,13 @@ SecMgmtInsights.View = (operatingModel as text, entity as text) as table =>
                     finalUrl
         ]))
     in
-        View([OperatingModel = operatingModel, Entity = entity]);
+        View([Entity = entity, Tenants = tenants]);
 
 // Network
 
 Rest.GetContents = (url as text, token as text, optional isPaged as logical) =>
     let 
-        contents = Web.Contents(url,
+        response = Web.Contents(url,
             [
                 Headers = [
                     #"Accept" = "application/json;odata.metadata=minimal;odata.streaming=false;IEEE754Compatible=false",
@@ -726,105 +729,98 @@ Rest.GetContents = (url as text, token as text, optional isPaged as logical) =>
                 ManualCredentials = true,
                 ManualStatusHandling = {400, 401, 403}
             ]),
-        buffered = Binary.Buffer(contents),
-        status = Value.Metadata(contents)[Response.Status],
-        body = Json.Document(buffered),
-
-        value = if(status = 400) then 
-            let 
-                // TODO - Determine if this should be body[error][message] = "This resource does not support custom page sizes. Please retry without a page size argument."
-                value = if(Record.HasFields(body, "error") and (body[error][code] = "Request_UnsupportedQuery" or Text.Contains(body[error][message], "Query option 'Top'"))) then
-                    // TODO - This should only remove the top parameter and not the entire query string
-                    Rest.GetContents(Text.BeforeDelimiter(url, "?"), token, isPaged)
-                else 
-                    error Error.Record(body[error][code], body[error][message], body)
-            in 
-                value
-        else if(status = 401 or status = 403) then 
-            error Error.Record(body[error][code], body[error][message], body)
-        else 
-            let
-                value = if(isPaged <> null and isPaged) then 
-                    Table.FromRecords(body[value])
-                else 
-                    let
-                        contents = Table.FromList({body}, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
-                        firstRow = contents{0}?,
-                        value = if(firstRow = null) then Table.FromRows({}) else Table.ExpandRecordColumn(contents, "Column1", Record.FieldNames(firstRow[Column1]))
+        body = Json.Document(response), 
+        result = if (Record.HasFields(body, {"error"})) then 
+                let 
+                    source = if (body[error][code] = "Request_UnsupportedQuery" or Text.Contains(body[error][message], "Query option 'Top'")) then 
+                            // TODO - This should only remove the top parameter and not the entire query string
+                            Rest.GetContents(Text.BeforeDelimiter(url, "?"), token, isPaged)
+                        else 
+                            error Error.Record(body[error][code], body[error][message], body)
+                in 
+                    source
+            else 
+                let
+                    value = if(isPaged <> null and isPaged) then 
+                        Table.FromRecords(body[value])
+                    else 
+                        let
+                            contents = Table.FromList({body}, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+                            firstRow = contents{0}?,
+                            value = if(firstRow = null) then Table.FromRows({}) else Table.ExpandRecordColumn(contents, "Column1", Record.FieldNames(firstRow[Column1]))
+                        in
+                            value
                     in
-                        value
-                in
-                    value,
+                        value,
         link = Record.FieldOrDefault(body, "@odata.nextLink")
-    in 
-        value meta [Next = link];
+    in
+        result meta [Next = link];
 
-Rest.GetPage = (url as text, token as text) => Table.GenerateByPage((previous) => 
+ Rest.GetPage = (url as text, token as text) => Table.GenerateByPage((previous) => 
     let
-        // if previous is null, then this is our first page of data
+        // If previous is null, then this is our first page of data
         next = if (previous = null) then url else Value.Metadata(previous)[Next]?,
-        // if the next link was set to null by the previous call, we know we have no more data
-        page = if (next <> null) then Rest.GetContents(next, token, true) else null
+        // If we have a next link, use it, otherwise use the original URL
+        urlToUse = if (next <> null) then next else url,
+        // If the next link was set to null by the previous call, we know we have no more data
+        page = if (next <> null) then Rest.GetContents(urlToUse, token, true) else null
     in
         page);
 
 // Office 365
 
-// TODO - Due to the current implementation in the get schema functions each of the Office 365 report operations will return 
-// Error: We cannot convert the value null to type Type.
-
-SecMgmtInsights.MailboxUsageDetail = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.MailboxUsageDetail = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        requests = Graph.BuildRequests("/beta/reports/getMailboxUsageDetail(period='D30')?$format=application/json", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/reports/getMailboxUsageDetail(period='D30')?$format=application/json", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
 
-SecMgmtInsights.Office365ActiveUserDetails = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.Office365ActiveUserDetails = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
-        requests = Graph.BuildRequests("/beta/reports/getOffice365ActiveUserDetail(period='D30')?$format=application/json", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/reports/getOffice365ActiveUserDetail(period='D30')?$format=application/json", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
 
-SecMgmtInsights.Office365ServicesUserCounts = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.Office365ServicesUserCounts = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
-        requests = Graph.BuildRequests("/beta/reports/getOffice365ServicesUserCounts(period='D30')?$format=application/json", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/reports/getOffice365ServicesUserCounts(period='D30')?$format=application/json", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
 
-SecMgmtInsights.OneDriveUsageAccountDetail = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.OneDriveUsageAccountDetail = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
-        requests = Graph.BuildRequests("/beta/reports/getOneDriveUsageAccountDetail(period='D30')?$format=application/json", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/reports/getOneDriveUsageAccountDetail(period='D30')?$format=application/json", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
 
-SecMgmtInsights.SharePointSiteUsageDetail = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.SharePointSiteUsageDetail = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
-        requests = Graph.BuildRequests("/beta/reports/getSharePointSiteUsageDetail(period='D30')?$format=application/json", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/reports/getSharePointSiteUsageDetail(period='D30')?$format=application/json", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
 
-SecMgmtInsights.TeamsUserActivityUserDetail = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.TeamsUserActivityUserDetail = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
-        requests = Graph.BuildRequests("/beta/reports/getTeamsUserActivityUserDetail(period='D30')?$format=application/json", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/reports/getTeamsUserActivityUserDetail(period='D30')?$format=application/json", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
 
-SecMgmtInsights.YammerActivityUserDetail = (schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.YammerActivityUserDetail = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
-        requests = Graph.BuildRequests("/beta/reports/getYammerActivityUserDetail(period='D30')?$format=application/json", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/reports/getYammerActivityUserDetail(period='D30')?$format=application/json", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
 
 // Requests
 
-Graph.BuildRequests = (relativeUrl as text, optional queryString as text) =>
+Graph.BuildRequests = (tenants as list, relativeUrl as text, optional queryString as text) =>
     let 
         relativeAddress = if(queryString = null or queryString = "") then 
             relativeUrl 
@@ -832,12 +828,8 @@ Graph.BuildRequests = (relativeUrl as text, optional queryString as text) =>
             relativeUrl & "&" & Text.AfterDelimiter(queryString, "?")
         else 
             relativeUrl & queryString,
-        
-        // TODO - Currently this is being used for testing purposes. This will need to be optomized
-        contracts = Rest.GetPage(graph_endpoint & "/v1.0/contracts", Token.GetAccessToken()),
 
-        // tenantsList = if(tenants = null or List.IsEmpty(tenants)) then null else tenants,
-        data = #table({"relativeUrl", "tenantId"}, {{relativeAddress, contracts[customerId]}}),
+        data = #table({"relativeUrl", "tenantId"}, {{relativeAddress, tenants}}),
         expandedList = Table.ExpandListColumn(data, "tenantId")
     in 
         expandedList;
@@ -892,11 +884,11 @@ Graph.Feed = (requests as table, isPaged as logical, isSchemaRequired as logical
                 data = Table.AddColumn(requests, "Column1", each GetContext([relativeUrl], [tenantId])),
                 nonNullRows = Table.SelectRows(data, each [Column1] <> null),
                 context = if(Table.IsEmpty(nonNullRows)) then 
-                    null 
-                else if(Table.HasColumns(nonNullRows[Column1]{0}, "@odata.context")) then 
-                    nonNullRows{0}[Column1][#"@odata.context"]{0}
-                else 
-                    nonNullRows{0}[Column1][#"@odata.type"]{0},
+                        null 
+                    else if(Table.HasColumns(nonNullRows{0}[Column1], "@odata.context")) then 
+                        nonNullRows{0}[Column1][#"@odata.context"]{0}
+                    else 
+                        nonNullRows{0}[Column1][#"@odata.type"]{0},
                 value = if(context = null) then null else Schema.GetTable(context, additionalSchmeaValue)
             in 
                 value,
@@ -910,20 +902,16 @@ Graph.Feed = (requests as table, isPaged as logical, isSchemaRequired as logical
                 nonNullRows = Table.SelectRows(data, each [Column1] <> null),
                 mergedLists = if(Table.IsEmpty(nonNullRows)) then null else List.Combine(nonNullRows[Column1]),
     
-                // TODO - Only need to expand the data here. There is no need to call Table.ChangeType because one of the calling functions will invoke it
-
-                changedType = if(mergedLists <> null and schema = null) then 
+                output = if(mergedLists <> null) then 
                     let
                         tableFromList = Table.FromList(mergedLists, Splitter.SplitByNothing(), {"Column1"}),
                         listOfColumns = Record.FieldNames(tableFromList{0}[Column1]),
                         expandedRecord = Table.ExpandRecordColumn(tableFromList, "Column1", listOfColumns)
                     in
                         expandedRecord
-                else if (mergedLists = null) then 
-                    Table.ChangeType(data, schema) 
                 else 
-                    Table.ChangeType(mergedLists, schema)
+                    data
             in 
-                changedType
+                output
     in 
         response;
