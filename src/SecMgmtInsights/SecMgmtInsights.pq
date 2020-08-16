@@ -251,9 +251,9 @@ SecMgmtInsights.DeviceCompliancePolicyStates = (tenants as list, schemaOnly as l
     in 
         data;
 
-SecMgmtInsights.DeviceConfigurationPolicies = (tenants as list, schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.DeviceConfigurationProfiles = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/deviceConfigurations", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/deviceConfigurations?$select=id,displayName,lastModifiedDateTime,roleScopeTagIds&$expand=assignments", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in
         data;
@@ -429,7 +429,7 @@ EntityTable = #table({"Entity", "Action"}, {
     { "DeviceCompliancePolicySettingStates", SecMgmtInsights.DeviceCompliancePolicySettingStates },
     { "DeviceCompliancePolicies", SecMgmtInsights.DeviceCompliancePolicies },
     { "DeviceCompliancePolicyStates", SecMgmtInsights.DeviceCompliancePolicyStates },
-    { "DeviceConfigurationPolicies", SecMgmtInsights.DeviceConfigurationPolicies },
+    { "DeviceConfigurationProfiles", SecMgmtInsights.DeviceConfigurationProfiles },
     { "DeviceConfigurationPolicySettingStates", SecMgmtInsights.DeviceConfigurationPolicySettingStates },
     { "DeviceConfigurationPolicyStates", SecMgmtInsights.DeviceConfigurationPolicyStates },
     { "Devices", SecMgmtInsights.Devices },
@@ -881,7 +881,8 @@ Graph.Feed = (requests as table, isPaged as logical, isSchemaRequired as logical
                 context = try schemaCache{[entity = relativeUrl]}[schema] otherwise
                     let 
                         parts = Uri.Parts(graph_endpoint & relativeUrl),
-                        data = try Rest.GetContents(Text.Format("#{0}://#{1}:#{2}/#{3}?$top=1", {parts[Scheme], parts[Host], parts[Port], parts[Path]}), Token.GetAccessToken(tenantId)) otherwise null,
+                        queryString = if (Record.HasFields(parts[Query], "top")) then parts[Query][Top] = 1 else Record.AddField(parts[Query], "top", 1),
+                        data = try Rest.GetContents(Text.Format("#{0}://#{1}:#{2}/#{3}?#{4}", {parts[Scheme], parts[Host], parts[Port], parts[Path], Uri.BuildQueryString(queryString)}), Token.GetAccessToken(tenantId)) otherwise null,
                         value = if(data = null or Table.HasColumns(data, "error")) then 
                             let
                                 contents = Rest.GetContents(graph_endpoint & relativeUrl, Token.GetAccessToken(tenantId))
