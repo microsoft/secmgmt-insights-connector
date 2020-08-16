@@ -236,7 +236,7 @@ SecMgmtInsights.DeviceCompliancePolicySettingStates = (tenants as list, schemaOn
 
 SecMgmtInsights.DeviceCompliancePolicies = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/deviceCompliancePolicies", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/deviceCompliancePolicies?$select=id,displayName,lastModifiedDateTime,roleScopeTagIds", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in
         data;
@@ -253,7 +253,7 @@ SecMgmtInsights.DeviceCompliancePolicyStates = (tenants as list, schemaOnly as l
 
 SecMgmtInsights.DeviceConfigurationProfiles = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/deviceConfigurations?$select=id,displayName,lastModifiedDateTime,roleScopeTagIds&$expand=assignments", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/deviceConfigurations?$select=id,displayName,lastModifiedDateTime,roleScopeTagIds", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in
         data;
