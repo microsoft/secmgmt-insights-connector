@@ -208,7 +208,6 @@ SecMgmtInsights.DetectedApps = (tenants as list, schemaOnly as logical, optional
 
 SecMgmtInsights.DetectedMalwareState = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        // TODO - Expression.Error: There weren't enough elements in the enumeration to complete the operation.
         firstRequests = Graph.BuildRequests(tenants, "/v1.0/deviceManagement/managedDevices?$select=id"),
         source = Graph.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
@@ -394,7 +393,6 @@ SecMgmtInsights.WindowsAutopilotProfiles = (tenants as list, schemaOnly as logic
 
 SecMgmtInsights.WindowsAutopilotSettings = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        // TODO - HTTP 404 NOT FOUND 'https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotSettings' 
         requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/windowsAutopilotSettings", queryString),
         data = Graph.Feed(requests, false, true, schemaOnly)
     in 
@@ -446,8 +444,8 @@ EntityTable = #table({"Entity", "Action"}, {
     { "Office365ActiveUserDetails", SecMgmtInsights.Office365ActiveUserDetails },
     { "Office365ServicesUserCounts", SecMgmtInsights.Office365ServicesUserCounts },
     { "OneDriveUsageAccountDetail", SecMgmtInsights.OneDriveUsageAccountDetail },
-    // { "RiskDetections", SecMgmtInsights.RiskDetections },
-    // { "RiskyUsers", SecMgmtInsights.RiskyUsers },
+    { "RiskDetections", SecMgmtInsights.RiskDetections },
+    { "RiskyUsers", SecMgmtInsights.RiskyUsers },
     { "SecureScore", SecMgmtInsights.SecureScore },
     { "SecureScoreControlProfiles", SecMgmtInsights.SecureScoreControlProfiles },
     { "SecurityBaselineSettingStates", SecMgmtInsights.SecurityBaselineSettingStates },
@@ -460,7 +458,8 @@ EntityTable = #table({"Entity", "Action"}, {
     { "SubscribedSkus", SecMgmtInsights.SubscribedSkus }, 
     { "SubscriptionState", SecMgmtInsights.SubscriptionState },
     { "TeamsUserActivityUserDetail", SecMgmtInsights.TeamsUserActivityUserDetail },
-    // { "UserSensitivityLabels", SecMgmtInsights.UserSensitivityLabels },
+    { "UserDataLossPreventionPolicies", SecMgmtInsights.UserDataLossPreventionPolicies },
+    { "UserSensitivityLabels", SecMgmtInsights.UserSensitivityLabels },
     { "Users", SecMgmtInsights.Users },
     { "WindowsAutopilotDeviceIdentities", SecMgmtInsights.WindowsAutopilotDeviceIdentities },
     { "WindowsAutopilotProfiles", SecMgmtInsights.WindowsAutopilotProfiles },
@@ -500,6 +499,45 @@ Schema.GetTable = Extension.LoadFunction("Schema.GetTable.pqm");
 Table.ChangeType = Extension.LoadFunction("Table.ChangeType.pqm");
 Table.GenerateByPage = Extension.LoadFunction("Table.GenerateByPage.pqm");
 Table.ToNavigationTable = Extension.LoadFunction("Table.ToNavigationTable.pqm");
+
+// Identity Protection
+
+SecMgmtInsights.RiskDetections = (tenants as list, schemaOnly as logical, optional queryString as text) =>
+    let
+        requests = Graph.BuildRequests(tenants, "/beta/identityProtection/riskDetections", queryString),
+        data = Graph.Feed(requests, true, true, schemaOnly)
+    in 
+        data;
+
+SecMgmtInsights.RiskyUsers = (tenants as list, schemaOnly as logical, optional queryString as text) =>
+    let
+        requests = Graph.BuildRequests(tenants, "/beta/identityProtection/riskyUsers", queryString),
+        data = Graph.Feed(requests, true, true, schemaOnly)
+    in 
+        data;
+
+
+// Information Protection 
+
+SecMgmtInsights.UserDataLossPreventionPolicies = (tenants as list, schemaOnly as logical, optional queryString as text) =>
+    let
+        firstRequests = Graph.BuildRequests(tenants, "/v1.0/users?$select=id"),
+        source = Graph.Feed(firstRequests, true, false, false),
+        renamedColumn = Table.RenameColumns(source, {"id", "userId"}),
+        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/users/" & [userId] & "/informationProtection/dataLossPreventionPolicies"),
+        data = Graph.Feed(requests, true, true, schemaOnly, "userId = text")
+    in
+        data;
+
+SecMgmtInsights.UserSensitivityLabels = (tenants as list, schemaOnly as logical, optional queryString as text) =>
+    let
+        firstRequests = Graph.BuildRequests(tenants, "/v1.0/users?$select=id"),
+        source = Graph.Feed(firstRequests, true, false, false),
+        renamedColumn = Table.RenameColumns(source, {"id", "userId"}),
+        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/users/" & [userId] & "/informationProtection/sensitivityLabels"),
+        data = Graph.Feed(requests, true, true, schemaOnly, "userId = text")
+    in 
+        data;
 
 // Intelligent Security Graph
 
@@ -729,7 +767,8 @@ Rest.GetContents = (url as text, token as text, optional isPaged as logical) =>
                 ManualCredentials = true,
                 ManualStatusHandling = {400, 401, 403}
             ]),
-        body = Json.Document(response), 
+        buffered = Binary.Buffer(response),
+        body = Json.Document(buffered), 
         result = if (Record.HasFields(body, {"error"})) then 
                 let 
                     source = if (body[error][code] = "Request_UnsupportedQuery" or Text.Contains(body[error][message], "Query option 'Top'")) then 
@@ -902,15 +941,17 @@ Graph.Feed = (requests as table, isPaged as logical, isSchemaRequired as logical
                 nonNullRows = Table.SelectRows(data, each [Column1] <> null),
                 mergedLists = if(Table.IsEmpty(nonNullRows)) then null else List.Combine(nonNullRows[Column1]),
     
-                output = if(mergedLists <> null) then 
-                    let
-                        tableFromList = Table.FromList(mergedLists, Splitter.SplitByNothing(), {"Column1"}),
-                        listOfColumns = Record.FieldNames(tableFromList{0}[Column1]),
-                        expandedRecord = Table.ExpandRecordColumn(tableFromList, "Column1", listOfColumns)
-                    in
-                        expandedRecord
-                else 
-                    data
+                output = if(List.IsEmpty(mergedLists)) then 
+                        Table.FromRows({})
+                    else if(mergedLists <> null) then 
+                        let
+                            tableFromList = Table.FromList(mergedLists, Splitter.SplitByNothing(), {"Column1"}),
+                            listOfColumns = Record.FieldNames(tableFromList{0}[Column1]),
+                            expandedRecord = Table.ExpandRecordColumn(tableFromList, "Column1", listOfColumns)
+                        in
+                            expandedRecord
+                    else 
+                        data
             in 
                 output
     in 
