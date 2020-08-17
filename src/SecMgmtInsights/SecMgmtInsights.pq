@@ -8,7 +8,7 @@ graph_endpoint = "https://graph.microsoft.com";
 logout_uri = "https://login.microsoftonline.com/logout.srf";
 redirect_uri = "https://oauth.powerbi.com/views/oauthredirect.html";
 token_uri = "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
-version = "2.0";
+version = "2.0-alpha";
 
 // Data Source Kind description
 
@@ -258,11 +258,6 @@ SecMgmtInsights.DeviceConfigurationProfiles = (tenants as list, schemaOnly as lo
 
 SecMgmtInsights.DeviceConfigurationProfileSettingStates = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
-        // TODO
-        // Expression.Error: We cannot convert the value null to type Type.
-        // Details:
-        //     Value=
-        //     Type=[Type]
         firstRequests = Graph.BuildRequests(tenants, "/v1.0/deviceManagement/managedDevices?$select=id"),
         source = Graph.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
@@ -359,7 +354,7 @@ SecMgmtInsights.SoftwareUpdateStatusSummary = (tenants as list, schemaOnly as lo
 
 SecMgmtInsights.SubscriptionState = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        // TODO - Expression.Error: We cannot convert the value null to type Type.
+        // TODO - Expression.Error: We cannot convert the value null to type Type. This is caused by schema not have support for enumeration types
         requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/subscriptionState", queryString),
         data = Graph.Feed(requests, false, true, schemaOnly)
     in
@@ -409,11 +404,11 @@ EntityTable = #table({"Entity", "Action"}, {
     { "Alerts", SecMgmtInsights.Alerts },
     { "ConditionalAccessPolicies", SecMgmtInsights.ConditionalAccessPolicies },
     { "Contracts", SecMgmtInsights.Contracts },
-    // { "Controls", SecMgmtInsights.Controls },
+    { "Controls", SecMgmtInsights.Controls },
     { "CredentialUserRegistrationDetails", SecMgmtInsights.CredentialUserRegistrationDetails },
     { "DetectApps", SecMgmtInsights.DetectedApps },
     { "DetectedMalwareState", SecMgmtInsights.DetectedMalwareState },
-    // { "DeviceActions", SecMgmtInsights.DeviceActions },
+    { "DeviceActions", SecMgmtInsights.DeviceActions },
     { "DeviceCompliancePolicySettingStates", SecMgmtInsights.DeviceCompliancePolicySettingStates },
     { "DeviceCompliancePolicies", SecMgmtInsights.DeviceCompliancePolicies },
     { "DeviceCompliancePolicyStates", SecMgmtInsights.DeviceCompliancePolicyStates },
@@ -486,6 +481,68 @@ Schema.GetTable = Extension.LoadFunction("Schema.GetTable.pqm");
 Table.ChangeType = Extension.LoadFunction("Table.ChangeType.pqm");
 Table.GenerateByPage = Extension.LoadFunction("Table.GenerateByPage.pqm");
 Table.ToNavigationTable = Extension.LoadFunction("Table.ToNavigationTable.pqm");
+
+// GitHub
+
+SecMgmtInsights.Controls = (tenants as list, schemaOnly as logical, optional queryString as text) =>
+    let
+        output = if(schemaOnly) then type table[tenantId = text, expectedValue = text, id = text, info = text, resource = text, #"type" = text] else 
+            let 
+                data = GitHub.GetContent("https://raw.githubusercontent.com/microsoft/secmgmt-insights-connector/master/controls/recommended.json"),
+                controls = Table.FromList(data[controls], Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+                expandRecord = Table.ExpandRecordColumn(controls, "Column1", {"expectedValue", "id", "info", "resource", "tenantFilter", "type"}, {"expectedValue", "id", "info", "resource", "tenantFilter", "type"}),
+
+                GetControls = (tenantId as text) => 
+                    let 
+                        source = Table.SelectRows(expandRecord, each (List.Contains([tenantFilter], tenantId) = false))
+                    in 
+                        source,
+
+               source = Table.FromList(tenants, Splitter.SplitByNothing(), {"tenantId"}),
+               appliedControls = Table.AddColumn(source, "Custom", each GetControls([tenantId])),
+               expandcustom = Table.ExpandTableColumn(appliedControls, "Custom", {"expectedValue", "id", "info", "resource", "type"}, {"expectedValue", "id", "info", "resource", "type"})
+            in 
+                expandcustom
+    in 
+        output;
+
+SecMgmtInsights.DeviceActions = (tenants as list, schemaOnly as logical, optional queryString as text) =>
+    let
+
+        GetActions = (func as function, expectedValue as text, id as text, resource as text, tenantId as text) => 
+            let
+                source = Table.SelectColumns(func(tenants, false), {"tenantId", "deviceId", "policyId", "setting", "state", "currentValue"}),
+                filterRows = Table.SelectRows(source, each ([setting] = id and [state] <> "compliant" and [tenantId] = tenantId))
+            in
+                filterRows, 
+
+        GetPortalLink = (resource as text, tenantId as text) =>
+            let 
+                source = if resource = "deviceCompliancePolicy" then "https://endpoint.microsoft.com/" & tenantId & "/#blade/Microsoft_Intune_DeviceSettings/DevicesComplianceMenu/policies" else "https://endpoint.microsoft.com/" & tenantId & "/#blade/Microsoft_Intune_DeviceSettings/DevicesMenu/configurationProfiles"
+            in 
+                source,
+
+        output = if(schemaOnly) then 
+            type table[tenantId = text, deviceId = text, #"type" = text, policyId = text, id = text, resource = text, expectedValue = text, currentValue = text, state = text, info = text, poratl = text]
+        else 
+            let
+                source = SecMgmtInsights.Controls(tenants, false),
+        
+                // TODO - When there are no device compliance policy setting states there will be an error 'tenantId column not found'
+                deviceComplianceRecords = Table.SelectRows(source, each [resource] = "deviceCompliancePolicy"),
+                deviceComplianceActions = Table.AddColumn(deviceComplianceRecords, "action", each GetActions(SecMgmtInsights.DeviceCompliancePolicySettingStates, [expectedValue], [id], [resource], [tenantId])),
+
+                // TODO - When there are no device configuration profile setting states there will be an error 'tenantId column not found'
+                deviceConfigurationRecords = Table.SelectRows(source, each [resource] = "deviceConfigurationPolicy"),
+                deviceConfigurationActions = Table.AddColumn(deviceConfigurationRecords, "action", each GetActions(SecMgmtInsights.DeviceConfigurationProfileSettingStates, [expectedValue], [id], [resource], [tenantId])),
+    
+                combineTables = Table.Combine({deviceComplianceActions, deviceConfigurationActions}),
+                expandTable = Table.ExpandTableColumn(combineTables, "action", {"deviceId", "policyId", "state", "currentValue"}, {"deviceId", "policyId", "state", "currentValue"}),
+                addPortalColumn = Table.AddColumn(expandTable, "portal", each GetPortalLink([resource], [tenantId]))
+            in 
+                addPortalColumn
+        in
+            output;
 
 // Identity Protection
 
@@ -742,6 +799,22 @@ SecMgmtInsights.View = (entity as text, tenants as list) as table =>
         View([Entity = entity, Tenants = tenants]);
 
 // Network
+
+GitHub.GetContent = (url as text) =>
+    let
+        response = Web.Contents(url,
+            [
+                Headers = [
+                    #"Accept" = "application/json",
+                    #"Accept-encoding" = "gzip"
+                ], 
+                ManualCredentials = true,
+                ManualStatusHandling = {401, 403}
+            ]),
+        buffered = Binary.Buffer(response),
+        result = Json.Document(buffered)
+    in 
+        result;
 
 Rest.GetContents = (url as text, token as text, optional isPaged as logical) =>
     let 
