@@ -6,7 +6,8 @@
             (lastPage) => getNextPage(lastPage) 
         ),
         tableOfPages = Table.FromList(listOfPages, Splitter.SplitByNothing(), {"Column1"}),
-        firstRow = tableOfPages{0}?
+        buffered = Table.Buffer(tableOfPages),
+        firstRow = buffered{0}?
     in
         if (firstRow = null) then
             Table.FromRows({})
@@ -14,6 +15,6 @@
 			firstRow[Column1]
         else        
             Value.ReplaceType(
-                Table.ExpandTableColumn(tableOfPages, "Column1", Table.ColumnNames(firstRow[Column1])),
+                Table.ExpandTableColumn(buffered, "Column1", Table.ColumnNames(firstRow[Column1])),
                 Value.Type(firstRow[Column1])
             )
