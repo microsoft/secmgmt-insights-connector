@@ -218,21 +218,26 @@ SecMgmtInsights.DetectedMalwareState = (tenants as list, schemaOnly as logical, 
 
 SecMgmtInsights.DeviceCompliancePolicySettingStates = (tenants as list, schemaOnly as logical, optional queryString as text) => 
     let
-        // TODO
-        // Expression.Error: We cannot convert the value null to type Type.
-        // Details:
-        //     Value=
-        //     Type=[Type]
         firstRequests = Graph.BuildRequests(tenants, "/v1.0/deviceManagement/managedDevices?$select=id"),
         source = Graph.Feed(firstRequests, true, false, false),
-        renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
-        policyRequests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates?$select=id"),
-        policies = Graph.Feed(policyRequests, true, false, false, "deviceId = text"),
-        policyIdRenamed = Table.RenameColumns(policies, {"id", "policyId"}),
-        requests = Table.AddColumn(policyIdRenamed, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates/" & [policyId] & "/settingStates"),
-        data = Graph.Feed(requests, true, true, schemaOnly, "deviceId = text")
+        
+        output = if(Table.IsEmpty(source)) then 
+                let
+                    value = if(schemaOnly) then type table [tenantId = text] else firstRequests
+                in 
+                    value
+            else 
+                let 
+                    renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
+                    policyRequests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates?$select=id"),
+                    policies = Graph.Feed(policyRequests, true, false, false, "deviceId = text"),
+                    policyIdRenamed = Table.RenameColumns(policies, {"id", "policyId"}),
+                    requests = Table.AddColumn(policyIdRenamed, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates/" & [policyId] & "/settingStates"),
+                    data = Graph.Feed(requests, true, true, schemaOnly, "deviceId = text")
+                in 
+                    data
     in 
-        data;
+        output;
 
 SecMgmtInsights.DeviceCompliancePolicies = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
@@ -258,7 +263,7 @@ SecMgmtInsights.DeviceConfigurationProfiles = (tenants as list, schemaOnly as lo
     in
         data;
 
-SecMgmtInsights.DeviceConfigurationPolicySettingStates = (tenants as list, schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.DeviceConfigurationProfileSettingStates = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
         // TODO
         // Expression.Error: We cannot convert the value null to type Type.
@@ -276,7 +281,7 @@ SecMgmtInsights.DeviceConfigurationPolicySettingStates = (tenants as list, schem
     in 
         data;
 
-SecMgmtInsights.DeviceConfigurationPolicyStates = (tenants as list, schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.DeviceConfigurationProfileStates = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let        
         firstRequests = Graph.BuildRequests(tenants, "/v1.0/deviceManagement/managedDevices?$select=id"),
         source = Graph.Feed(firstRequests, true, false, false),
@@ -430,8 +435,8 @@ EntityTable = #table({"Entity", "Action"}, {
     { "DeviceCompliancePolicies", SecMgmtInsights.DeviceCompliancePolicies },
     { "DeviceCompliancePolicyStates", SecMgmtInsights.DeviceCompliancePolicyStates },
     { "DeviceConfigurationProfiles", SecMgmtInsights.DeviceConfigurationProfiles },
-    { "DeviceConfigurationPolicySettingStates", SecMgmtInsights.DeviceConfigurationPolicySettingStates },
-    { "DeviceConfigurationPolicyStates", SecMgmtInsights.DeviceConfigurationPolicyStates },
+    { "DeviceConfigurationPolicySettingStates", SecMgmtInsights.DeviceConfigurationProfileSettingStates },
+    { "DeviceConfigurationPolicyStates", SecMgmtInsights.DeviceConfigurationProfileStates },
     { "Devices", SecMgmtInsights.Devices },
     { "IdentitySecurityDefaultsEnforcementPolicy", SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy },
     { "Intents", SecMgmtInsights.Intents },
@@ -495,7 +500,7 @@ Extension.LoadFunction = (name as text) =>
     in
         Expression.Evaluate(asText, #shared);
 
-Schema.GetTable = Extension.LoadFunction("Schema.GetTable.pqm");
+Schema.GetTable = Extension.LoadFunction("Schema.GetTable.pqm"); 
 Table.ChangeType = Extension.LoadFunction("Table.ChangeType.pqm");
 Table.GenerateByPage = Extension.LoadFunction("Table.GenerateByPage.pqm");
 Table.ToNavigationTable = Extension.LoadFunction("Table.ToNavigationTable.pqm");

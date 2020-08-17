@@ -64,7 +64,8 @@ let
 
             entity = Schema.GetEntityType(schema{0}[EntityContainer], schema{0}[EntityType], Text.AfterDelimiter(context, "#")),
             entityType = Table.SelectRows(schema{0}[EntityType], each [#"Attribute:Name"] = entity),
-  
+            value = if(Table.IsEmpty(entityType)) then Table.SelectRows(schema{0}[ComplexType], each [#"Attribute:Name"] = entity) else entityType,
+
             GetData = (row as any) => 
                 let
                     data = if(Record.HasFields(row, "Attribute:Nullable") and row[#"Attribute:Nullable"] <> null and row[#"Attribute:Nullable"] = true) then 
@@ -78,12 +79,12 @@ let
                 if (value = "Edm.Boolean") then "logical" else if (value = "Edm.DateTimeOffset") then "datetimezone"  
                 else if (value = "Edm.Int32") then "number" else if(value = "Edm.String") then "text" else "any",
 
-            output = if(Table.IsEmpty(entityType)) then 
+            output = if(Table.IsEmpty(value)) then 
                 null 
             else
                 let 
                     // Build the schema table based on data from the property table
-                    propertyTableList = Schema.GetEntityProperties(schema{0}[EntityType], entity, {}),
+                    propertyTableList = Schema.GetEntityProperties(if(Table.IsEmpty(entityType)) then schema{0}[ComplexType] else schema{0}[EntityType], entity, {}),
                     convertedTable = Table.FromList(propertyTableList, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
                     propertyTable = Table.ExpandTableColumn(convertedTable, "Column1", {"Attribute:Name", "Attribute:Type", "Attribute:Nullable"}, {"Attribute:Name", "Attribute:Type", "Attribute:Nullable"}),
                     addedSchema = Table.AddColumn(propertyTable, "schema", each GetData(_)),
