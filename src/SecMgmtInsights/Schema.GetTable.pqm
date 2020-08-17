@@ -42,12 +42,20 @@ let
 
     Schema.GetEntityType = (entityContainer as table, entityType as table, value as text) => 
         let 
-            value = if(Text.Contains(value, "Collection(")) then 
+            response = if(Text.Contains(value, "Collection(")) then 
                     let 
                         source = Text.Split(Text.BetweenDelimiters(value, "(", ")"), "."),
                         output = List.Last(source)
                     in
                         output
+                else if(Text.Contains(Text.Split(value, "/"){0}, "('")) then 
+                    let
+                        parts = Text.Split(value, "/"),
+                        removedEntity = if(List.Last(parts) = "$entity") then List.RemoveLastN(parts, 1) else parts,
+                        resourceEntity = Schema.GetEntityFromEntitySet(entityContainer, Text.BeforeDelimiter(removedEntity{0}, "(")),
+                        entity = Schema.GetTypeFromNavigationProperty(entityType, resourceEntity, removedEntity)
+                    in 
+                        entity
                 else 
                     let
                         parts = Text.Split(value, "/"),
@@ -56,7 +64,7 @@ let
                     in 
                         entity
         in 
-            value,
+            response,
 
     Schema.GetTable = (context as text, optional additionalTypes as text) =>
         let

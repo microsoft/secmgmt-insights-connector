@@ -139,17 +139,10 @@ SecMgmtInsights.ConditionalAccessPolicies = (tenants as list, schemaOnly as logi
 
 SecMgmtInsights.Contracts = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
-        requests = Graph.BuildRequests(tenants, "/v1.0/contracts", queryString),
-        data = Graph.Feed(requests, true, true, schemaOnly),       
-
-        value = if(schemaOnly) then data else 
-            let 
-                removedColumn = try Table.RemoveColumns(data, "tenantId") otherwise data,
-                renamedColumn = Table.RenameColumns(removedColumn, {"customerId", "tenantId"}, MissingField.Ignore)
-            in
-                renamedColumn
+        requests = Graph.BuildRequests({}, "/v1.0/contracts", queryString),
+        data = Graph.Feed(requests, true, true, schemaOnly)
     in
-        value;
+        data;
 
 SecMgmtInsights.CredentialUserRegistrationDetails = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
@@ -525,6 +518,7 @@ SecMgmtInsights.UserDataLossPreventionPolicies = (tenants as list, schemaOnly as
 
 SecMgmtInsights.UserSensitivityLabels = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
+
         firstRequests = Graph.BuildRequests(tenants, "/v1.0/users?$select=id"),
         source = Graph.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "userId"}),
