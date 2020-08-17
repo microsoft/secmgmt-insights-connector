@@ -315,16 +315,6 @@ SecMgmtInsights.MobileAppDeviceStatuses = (tenants as list, schemaOnly as logica
     in 
         data;
 
-SecMgmtInsights.MobileAppInstallSummary = (tenants as list, schemaOnly as logical, optional queryString as text) =>
-    let
-        firstRequests = Graph.BuildRequests(tenants, "/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
-        source = Graph.Feed(firstRequests, true, false, false),
-        renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
-        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/installSummary"),
-        data = Graph.Feed(requests, true, true, schemaOnly, "mobileAppId = text")
-    in 
-        data;
-
 SecMgmtInsights.MobileAppUserStatuses = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
         firstRequests = Graph.BuildRequests(tenants, "/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
@@ -337,7 +327,7 @@ SecMgmtInsights.MobileAppUserStatuses = (tenants as list, schemaOnly as logical,
 
 SecMgmtInsights.MobileApps = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        requests = Graph.BuildRequests(tenants, "/beta/deviceAppManagement/mobileApps", queryString),
+        requests = Graph.BuildRequests(tenants, "/beta/deviceAppManagement/mobileApps?$select=id,displayName,lastModifiedDateTime,roleScopeTagIds", queryString),
         data = Graph.Feed(requests, true, true, schemaOnly)
     in 
         data;
@@ -444,7 +434,6 @@ EntityTable = #table({"Entity", "Action"}, {
     { "ManagedDevices", SecMgmtInsights.ManagedDevices },
     { "MobileApps", SecMgmtInsights.MobileApps },
     { "MobileAppDeviceStatuses", SecMgmtInsights.MobileAppDeviceStatuses },
-    { "MobileAppInstallSummary", SecMgmtInsights.MobileAppInstallSummary },
     { "MobileAppUserStatuses", SecMgmtInsights.MobileAppUserStatuses },
     { "Office365ActiveUserDetails", SecMgmtInsights.Office365ActiveUserDetails },
     { "Office365ServicesUserCounts", SecMgmtInsights.Office365ServicesUserCounts },
