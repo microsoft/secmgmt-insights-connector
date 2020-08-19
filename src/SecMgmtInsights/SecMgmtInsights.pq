@@ -194,7 +194,7 @@ SecMgmtInsights.DetectedApps = (tenants as list, schemaOnly as logical, optional
         firstRequests = Graph.BuildRequests(tenants, "/v1.0/deviceManagement/managedDevices?$select=id"),
         source = Rest.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
-        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId]  & "/detectedApps"),
+        requests = Table.AddColumn(renamedColumn, "secMgmtInsightsRequest", each graph_endpoint & "/beta/deviceManagement/managedDevices/" & [deviceId]  & "/detectedApps"),
         data = Rest.Feed(requests, true, true, schemaOnly, "deviceId = text")
     in
         data;
@@ -204,7 +204,7 @@ SecMgmtInsights.DetectedMalwareState = (tenants as list, schemaOnly as logical, 
         firstRequests = Graph.BuildRequests(tenants, "/v1.0/deviceManagement/managedDevices?$select=id"),
         source = Rest.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
-        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState/detectedMalwareState"),
+        requests = Table.AddColumn(renamedColumn, "secMgmtInsightsRequest", each graph_endpoint & "/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState/detectedMalwareState"),
         data = Rest.Feed(requests, true, true, schemaOnly, "deviceId = text")
     in 
         data;
@@ -222,10 +222,10 @@ SecMgmtInsights.DeviceCompliancePolicySettingStates = (tenants as list, schemaOn
             else 
                 let 
                     renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
-                    policyRequests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates?$select=id"),
+                    policyRequests = Table.AddColumn(renamedColumn, "secMgmtInsightsRequest", each graph_endpoint & "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates?$select=id"),
                     policies = Rest.Feed(policyRequests, true, false, false, "deviceId = text"),
                     policyIdRenamed = Table.RenameColumns(policies, {"id", "policyId"}),
-                    requests = Table.AddColumn(policyIdRenamed, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates/" & [policyId] & "/settingStates"),
+                    requests = Table.AddColumn(policyIdRenamed, "secMgmtInsightsRequest", each graph_endpoint & "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates/" & [policyId] & "/settingStates"),
                     data = Rest.Feed(requests, true, true, schemaOnly, "deviceId = text")
                 in 
                     data
@@ -244,7 +244,7 @@ SecMgmtInsights.DeviceCompliancePolicyStates = (tenants as list, schemaOnly as l
         firstRequests = Graph.BuildRequests(tenants, "/v1.0/deviceManagement/managedDevices?$select=id"),
         source = Rest.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
-        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates"),
+        requests = Table.AddColumn(renamedColumn, "secMgmtInsightsRequest", each graph_endpoint & "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates"),
         data = Rest.Feed(requests, true, true, schemaOnly, "deviceId = text")
     in 
         data;
@@ -261,10 +261,10 @@ SecMgmtInsights.DeviceConfigurationProfileSettingStates = (tenants as list, sche
         firstRequests = Graph.BuildRequests(tenants, "/v1.0/deviceManagement/managedDevices?$select=id"),
         source = Rest.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
-        policyRequests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates?$select=id"),
+        policyRequests = Table.AddColumn(renamedColumn, "secMgmtInsightsRequest", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates?$select=id"),
         policies = Rest.Feed(policyRequests, true, false, false, "deviceId = text"),
         policyIdRenamed = Table.RenameColumns(policies, {"id", "policyId"}),
-        requests = Table.AddColumn(policyIdRenamed, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates/" & [policyId] & "/settingStates"),
+        requests = Table.AddColumn(policyIdRenamed, "secMgmtInsightsRequest", each graph_endpoint & "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates/" & [policyId] & "/settingStates"),
         data = Rest.Feed(requests, true, true, schemaOnly, "deviceId = text")
     in 
         data;
@@ -274,7 +274,7 @@ SecMgmtInsights.DeviceConfigurationProfileStates = (tenants as list, schemaOnly 
         firstRequests = Graph.BuildRequests(tenants, "/v1.0/deviceManagement/managedDevices?$select=id"),
         source = Rest.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
-        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates"),
+        requests = Table.AddColumn(renamedColumn, "secMgmtInsightsRequest", each graph_endpoint & "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates"),
         data = Rest.Feed(requests, true, true, schemaOnly, "deviceId = text")
     in 
         data;
@@ -298,7 +298,7 @@ SecMgmtInsights.MobileAppDeviceStatuses = (tenants as list, schemaOnly as logica
         firstRequests = Graph.BuildRequests(tenants, "/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
         source = Rest.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
-        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/deviceStatuses"),
+        requests = Table.AddColumn(renamedColumn, "secMgmtInsightsRequest", each graph_endpoint & "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/deviceStatuses"),
         data = Rest.Feed(requests, true, true, schemaOnly, "mobileAppId = text")
     in 
         data;
@@ -308,7 +308,7 @@ SecMgmtInsights.MobileAppUserStatuses = (tenants as list, schemaOnly as logical,
         firstRequests = Graph.BuildRequests(tenants, "/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true"),
         source = Rest.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "mobileAppId"}),
-        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/userStatuses"),
+        requests = Table.AddColumn(renamedColumn, "secMgmtInsightsRequest", each graph_endpoint & "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/userStatuses"),
         data = Rest.Feed(requests, true, true, schemaOnly, "mobileAppId = text")
     in 
         data;
@@ -325,10 +325,10 @@ SecMgmtInsights.SecurityBaselineSettingStates = (tenants as list, schemaOnly as 
         firstRequests = Graph.BuildRequests(tenants, "/v1.0/deviceManagement/managedDevices?$select=id"),
         source = Rest.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
-        templateRequests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates?$select=id"),
+        templateRequests = Table.AddColumn(renamedColumn, "secMgmtInsightsRequest", each graph_endpoint & "/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates?$select=id"),
         templates = Rest.Feed(templateRequests, true, false, false, "deviceId = text"),
         templateIdRenamed = Table.RenameColumns(templates, {"id", "templateId"}),
-        requests = Table.AddColumn(templateIdRenamed, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates/" & [templateId] & "/settingStates"),
+        requests = Table.AddColumn(templateIdRenamed, "secMgmtInsightsRequest", each graph_endpoint & "/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates/" & [templateId] & "/settingStates"),
         data = Rest.Feed(requests, true, true, schemaOnly, "deviceId = text, templateId = text")
     in 
         data;
@@ -338,7 +338,7 @@ SecMgmtInsights.SecurityBaselineStates = (tenants as list, schemaOnly as logical
         firstRequests = Graph.BuildRequests(tenants, "/v1.0/deviceManagement/managedDevices?$select=id"),
         source = Rest.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
-        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates"),
+        requests = Table.AddColumn(renamedColumn, "secMgmtInsightsRequest", each graph_endpoint & "/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates"),
         data = Rest.Feed(requests, true, true, schemaOnly, "deviceId = text")
     in 
         data; 
@@ -392,7 +392,7 @@ SecMgmtInsights.WindowsProtectionState = (tenants as list, schemaOnly as logical
          firstRequests = Graph.BuildRequests(tenants, "/v1.0/deviceManagement/managedDevices?$select=id"),
          source = Rest.Feed(firstRequests, true, false, false),
          renamedColumn = Table.RenameColumns(source, {"id", "deviceId"}),
-         requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState"),
+         requests = Table.AddColumn(renamedColumn, "secMgmtInsightsRequest", each graph_endpoint & "/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState"),
          data = Rest.Feed(requests, false, true, schemaOnly, "deviceId = text")
      in  
          data; 
@@ -412,8 +412,8 @@ EntityTable = #table({"Entity", "Action"}, {
     { "DeviceCompliancePolicies", SecMgmtInsights.DeviceCompliancePolicies },
     { "DeviceCompliancePolicyStates", SecMgmtInsights.DeviceCompliancePolicyStates },
     { "DeviceConfigurationProfiles", SecMgmtInsights.DeviceConfigurationProfiles },
-    { "DeviceConfigurationPolicySettingStates", SecMgmtInsights.DeviceConfigurationProfileSettingStates },
-    { "DeviceConfigurationPolicyStates", SecMgmtInsights.DeviceConfigurationProfileStates },
+    { "DeviceConfigurationProfileSettingStates", SecMgmtInsights.DeviceConfigurationProfileSettingStates },
+    { "DeviceConfigurationProfileStates", SecMgmtInsights.DeviceConfigurationProfileStates },
     { "Devices", SecMgmtInsights.Devices },
     { "IdentitySecurityDefaultsEnforcementPolicy", SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy },
     { "Intents", SecMgmtInsights.Intents },
@@ -429,6 +429,7 @@ EntityTable = #table({"Entity", "Action"}, {
     { "RiskyUsers", SecMgmtInsights.RiskyUsers },
     { "SecureScore", SecMgmtInsights.SecureScore },
     { "SecureScoreControlProfiles", SecMgmtInsights.SecureScoreControlProfiles },
+    { "SecurityActions", SecMgmtInsights.SecurityActions },
     { "SecurityBaselineSettingStates", SecMgmtInsights.SecurityBaselineSettingStates },
     { "SecurityBaselineStates", SecMgmtInsights.SecurityBaselineStates },
     { "ServiceCurrentStatus", SecMgmtInsights.ServiceCurrentStatus },
@@ -439,7 +440,8 @@ EntityTable = #table({"Entity", "Action"}, {
     { "SubscribedSkus", SecMgmtInsights.SubscribedSkus }, 
     { "SubscriptionState", SecMgmtInsights.SubscriptionState },
     { "TeamsUserActivityUserDetail", SecMgmtInsights.TeamsUserActivityUserDetail },
-    { "UserDataLossPreventionPolicies", SecMgmtInsights.UserDataLossPreventionPolicies },
+    { "ThreatAssessmentRequests", SecMgmtInsights.ThreatAssessmentRequests },
+    { "UserInformationProtectionLabels", SecMgmtInsights.UserInformationProtectionLabels },
     { "UserSensitivityLabels", SecMgmtInsights.UserSensitivityLabels },
     { "Users", SecMgmtInsights.Users },
     { "WindowsAutopilotDeviceIdentities", SecMgmtInsights.WindowsAutopilotDeviceIdentities },
@@ -559,26 +561,31 @@ SecMgmtInsights.RiskyUsers = (tenants as list, schemaOnly as logical, optional q
     in 
         data;
 
-
 // Information Protection 
 
-SecMgmtInsights.UserDataLossPreventionPolicies = (tenants as list, schemaOnly as logical, optional queryString as text) =>
+SecMgmtInsights.ThreatAssessmentRequests = (tenants as list, schemaOnly as logical, optional queryString as text) =>
+    let
+        requests = Graph.BuildRequests(tenants, "/beta/informationProtection/threatAssessmentRequests", queryString),
+        data = Rest.Feed(requests, true, true, schemaOnly)
+    in 
+        data;
+
+SecMgmtInsights.UserInformationProtectionLabels = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
         firstRequests = Graph.BuildRequests(tenants, "/v1.0/users?$select=id"),
         source = Rest.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "userId"}),
-        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/users/" & [userId] & "/informationProtection/dataLossPreventionPolicies"),
+        requests = Table.AddColumn(renamedColumn, "secMgmtInsightsRequest", each graph_endpoint & "/beta/users/" & [userId] & "/informationProtection/policy/labels"),
         data = Rest.Feed(requests, true, true, schemaOnly, "userId = text")
-    in
+    in 
         data;
 
 SecMgmtInsights.UserSensitivityLabels = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
-
         firstRequests = Graph.BuildRequests(tenants, "/v1.0/users?$select=id"),
         source = Rest.Feed(firstRequests, true, false, false),
         renamedColumn = Table.RenameColumns(source, {"id", "userId"}),
-        requests = Table.AddColumn(renamedColumn, "relativeUrl", each "/beta/users/" & [userId] & "/informationProtection/sensitivityLabels"),
+        requests = Table.AddColumn(renamedColumn, "secMgmtInsightsRequest", each graph_endpoint & "/beta/users/" & [userId] & "/informationProtection/sensitivityLabels"),
         data = Rest.Feed(requests, true, true, schemaOnly, "userId = text")
     in 
         data;
@@ -602,6 +609,13 @@ SecMgmtInsights.SecureScore = (tenants as list, schemaOnly as logical, optional 
 SecMgmtInsights.SecureScoreControlProfiles = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
         requests = Graph.BuildRequests(tenants, "/v1.0/security/secureScoreControlProfiles", queryString),
+        data = Rest.Feed(requests, true, true, schemaOnly)
+    in
+        data;
+
+SecMgmtInsights.SecurityActions = (tenants as list, schemaOnly as logical, optional queryString as text) =>
+    let 
+        requests = Graph.BuildRequests(tenants, "/beta/security/securityActions", queryString),
         data = Rest.Feed(requests, true, true, schemaOnly)
     in
         data;
