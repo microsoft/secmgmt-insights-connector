@@ -373,13 +373,6 @@ SecMgmtInsights.WindowsAutopilotProfiles = (tenants as list, schemaOnly as logic
     in 
         data;
 
-SecMgmtInsights.WindowsAutopilotSettings = (tenants as list, schemaOnly as logical, optional queryString as text) =>
-    let 
-        requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/windowsAutopilotSettings", queryString),
-        data = Rest.Feed(requests, false, true, schemaOnly)
-    in 
-        data;
-
 SecMgmtInsights.WindowsMalwareInformation = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
         requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/windowsMalwareInformation", queryString),
@@ -442,7 +435,6 @@ EntityTable = #table({"Entity", "Action"}, {
     { "Users", SecMgmtInsights.Users },
     { "WindowsAutopilotDeviceIdentities", SecMgmtInsights.WindowsAutopilotDeviceIdentities },
     { "WindowsAutopilotProfiles", SecMgmtInsights.WindowsAutopilotProfiles },
-    { "WindowsAutopilotSettings", SecMgmtInsights.WindowsAutopilotSettings },
     { "WindowsMalwareInformation", SecMgmtInsights.WindowsMalwareInformation }, 
     { "WindowsProtectionState", SecMgmtInsights.WindowsProtectionState },
     { "YammerActivityUserDetail", SecMgmtInsights.YammerActivityUserDetail }
