@@ -77,7 +77,7 @@
     <Compile Include="Diagnostics.pqm">
       <SubType>Content</SubType>
     </Compile>
-    <Compile Include="Schema.GetTable.pqm">
+    <Compile Include="Schema.pqm">
       <SubType>Content</SubType>
     </Compile>
     <Content Include="SecMgmtInsights.query.pq">

@@ -147,7 +147,6 @@ SecMgmtInsights.Contracts = (tenants as list, schemaOnly as logical, optional qu
 SecMgmtInsights.CredentialUserRegistrationDetails = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
         requests = Graph.BuildRequests(tenants, "/beta/reports/credentialUserRegistrationDetails", queryString),
-        // TODO - If the tenant does not have an entiltment, then this request will fail with a HTTP 403
         data = Rest.Feed(requests, true, true, schemaOnly)
     in
         data;
@@ -472,7 +471,11 @@ Extension.LoadFunction = (name as text) =>
     in
         Expression.Evaluate(asText, #shared);
 
-Schema.GetTable = Extension.LoadFunction("Schema.GetTable.pqm"); 
+Schema = Extension.LoadFunction("Schema.pqm");
+
+Schema.GetKnownType = Schema[GetKnownType];
+Schema.GetTable = Schema[GetTable]; 
+
 Table.ChangeType = Extension.LoadFunction("Table.ChangeType.pqm");
 Table.GenerateByPage = Extension.LoadFunction("Table.GenerateByPage.pqm");
 Table.ToNavigationTable = Extension.LoadFunction("Table.ToNavigationTable.pqm");
@@ -503,7 +506,6 @@ SecMgmtInsights.Controls = (tenants as list, schemaOnly as logical, optional que
 
 SecMgmtInsights.DeviceActions = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
-
         GetActions = (func as function, expectedValue as text, id as text, resource as text, tenantId as text) => 
             let
                 source = Table.SelectColumns(func(tenants, false), {"tenantId", "deviceId", "policyId", "setting", "state", "currentValue"}),

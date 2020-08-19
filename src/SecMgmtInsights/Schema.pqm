@@ -72,6 +72,28 @@ let
         in 
             response,
 
+    Schema.GetKnownType = (knownType, optional additionalTypes as text) => 
+        let
+            source = ""
+        in 
+        source,
+    
+    Schema.GetTypeFromNavigationProperty = (entityType as table, entityName as text, values as list) =>
+        let
+            filtered = Table.SelectRows(entityType, each [#"Attribute:Name"] = entityName),
+
+            dataTable = if(filtered{0}[NavigationProperty] = null) then 
+                        Table.SelectRows(filtered{0}[Property], each [#"Attribute:Name"] = Text.BeforeDelimiter(values{1}, "("))
+                    else
+                        Table.SelectRows(filtered{0}[NavigationProperty], each [#"Attribute:Name"] = Text.BeforeDelimiter(values{1}, "(")), 
+
+            resource = dataTable{0}[#"Attribute:Type"], 
+            entity = if(Text.Contains(resource, "(")) then Text.AfterDelimiter(Text.BetweenDelimiters(resource, "(", ")"), ".") else Text.AfterDelimiter(resource, "."),
+
+            value = if(List.Count(values) <= 2) then entity else @Schema.GetTypeFromNavigationProperty(entityType, entity, List.RemoveFirstN(values, 1))
+        in 
+            value,
+    
     Schema.GetTable = (context as text, optional additionalTypes as text) =>
         let
             schema = Xml.Tables(Web.Contents(Text.BeforeDelimiter(context, "$") & "$metadata")){0}[DataServices]{0}[#"http://docs.oasis-open.org/odata/ns/edm"]{0}[Schema],
@@ -129,22 +151,9 @@ let
                 in 
                     output
         in
-            output,
-
-    Schema.GetTypeFromNavigationProperty = (entityType as table, entityName as text, values as list) =>
-        let
-            filtered = Table.SelectRows(entityType, each [#"Attribute:Name"] = entityName),
-
-            dataTable = if(filtered{0}[NavigationProperty] = null) then 
-                        Table.SelectRows(filtered{0}[Property], each [#"Attribute:Name"] = Text.BeforeDelimiter(values{1}, "("))
-                    else
-                        Table.SelectRows(filtered{0}[NavigationProperty], each [#"Attribute:Name"] = Text.BeforeDelimiter(values{1}, "(")), 
-
-            resource = dataTable{0}[#"Attribute:Type"], 
-            entity = if(Text.Contains(resource, "(")) then Text.AfterDelimiter(Text.BetweenDelimiters(resource, "(", ")"), ".") else Text.AfterDelimiter(resource, "."),
-
-            value = if(List.Count(values) <= 2) then entity else @Schema.GetTypeFromNavigationProperty(entityType, entity, List.RemoveFirstN(values, 1))
-        in 
-            value
-in 
-	Schema.GetTable
+            output
+in
+    [ 
+        GetKnownType = Schema.GetKnownType,
+        GetTable = Schema.GetTable
+    ]
