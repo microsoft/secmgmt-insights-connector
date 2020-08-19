@@ -280,7 +280,7 @@ SecMgmtInsights.DeviceConfigurationProfileStates = (tenants as list, schemaOnly 
         data;
 
 SecMgmtInsights.DeviceManagement = (tenants as list, schemaOnly as logical, optional queryString as text) =>
-    let 
+    let
         requests = Graph.BuildRequests(tenants, "/beta/deviceManagement", queryString),
         data = Rest.Feed(requests, false, true, schemaOnly)
     in 

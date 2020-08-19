@@ -5,9 +5,15 @@ let
                     null
                 else
                     let
-                        entitySetTable = entityContainer{0}[EntitySet],
-                        entityValue = Table.SelectRows(entitySetTable, each [#"Attribute:Name"] = Text.BeforeDelimiter(value, "(")),
-                        entity = Text.Split(entityValue{0}[#"Attribute:EntityType"], "."){2}
+                        entitySetValue = Table.SelectRows(entityContainer{0}[EntitySet], each [#"Attribute:Name"] = Text.BeforeDelimiter(value, "(")),
+                        entityValue = if(Table.IsEmpty(entitySetValue)) then 
+                                Table.SelectRows(entityContainer{0}[Singleton], each [#"Attribute:Name"] = Text.BeforeDelimiter(value, "(")) 
+                            else
+                                entitySetValue,
+                        entity = if(Table.IsEmpty(entitySetValue)) then 
+                                Text.Split(entityValue{0}[#"Attribute:Type"], "."){2}
+                            else 
+                                Text.Split(entityValue{0}[#"Attribute:EntityType"], "."){2}
                     in 
                         entity
         in 
