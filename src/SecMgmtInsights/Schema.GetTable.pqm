@@ -73,6 +73,15 @@ let
             entity = Schema.GetEntityType(schema{0}[EntityContainer], schema{0}[EntityType], Text.AfterDelimiter(context, "#")),
             entityType = Table.SelectRows(schema{0}[EntityType], each [#"Attribute:Name"] = entity),
             value = if(Table.IsEmpty(entityType)) then Table.SelectRows(schema{0}[ComplexType], each [#"Attribute:Name"] = entity) else entityType,
+            
+            isEnumType = if(Table.IsEmpty(value)) then
+                let 
+                    data = Table.SelectRows(schema{0}[EnumType], each [#"Attribute:Name"] = entity),
+                    output = if(Table.IsEmpty(data)) then false else true
+                in 
+                    output
+            else 
+                false,
 
             GetData = (row as any) => 
                 let
@@ -87,7 +96,9 @@ let
                 if (value = "Edm.Boolean") then "logical" else if (value = "Edm.DateTimeOffset") then "datetimezone"  
                 else if (value = "Edm.Int32") then "number" else if(value = "Edm.String") then "text" else "any",
 
-            output = if(Table.IsEmpty(value)) then 
+            output = if (isEnumType) then 
+                if(additionalTypes = null or additionalTypes = "") then Expression.Evaluate("type table [value = text]") else Expression.Evaluate("type table [" & additionalTypes & ", value = text]")
+            else if(Table.IsEmpty(value)) then 
                 null 
             else
                 let 

@@ -359,7 +359,6 @@ SecMgmtInsights.SoftwareUpdateStatusSummary = (tenants as list, schemaOnly as lo
 
 SecMgmtInsights.SubscriptionState = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
-        // TODO - Expression.Error: We cannot convert the value null to type Type. This is caused by schema not have support for enumeration types
         requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/subscriptionState", queryString),
         data = Rest.Feed(requests, false, true, schemaOnly)
     in
