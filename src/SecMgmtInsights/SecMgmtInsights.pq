@@ -429,7 +429,6 @@ EntityTable = #table({"Entity", "Action"}, {
     { "RiskyUsers", SecMgmtInsights.RiskyUsers },
     { "SecureScore", SecMgmtInsights.SecureScore },
     { "SecureScoreControlProfiles", SecMgmtInsights.SecureScoreControlProfiles },
-    { "SecurityActions", SecMgmtInsights.SecurityActions },
     { "SecurityBaselineSettingStates", SecMgmtInsights.SecurityBaselineSettingStates },
     { "SecurityBaselineStates", SecMgmtInsights.SecurityBaselineStates },
     { "ServiceCurrentStatus", SecMgmtInsights.ServiceCurrentStatus },
@@ -440,9 +439,6 @@ EntityTable = #table({"Entity", "Action"}, {
     { "SubscribedSkus", SecMgmtInsights.SubscribedSkus }, 
     { "SubscriptionState", SecMgmtInsights.SubscriptionState },
     { "TeamsUserActivityUserDetail", SecMgmtInsights.TeamsUserActivityUserDetail },
-    { "ThreatAssessmentRequests", SecMgmtInsights.ThreatAssessmentRequests },
-    { "UserInformationProtectionLabels", SecMgmtInsights.UserInformationProtectionLabels },
-    { "UserSensitivityLabels", SecMgmtInsights.UserSensitivityLabels },
     { "Users", SecMgmtInsights.Users },
     { "WindowsAutopilotDeviceIdentities", SecMgmtInsights.WindowsAutopilotDeviceIdentities },
     { "WindowsAutopilotProfiles", SecMgmtInsights.WindowsAutopilotProfiles },
@@ -561,35 +557,6 @@ SecMgmtInsights.RiskyUsers = (tenants as list, schemaOnly as logical, optional q
     in 
         data;
 
-// Information Protection 
-
-SecMgmtInsights.ThreatAssessmentRequests = (tenants as list, schemaOnly as logical, optional queryString as text) =>
-    let
-        requests = Graph.BuildRequests(tenants, "/beta/informationProtection/threatAssessmentRequests", queryString),
-        data = Rest.Feed(requests, true, true, schemaOnly)
-    in 
-        data;
-
-SecMgmtInsights.UserInformationProtectionLabels = (tenants as list, schemaOnly as logical, optional queryString as text) =>
-    let
-        firstRequests = Graph.BuildRequests(tenants, "/v1.0/users?$select=id"),
-        source = Rest.Feed(firstRequests, true, false, false),
-        renamedColumn = Table.RenameColumns(source, {"id", "userId"}),
-        requests = Table.AddColumn(renamedColumn, "secMgmtInsightsRequest", each graph_endpoint & "/beta/users/" & [userId] & "/informationProtection/policy/labels"),
-        data = Rest.Feed(requests, true, true, schemaOnly, "userId = text")
-    in 
-        data;
-
-SecMgmtInsights.UserSensitivityLabels = (tenants as list, schemaOnly as logical, optional queryString as text) =>
-    let
-        firstRequests = Graph.BuildRequests(tenants, "/v1.0/users?$select=id"),
-        source = Rest.Feed(firstRequests, true, false, false),
-        renamedColumn = Table.RenameColumns(source, {"id", "userId"}),
-        requests = Table.AddColumn(renamedColumn, "secMgmtInsightsRequest", each graph_endpoint & "/beta/users/" & [userId] & "/informationProtection/sensitivityLabels"),
-        data = Rest.Feed(requests, true, true, schemaOnly, "userId = text")
-    in 
-        data;
-
 // Intelligent Security Graph
 
 SecMgmtInsights.Alerts = (tenants as list, schemaOnly as logical, optional queryString as text) =>
@@ -609,13 +576,6 @@ SecMgmtInsights.SecureScore = (tenants as list, schemaOnly as logical, optional 
 SecMgmtInsights.SecureScoreControlProfiles = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
         requests = Graph.BuildRequests(tenants, "/v1.0/security/secureScoreControlProfiles", queryString),
-        data = Rest.Feed(requests, true, true, schemaOnly)
-    in
-        data;
-
-SecMgmtInsights.SecurityActions = (tenants as list, schemaOnly as logical, optional queryString as text) =>
-    let 
-        requests = Graph.BuildRequests(tenants, "/beta/security/securityActions", queryString),
         data = Rest.Feed(requests, true, true, schemaOnly)
     in
         data;
