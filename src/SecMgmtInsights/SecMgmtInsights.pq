@@ -8,7 +8,7 @@ graph_endpoint = "https://graph.microsoft.com";
 logout_uri = "https://login.microsoftonline.com/logout.srf";
 redirect_uri = "https://oauth.powerbi.com/views/oauthredirect.html";
 token_uri = "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
-version = "2.0-preview-1";
+version = "2.0-preview-2";
 
 // Data Source Kind description
 
@@ -279,6 +279,13 @@ SecMgmtInsights.DeviceConfigurationProfileStates = (tenants as list, schemaOnly 
     in 
         data;
 
+SecMgmtInsights.DeviceManagement = (tenants as list, schemaOnly as logical, optional queryString as text) =>
+    let 
+        requests = Graph.BuildRequests(tenants, "/beta/deviceManagement", queryString),
+        data = Rest.Feed(requests, false, true, schemaOnly)
+    in 
+        data;
+
 SecMgmtInsights.Intents = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let 
         requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/intents", queryString),
@@ -345,7 +352,6 @@ SecMgmtInsights.SecurityBaselineStates = (tenants as list, schemaOnly as logical
 
 SecMgmtInsights.SoftwareUpdateStatusSummary = (tenants as list, schemaOnly as logical, optional queryString as text) =>
     let
-        // TODO -  The query specified in the URI is not valid. The requested resource is not a collection. Query options $filter, $orderby, $count, $skip, and $top can be applied only on collections.
         requests = Graph.BuildRequests(tenants, "/beta/deviceManagement/softwareUpdateStatusSummary", queryString),
         data = Rest.Feed(requests, false, true, schemaOnly)
     in 
@@ -407,6 +413,7 @@ EntityTable = #table({"Entity", "Action"}, {
     { "DeviceConfigurationProfiles", SecMgmtInsights.DeviceConfigurationProfiles },
     { "DeviceConfigurationProfileSettingStates", SecMgmtInsights.DeviceConfigurationProfileSettingStates },
     { "DeviceConfigurationProfileStates", SecMgmtInsights.DeviceConfigurationProfileStates },
+    { "DeviceManagement", SecMgmtInsights.DeviceManagement },
     { "Devices", SecMgmtInsights.Devices },
     { "IdentitySecurityDefaultsEnforcementPolicy", SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy },
     { "Intents", SecMgmtInsights.Intents },
@@ -915,35 +922,46 @@ Graph.BuildRequests = (tenants as list, relativeUrl as text, optional queryStrin
     in 
         expandedList;
 
+Rest.GetUrlToUse = (input as record, isPaged as logical) => 
+    let 
+        request = input[secMgmtInsightsRequest], 
+        output = if(isPaged) then 
+                request
+            else
+                let
+                    parts = Uri.Parts(request), 
+                    queryString = if (Record.HasFields(parts[Query], "$top")) then Record.RemoveFields(parts[Query], "$top") else parts[Query],
+                    value = Text.Format("#{0}://#{1}:#{2}/#{3}?#{4}", {parts[Scheme], parts[Host], parts[Port], parts[Path], Uri.BuildQueryString(queryString)})
+                in
+                    value
+    in
+        output;
+        
 Rest.Feed = (requests as table, isPaged as logical, isSchemaRequired as logical, schemaOnly as logical, optional additionalSchema as text, optional inferSchema as logical) => 
     let
-        // TODO - This can be optomized by checking if the requests are paged. If not then the first request does not need to be made because it will always return a HTTP 400
-        GetContext = (request as text, scope as text, optional tenantId as text) =>
+        GetContext = (input as record) =>
             let 
-                context = try schemaCache{[entity = request]}[schema] otherwise
-                    let 
-                        parts = Uri.Parts(request),
-                        queryString = if (Record.HasFields(parts[Query], "top")) then parts[Query][Top] = 1 else Record.AddField(parts[Query], "top", 1),
-                        data = try Rest.GetContents(Text.Format("#{0}://#{1}:#{2}/#{3}?#{4}", {parts[Scheme], parts[Host], parts[Port], parts[Path], Uri.BuildQueryString(queryString)}), Token.GetAccessToken(tenantId, scope)) otherwise null,
-                        value = if(data = null or Table.HasColumns(data, "error")) then 
-                            let
-                                contents = Rest.GetContents(request, Token.GetAccessToken(tenantId, scope))
-                            in 
-                                contents
-                        else 
-                            data,
-                        addValueToCache = Table.InsertRows(schemaCache, 0, {[entity] = request, [schema] = value})
+                request = Rest.GetUrlToUse(input, isPaged),
+                parts = Uri.Parts(request), 
+                queryString = if (Record.HasFields(parts[Query], "$top")) then parts[Query][Top] = 1 else parts[Query], 
+                urlToUse = Text.Format("#{0}://#{1}:#{2}/#{3}?#{4}", {parts[Scheme], parts[Host], parts[Port], parts[Path], Uri.BuildQueryString(queryString)}),
+ 
+                context = try schemaCache{[entity = urlToUse]}[schema] otherwise
+                    let
+                        data = try Rest.GetContents(urlToUse, Token.GetAccessToken(input[tenantId], input[secMgmtInsightsScope])) otherwise null,
+                        addValueToCache = Table.InsertRows(schemaCache, 0, {[entity] = urlToUse, [schema] = data})
                     in
-                        value
+                        data
             in 
                 context,
 
         GetData = (input as record) =>
             let
+                urlToUse = Rest.GetUrlToUse(input, isPaged),
                 data = try if(isPaged) then 
-                        Rest.GetPage(input[secMgmtInsightsRequest], Token.GetAccessToken(input[tenantId], input[secMgmtInsightsScope]))
+                        Rest.GetPage(urlToUse, Token.GetAccessToken(input[tenantId], input[secMgmtInsightsScope]))
                     else
-                        Rest.GetContents(input[secMgmtInsightsRequest], Token.GetAccessToken(input[tenantId], input[secMgmtInsightsScope]))
+                        Rest.GetContents(urlToUse, Token.GetAccessToken(input[tenantId], input[secMgmtInsightsScope]))
                     otherwise null,
                 value = if(data = null) then null else 
                     let 
@@ -963,7 +981,7 @@ Rest.Feed = (requests as table, isPaged as logical, isSchemaRequired as logical,
             null 
         else 
             let
-                data = Table.AddColumn(requests, "Column1", each GetContext([secMgmtInsightsRequest], [secMgmtInsightsScope], [tenantId])),
+                data = Table.AddColumn(requests, "Column1", each GetContext(_)),
                 nonNullRows = Table.SelectRows(data, each [Column1] <> null),
                 context = if(Table.IsEmpty(nonNullRows)) then 
                         null 
@@ -977,7 +995,7 @@ Rest.Feed = (requests as table, isPaged as logical, isSchemaRequired as logical,
 
         inferredSchema = if(inferSchema <> null and inferSchema) then 
                 let
-                    data = Table.AddColumn(requests, "Column1", each GetContext([secMgmtInsightsRequest], [secMgmtInsightsScope], [tenantId])),
+                    data = Table.AddColumn(requests, "Column1", each GetContext(_)),
                     nonNullRows = Table.SelectRows(data, each [Column1] <> null),
                     values = Table.FromRecords(nonNullRows{0}[Column1][value]{0}),
                     columnNames = Table.ColumnNames(values),
