@@ -94,9 +94,11 @@ let
         in 
             value,
     
-    Schema.GetTable = (context as text, optional additionalTypes as text) =>
+    Schema.GetTable = (metadata as table, context as text, optional additionalTypes as text) =>
         let
-            schema = Xml.Tables(Web.Contents(Text.BeforeDelimiter(context, "$") & "$metadata")){0}[DataServices]{0}[#"http://docs.oasis-open.org/odata/ns/edm"]{0}[Schema],
+            // schema = Xml.Tables(Web.Contents(Text.BeforeDelimiter(context, "$") & "$metadata")){0}[DataServices]{0}[#"http://docs.oasis-open.org/odata/ns/edm"]{0}[Schema],
+
+            schema = if(Text.Contains(context, "/beta/")) then metadata{[Version = "beta"]}[Value] else metadata{[Version = "v1.0"]}[Value],
 
             entity = Schema.GetEntityType(schema{0}[EntityContainer], schema{0}[EntityType], Text.AfterDelimiter(context, "#")),
             entityType = Table.SelectRows(schema{0}[EntityType], each [#"Attribute:Name"] = entity),
