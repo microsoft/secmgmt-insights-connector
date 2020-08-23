@@ -72,41 +72,14 @@ let
         in 
             response,
 
-    Schema.GetKnownType = (knownType, optional additionalTypes as text) => 
+    Schema.GetKnownType = (metadata as table, resource as text, optional additionalTypes as text) =>
         let
-            source = ""
-        in 
-        source,
-    
-    Schema.GetTypeFromNavigationProperty = (entityType as table, entityName as text, values as list) =>
-        let
-            filtered = Table.SelectRows(entityType, each [#"Attribute:Name"] = entityName),
-
-            dataTable = if(filtered{0}[NavigationProperty] = null) then 
-                        Table.SelectRows(filtered{0}[Property], each [#"Attribute:Name"] = Text.BeforeDelimiter(values{1}, "("))
-                    else
-                        Table.SelectRows(filtered{0}[NavigationProperty], each [#"Attribute:Name"] = Text.BeforeDelimiter(values{1}, "(")), 
-
-            resource = dataTable{0}[#"Attribute:Type"], 
-            entity = if(Text.Contains(resource, "(")) then Text.AfterDelimiter(Text.BetweenDelimiters(resource, "(", ")"), ".") else Text.AfterDelimiter(resource, "."),
-
-            value = if(List.Count(values) <= 2) then entity else @Schema.GetTypeFromNavigationProperty(entityType, entity, List.RemoveFirstN(values, 1))
-        in 
-            value,
-    
-    Schema.GetTable = (metadata as table, context as text, optional additionalTypes as text) =>
-        let
-            // schema = Xml.Tables(Web.Contents(Text.BeforeDelimiter(context, "$") & "$metadata")){0}[DataServices]{0}[#"http://docs.oasis-open.org/odata/ns/edm"]{0}[Schema],
-
-            schema = if(Text.Contains(context, "/beta/")) then metadata{[Version = "beta"]}[Value] else metadata{[Version = "v1.0"]}[Value],
-
-            entity = Schema.GetEntityType(schema{0}[EntityContainer], schema{0}[EntityType], Text.AfterDelimiter(context, "#")),
-            entityType = Table.SelectRows(schema{0}[EntityType], each [#"Attribute:Name"] = entity),
-            value = if(Table.IsEmpty(entityType)) then Table.SelectRows(schema{0}[ComplexType], each [#"Attribute:Name"] = entity) else entityType,
+            entityType = Table.SelectRows(metadata{0}[EntityType], each [#"Attribute:Name"] = resource),
+            value = if(Table.IsEmpty(entityType)) then Table.SelectRows(metadata{0}[ComplexType], each [#"Attribute:Name"] = resource) else entityType,
             
             isEnumType = if(Table.IsEmpty(value)) then
                 let 
-                    data = Table.SelectRows(schema{0}[EnumType], each [#"Attribute:Name"] = entity),
+                    data = Table.SelectRows(metadata{0}[EnumType], each [#"Attribute:Name"] = resource),
                     output = if(Table.IsEmpty(data)) then false else true
                 in 
                     output
@@ -133,29 +106,36 @@ let
             else
                 let 
                     // Build the schema table based on data from the property table
-                    propertyTableList = Schema.GetEntityProperties(if(Table.IsEmpty(entityType)) then schema{0}[ComplexType] else schema{0}[EntityType], entity, {}),
+                    propertyTableList = Schema.GetEntityProperties(if(Table.IsEmpty(entityType)) then metadata{0}[ComplexType] else metadata{0}[EntityType], resource, {}),
                     convertedTable = Table.FromList(propertyTableList, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
                     propertyTable = Table.ExpandTableColumn(convertedTable, "Column1", {"Attribute:Name", "Attribute:Type", "Attribute:Nullable"}, {"Attribute:Name", "Attribute:Type", "Attribute:Nullable"}),
                     addedSchema = Table.AddColumn(propertyTable, "schema", each GetData(_)),
                     schemaTable = Table.FromList(addedSchema[schema], Splitter.SplitByNothing(), null, null, ExtraValues.Error),
                     expandedColumn = Table.ExpandRecordColumn(schemaTable, "Column1", {"Entity", "Type"}, {"Entity", "Type"}),
-
-                    // Build the filter (e.g. https://graph.microsoft.com/v1.0/$metadata#users(id) which is the context for https://graph.microsoft.com/v1.0/users?$select=id)
-                    parts = Text.Split(Text.AfterDelimiter(context, "#"), "/"),
-                    filter = if(Text.Contains(parts{0}, "Collection(")) then null else if(List.Last(parts) = "$entity") then Text.BetweenDelimiters(List.LastN(parts, 2){0}, "(", ")") else Text.BetweenDelimiters(List.Last(parts), "(", ")"),
-                    filterList = Text.Split(filter, ","),
-
-                    // Remove the columns that are not included in the filter
-                    filteredTable = if(filter = null or filter = "") then expandedColumn else Table.SelectRows(expandedColumn, each List.Contains(filterList, [Entity])),
-
-                    custom = Table.AddColumn(filteredTable, "Expression", each [Entity] & " = " & [Type]),
+                    
+                    custom = Table.AddColumn(expandedColumn, "Expression", each [Entity] & " = " & [Type]),
                     output = if(additionalTypes = null or additionalTypes = "") then Expression.Evaluate("type table [" & Text.Combine(custom[Expression], ", ") & "]") else Expression.Evaluate("type table [" & additionalTypes & "," & Text.Combine(custom[Expression], ", ") & "]")
                 in 
                     output
         in
-            output
+            output,
+    
+    Schema.GetTypeFromNavigationProperty = (entityType as table, entityName as text, values as list) =>
+        let
+            filtered = Table.SelectRows(entityType, each [#"Attribute:Name"] = entityName),
+
+            dataTable = if(filtered{0}[NavigationProperty] = null) then 
+                        Table.SelectRows(filtered{0}[Property], each [#"Attribute:Name"] = Text.BeforeDelimiter(values{1}, "("))
+                    else
+                        Table.SelectRows(filtered{0}[NavigationProperty], each [#"Attribute:Name"] = Text.BeforeDelimiter(values{1}, "(")), 
+
+            resource = dataTable{0}[#"Attribute:Type"], 
+            entity = if(Text.Contains(resource, "(")) then Text.AfterDelimiter(Text.BetweenDelimiters(resource, "(", ")"), ".") else Text.AfterDelimiter(resource, "."),
+
+            value = if(List.Count(values) <= 2) then entity else @Schema.GetTypeFromNavigationProperty(entityType, entity, List.RemoveFirstN(values, 1))
+        in 
+            value
 in
     [ 
-        GetKnownType = Schema.GetKnownType,
-        GetTable = Schema.GetTable
+        GetKnownType = Schema.GetKnownType
     ]
