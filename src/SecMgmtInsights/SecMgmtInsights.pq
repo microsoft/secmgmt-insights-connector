@@ -480,49 +480,50 @@ SecMgmtInsights.Controls = (tenants as list, schemaOnly as logical, optional que
 
 SecMgmtInsights.DeviceActions = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
-        GetActions = (func as function, expectedValue as text, id as text, resource as text, tenantId as text) => 
+        GetActions = (input as table, expectedValue as text, id as text, resource as text, tenantId as text) => 
             let
-                source = func(tenants, false),
-                value = if(Table.HasColumns(source, "policyId")) then 
-                        Table.SelectColumns(func(tenants, false), {"tenantId", "deviceId", "policyId", "setting", "state", "currentValue"})
+                value = if(Table.HasColumns(input, "policyId")) then 
+                        Table.SelectColumns(input, {"tenantId", "deviceId", "policyId", "setting", "state", "currentValue"})
                     else 
-                        let
-                            appended = Table.AddColumn(source, "Column1", each [policyId = null, setting = null, state = null, currentValue = null]),
+                          let
+                            appended = Table.AddColumn(input, "Column1", each [policyId = null, setting = null, state = null, currentValue = null]),
                             expanded = Table.ExpandRecordColumn(appended, "Column1", {"policyId", "setting", "state", "currentValue"})
                         in 
                             expanded,
 
                 filterRows = Table.SelectRows(value, each ([setting] = id and [state] <> "compliant" and [tenantId] = tenantId))
-            in
-                filterRows, 
+            in 
+                filterRows,
 
-        GetPortalLink = (resource as text, tenantId as text) =>
+      GetPortalLink = (resource as text, tenantId as text) =>
             let 
                 source = if resource = "deviceCompliancePolicy" then "https://endpoint.microsoft.com/" & tenantId & "/#blade/Microsoft_Intune_DeviceSettings/DevicesComplianceMenu/policies" else "https://endpoint.microsoft.com/" & tenantId & "/#blade/Microsoft_Intune_DeviceSettings/DevicesMenu/configurationProfiles"
             in 
                 source,
 
         output = if(schemaOnly) then 
-            type table[tenantId = text, deviceId = text, #"type" = text, policyId = text, id = text, resource = text, expectedValue = text, currentValue = text, state = text, info = text, portal = text]
-        else 
-            let
-                source = SecMgmtInsights.Controls(tenants, false),
-        
-                deviceComplianceRecords = Table.SelectRows(source, each [resource] = "deviceCompliancePolicy"),
-                deviceComplianceActions = Table.AddColumn(deviceComplianceRecords, "action", each GetActions(SecMgmtInsights.DeviceCompliancePolicySettingStates, [expectedValue], [id], [resource], [tenantId])),
+                type table[action = any, tenantId = text, deviceId = text, #"type" = text, policyId = text, id = text, resource = text, expectedValue = text, currentValue = text, state = text, info = text, portal = text]
+            else 
+                let 
+                    controls = SecMgmtInsights.Controls(tenants, false),
+                    deviceComplianceControls =  Table.SelectRows(controls, each [resource] = "deviceCompliancePolicy"),
+                    deviceConfigurationControls = Table.SelectRows(controls, each [resource] = "deviceConfigurationPolicy"),
 
-                deviceConfigurationRecords = Table.SelectRows(source, each [resource] = "deviceConfigurationPolicy"),
-                deviceConfigurationActions = Table.AddColumn(deviceConfigurationRecords, "action", each GetActions(SecMgmtInsights.DeviceConfigurationProfileSettingStates, [expectedValue], [id], [resource], [tenantId])),
-    
-                combined = Table.Combine({deviceComplianceActions, deviceConfigurationActions}),
-                expanded = Table.ExpandTableColumn(combined, "action", {"deviceId", "policyId", "state", "currentValue"}),
-                filtered = Table.SelectRows(expanded, each [deviceId] <> null and [policyId] <> null), 
+                    deviceCompliancePolicySettingStates = SecMgmtInsights.DeviceCompliancePolicySettingStates(tenants, false),
+                    deviceConfigurationProfileSettingStates = SecMgmtInsights.DeviceConfigurationProfileSettingStates(tenants, false),
 
-               addPortalColumn = Table.AddColumn(filtered, "portal", each GetPortalLink([resource], [tenantId]))
-            in 
-                addPortalColumn
-        in
-            output;
+                    deviceComplianceActions = Table.AddColumn(deviceComplianceControls, "action", each GetActions(deviceCompliancePolicySettingStates, [expectedValue], [id], [resource], [tenantId])),
+                    deviceConfigurationActions = Table.AddColumn(deviceConfigurationControls, "action", each GetActions(deviceConfigurationProfileSettingStates, [expectedValue], [id], [resource], [tenantId])),
+
+                    combined = Table.Combine({deviceComplianceActions, deviceConfigurationActions}),
+                    expanded = Table.ExpandTableColumn(combined, "action", {"deviceId", "policyId", "state", "currentValue"}),
+                    filtered = Table.SelectRows(expanded, each [deviceId] <> null and [policyId] <> null), 
+                    
+                    linkAdded = Table.AddColumn(filtered, "portal", each GetPortalLink([resource], [tenantId]))
+                in 
+                    linkAdded
+    in 
+        output;
 
 // Helper
 
