@@ -1,4 +1,4 @@
-(
+﻿(
     table as table,
     keyColumns as list,
     nameColumn as text,

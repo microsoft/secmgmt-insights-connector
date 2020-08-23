@@ -47,7 +47,7 @@ Once the prerequisites have been fulfilled and the connector has be installed, y
 | Name | Description |
 |------|-------------|
 | Customer template | *Coming soon* - Template that is intended to be used if you are looking to get insights for your own tenant  |
-| [Partner template](https://github.com/microsoft/secmgmt-insights-connector/raw/master/templates/secmgmt-insights-partner-standard.pbit) | Standard template that is intended to be used by partners to gain insights for their customers |
+| [Partner template](https://github.com/microsoft/secmgmt-insights-connector/raw/master/templates/secmgmt-insights-partner.pbit) | Template that is intended to be used by partners to gain insights for their customers |
 
 ## Contributing
 

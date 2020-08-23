@@ -1,9 +1,9 @@
 ﻿<Project DefaultTargets="BuildExtension" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildThisFileDirectory)..\..\repo.props" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{a7d11851-1e6a-4c9e-9e63-d007a50cd38b}</ProjectGuid>
+    <ProjectGuid>
+    </ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>MyRootNamespace</RootNamespace>
     <AssemblyName>MyAssemblyName</AssemblyName>
@@ -11,25 +11,24 @@
     <AllowNativeQuery>False</AllowNativeQuery>
     <AsAction>False</AsAction>
     <FastCombine>False</FastCombine>
-    <ClearLog>True</ClearLog>
+    <ClearLog>False</ClearLog>
     <ShowEngineTraces>False</ShowEngineTraces>
-    <ShowUserTraces>True</ShowUserTraces>
+    <ShowUserTraces>False</ShowUserTraces>
     <LegacyRedirects>False</LegacyRedirects>
     <SuppressRowErrors>False</SuppressRowErrors>
     <SuppressCellErrors>False</SuppressCellErrors>
     <MaxRows>1000</MaxRows>
     <ExtensionProject>Yes</ExtensionProject>
     <Name>SecMgmtInsights</Name>
-    <OutputPath>$(RepoArtifacts)$(Configuration)\</OutputPath>
-    <PublishDir>$(OutputPath)</PublishDir>
-    <ThrowOnFoldingFailure>False</ThrowOnFoldingFailure>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>false</DebugSymbols>
     <!--Should be true, fix this when the debugger is implemented -->
+    <OutputPath>bin\Debug\</OutputPath>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <DebugSymbols>false</DebugSymbols>
+    <OutputPath>bin\Release\</OutputPath>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="mscorlib" />
@@ -68,21 +67,21 @@
     <Compile Include="resources.resx">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="client_id">
-      <SubType>Content</SubType>
-    </Compile>
-    <Compile Include="Table.ChangeType.pqm">
-      <SubType>Content</SubType>
-    </Compile>
     <Compile Include="Diagnostics.pqm">
       <SubType>Content</SubType>
     </Compile>
-    <Compile Include="Schema.GetTable.pqm">
+    <Compile Include="client_id">
+      <SubType>Content</SubType>
+    </Compile>
+    <Compile Include="Schema.pqm">
       <SubType>Content</SubType>
     </Compile>
     <Content Include="SecMgmtInsights.query.pq">
       <SubType>Code</SubType>
     </Content>
+    <Compile Include="Table.ChangeType.pqm">
+      <SubType>Content</SubType>
+    </Compile>
     <Compile Include="Table.GenerateByPage.pqm">
       <SubType>Content</SubType>
     </Compile>
@@ -128,16 +127,10 @@
     <Copy SourceFiles="@(PQFiles)" DestinationFiles="@(PQFiles->'$(IntermediateOutputPath)%(RecursiveDir)%(FileName).m')" />
     <BuildExtension InputDirectory="$(IntermediateOutputPath)" OutputFile="$(OutputPath)\$(ProjectName).mez" />
   </Target>
-  <Target Name="Clean">
-    <!-- Remove obj folder -->
-    <RemoveDir Directories="$(BaseIntermediateOutputPath)" />
-    <!-- Remove bin folder -->
-    <Delete Files="$(OutputPath)$(ProjectName).mez" />
-  </Target>
   <Target Name="ExtensionClean">
     <!-- Remove obj folder -->
     <RemoveDir Directories="$(BaseIntermediateOutputPath)" />
     <!-- Remove bin folder -->
-    <Delete Files="$(OutputPath)$(ProjectName).mez" />
+    <RemoveDir Directories="$(OutputPath)" />
   </Target>
 </Project>
