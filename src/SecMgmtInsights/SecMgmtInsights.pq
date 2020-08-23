@@ -118,7 +118,7 @@ Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
 
 SecMgmtInsights.ConditionalAccessPolicies = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
-        result = Request.GetData("conditionalAccessPolicy", schemaOnly, tenants, "beta", true, "/beta/identity/conditionalAccess/policies", query, metadata)
+        result = Request.GetData("conditionalAccessPolicy", schemaOnly, tenants, "v1.0", true, "/v1.0/identity/conditionalAccess/policies", query, metadata)
     in 
         result;
 
@@ -394,11 +394,13 @@ EntityTable = #table({"Entity", "Action"}, {
     { "Devices", SecMgmtInsights.Devices },
     { "IdentitySecurityDefaultsEnforcementPolicy", SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy },
     { "Intents", SecMgmtInsights.Intents },
+    { "M365AppUserDetail", SecMgmtInsights.M365AppUserDetail },
     { "MailboxUsageDetail", SecMgmtInsights.MailboxUsageDetail }, 
     { "ManagedDevices", SecMgmtInsights.ManagedDevices },
     { "MobileAppDeviceStatuses", SecMgmtInsights.MobileAppDeviceStatuses },
     { "MobileAppUserStatuses", SecMgmtInsights.MobileAppUserStatuses },
     { "MobileApps", SecMgmtInsights.MobileApps },
+    { "Office365ActivationsUserDetail", SecMgmtInsights.Office365ActivationsUserDetail },
     { "Office365ActiveUserDetails", SecMgmtInsights.Office365ActiveUserDetails },
     { "Office365ServicesUserCounts", SecMgmtInsights.Office365ServicesUserCounts },
     { "OneDriveUsageAccountDetail", SecMgmtInsights.OneDriveUsageAccountDetail },
@@ -923,11 +925,51 @@ ServiceCommunications.BuildRequests = (tenants as list, relativeUrl as text, opt
     in 
         data;
 
-// Office 365
+// Office 365 Service Communication
+
+SecMgmtInsights.ServiceCurrentStatus = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [Id = text, Workload = text, StatusDate = datetime, WorkloadDisplayName = text, Status = text, IncidentIds = any, FeatureGroupStatusCollection = any]  
+            else 
+                let
+                    requests = ServiceCommunications.BuildRequests(tenants, "/ServiceComms/CurrentStatus"),
+                    data = Rest.Feed(requests, true)
+                in 
+                    data
+    in
+        output;
+
+SecMgmtInsights.ServiceHistoricalStatus = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [Id = text, Workload = text, StatusDate = datetime, WorkloadDisplayName = text, Status = text, IncidentIds = any, FeatureGroupStatusCollection = any]
+            else 
+                let
+                    requests = ServiceCommunications.BuildRequests(tenants, "/ServiceComms/HistoricalStatus"),
+                    data = Rest.Feed(requests, true)
+                in 
+                    data
+    in
+        output;
+
+// Reporting
+
+SecMgmtInsights.M365AppUserDetail = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let 
+        result = Request.GetData("report", schemaOnly, tenants, "beta", true, "/beta/reports/getM365AppUserDetail(period='D30')?$format=application/json", query, metadata)
+    in 
+        result;
 
 SecMgmtInsights.MailboxUsageDetail = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let 
         result = Request.GetData("mailboxUsageDetail", schemaOnly, tenants, "beta", true, "/beta/reports/getMailboxUsageDetail(period='D30')?$format=application/json", query, metadata)
+    in 
+        result;
+
+SecMgmtInsights.Office365ActivationsUserDetail = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        result = Request.GetData("office365ActivationsUserDetail", schemaOnly, tenants, "beta", true, "/beta/reports/getOffice365ActivationsUserDetail?$format=application/json", query, metadata)
     in 
         result;
 
@@ -966,31 +1008,3 @@ SecMgmtInsights.YammerActivityUserDetail = (tenants as list, schemaOnly as logic
         result = Request.GetData("yammerActivityUserDetail", schemaOnly, tenants, "beta", true, "/beta/reports/getYammerActivityUserDetail(period='D30')?$format=application/json", query, metadata)
     in 
         result;
-
-// Office 365 Service Communication
-
-SecMgmtInsights.ServiceCurrentStatus = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
-    let
-        output = if(schemaOnly) then
-                type table [Id = text, Workload = text, StatusDate = datetime, WorkloadDisplayName = text, Status = text, IncidentIds = any, FeatureGroupStatusCollection = any]  
-            else 
-                let
-                    requests = ServiceCommunications.BuildRequests(tenants, "/ServiceComms/CurrentStatus"),
-                    data = Rest.Feed(requests, true)
-                in 
-                    data
-    in
-        output;
-
-SecMgmtInsights.ServiceHistoricalStatus = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
-    let
-        output = if(schemaOnly) then
-                type table [Id = text, Workload = text, StatusDate = datetime, WorkloadDisplayName = text, Status = text, IncidentIds = any, FeatureGroupStatusCollection = any]
-            else 
-                let
-                    requests = ServiceCommunications.BuildRequests(tenants, "/ServiceComms/HistoricalStatus"),
-                    data = Rest.Feed(requests, true)
-                in 
-                    data
-    in
-        output;
