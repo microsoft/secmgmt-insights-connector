@@ -225,7 +225,7 @@ SecMgmtInsights.DeviceCompliancePolicyStates = (tenants as list, schemaOnly as l
 
 SecMgmtInsights.DeviceConfigurationProfiles = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let 
-        result = Request.GetData("deviceConfiguration", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/deviceConfigurations?$select=id,displayName,lastModifiedDateTime,roleScopeTagIds", query, metadata)
+        result = Request.GetData("deviceConfiguration", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/deviceConfigurations?$select=id,displayName,createdDateTime,description,lastModifiedDateTime,roleScopeTagIds,supportsScopeTags,deviceManagementApplicabilityRuleOsEdition,deviceManagementApplicabilityRuleOsVersion,deviceManagementApplicabilityRuleDeviceMode,version", query, metadata)
     in
         result;
 
@@ -480,20 +480,21 @@ SecMgmtInsights.Controls = (tenants as list, schemaOnly as logical, optional que
 
 SecMgmtInsights.DeviceActions = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
-
-        /*
-         * So, with the new design if there are not device compliance/configuration setting states this function will fail to execute 
-         * as expected. The reason behind this is due to the fact the request to the API will only return data that was used to seed
-         * the request. In this circumstance there are no policies, therefore, the policyId column will be missing from the table.
-         */
-
         GetActions = (func as function, expectedValue as text, id as text, resource as text, tenantId as text) => 
             let
                 source = func(tenants, false),
-                // source = Table.SelectColumns(func(tenants, false), {"tenantId", "deviceId", "policyId", "setting", "state", "currentValue"}),
-                filterRows = Table.SelectRows(source, each ([setting] = id and [state] <> "compliant" and [tenantId] = tenantId))
+                value = if(Table.HasColumns(source, "policyId")) then 
+                        Table.SelectColumns(func(tenants, false), {"tenantId", "deviceId", "policyId", "setting", "state", "currentValue"})
+                    else 
+                        let
+                            appended = Table.AddColumn(source, "Column1", each [policyId = null, setting = null, state = null, currentValue = null]),
+                            expanded = Table.ExpandRecordColumn(appended, "Column1", {"policyId", "setting", "state", "currentValue"})
+                        in 
+                            expanded,
+
+                filterRows = Table.SelectRows(value, each ([setting] = id and [state] <> "compliant" and [tenantId] = tenantId))
             in
-                source, 
+                filterRows, 
 
         GetPortalLink = (resource as text, tenantId as text) =>
             let 
@@ -502,7 +503,7 @@ SecMgmtInsights.DeviceActions = (tenants as list, schemaOnly as logical, optiona
                 source,
 
         output = if(schemaOnly) then 
-            type table[action = any, tenantId = text, deviceId = text, #"type" = text, policyId = text, id = text, resource = text, expectedValue = text, currentValue = text, state = text, info = text, portal = text]
+            type table[tenantId = text, deviceId = text, #"type" = text, policyId = text, id = text, resource = text, expectedValue = text, currentValue = text, state = text, info = text, portal = text]
         else 
             let
                 source = SecMgmtInsights.Controls(tenants, false),
@@ -513,11 +514,13 @@ SecMgmtInsights.DeviceActions = (tenants as list, schemaOnly as logical, optiona
                 deviceConfigurationRecords = Table.SelectRows(source, each [resource] = "deviceConfigurationPolicy"),
                 deviceConfigurationActions = Table.AddColumn(deviceConfigurationRecords, "action", each GetActions(SecMgmtInsights.DeviceConfigurationProfileSettingStates, [expectedValue], [id], [resource], [tenantId])),
     
-                combineTables = Table.Combine({deviceComplianceActions, deviceConfigurationActions}),
-                expandTable = Table.ExpandTableColumn(combineTables, "action", {"deviceId", "policyId", "state", "currentValue"}),
-                addPortalColumn = Table.AddColumn(expandTable, "portal", each GetPortalLink([resource], [tenantId]))
+                combined = Table.Combine({deviceComplianceActions, deviceConfigurationActions}),
+                expanded = Table.ExpandTableColumn(combined, "action", {"deviceId", "policyId", "state", "currentValue"}),
+                filtered = Table.SelectRows(expanded, each [deviceId] <> null and [policyId] <> null), 
+
+               addPortalColumn = Table.AddColumn(filtered, "portal", each GetPortalLink([resource], [tenantId]))
             in 
-                deviceComplianceActions
+                addPortalColumn
         in
             output;
 
