@@ -190,9 +190,15 @@ SecMgmtInsights.DetectedMalwareState = (tenants as list, schemaOnly as logical, 
     in 
         result;
 
+SecMgmtInsights.DeviceCompliancePolicies = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let 
+        result = Request.GetData("deviceCompliancePolicy", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/deviceCompliancePolicies?$select=id,displayName,createdDateTime,description,lastModifiedDateTime,roleScopeTagIds,version", query, metadata)
+    in
+        result;
+
 SecMgmtInsights.DeviceCompliancePolicySettingStates = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
-        result = Request.GetData("deviceCompliancePolicySettingState", schemaOnly, tenants, "beta", true, "/v1.0/deviceManagement/managedDevices?$select=id", query, metadata, "tenantId = text, deviceId = text", (input as table) => 
+        result = Request.GetData("deviceCompliancePolicySettingState", schemaOnly, tenants, "beta", true, "/v1.0/deviceManagement/managedDevices?$select=id", query, metadata, "tenantId = text, deviceId = text, policyId = text", (input as table) => 
             let
                 renamedColumns = Table.RenameColumns(input, {"id", "deviceId"}, MissingField.Ignore),
                 requests = Table.AddColumn(renamedColumns, "secMgmtInsightsRequest", each "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceComplianceStates?$select=id"),
@@ -217,9 +223,15 @@ SecMgmtInsights.DeviceCompliancePolicyStates = (tenants as list, schemaOnly as l
     in 
         result;
 
+SecMgmtInsights.DeviceConfigurationProfiles = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let 
+        result = Request.GetData("deviceConfiguration", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/deviceConfigurations?$select=id,displayName,lastModifiedDateTime,roleScopeTagIds", query, metadata)
+    in
+        result;
+
 SecMgmtInsights.DeviceConfigurationProfileSettingStates = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
-        result = Request.GetData("deviceConfigurationSettingState", schemaOnly, tenants, "beta", true, "/v1.0/deviceManagement/managedDevices?$select=id", query, metadata, "tenantId = text, deviceId = text", (input as table) => 
+        result = Request.GetData("deviceConfigurationSettingState", schemaOnly, tenants, "beta", true, "/v1.0/deviceManagement/managedDevices?$select=id", query, metadata, "tenantId = text, deviceId = text, policyId = text", (input as table) => 
             let
                 renamedColumns = Table.RenameColumns(input, {"id", "deviceId"}, MissingField.Ignore),
                 requests = Table.AddColumn(renamedColumns, "secMgmtInsightsRequest", each "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates?$select=id"),
@@ -372,8 +384,10 @@ EntityTable = #table({"Entity", "Action"}, {
     { "DetectedApps", SecMgmtInsights.DetectedApps },
     { "DetectedMalwareState", SecMgmtInsights.DetectedMalwareState },
     { "DeviceActions", SecMgmtInsights.DeviceActions },
+    { "DeviceCompliancePolicies", SecMgmtInsights.DeviceCompliancePolicies },
     { "DeviceCompliancePolicySettingStates", SecMgmtInsights.DeviceCompliancePolicySettingStates }, 
     { "DeviceCompliancePolicyStates", SecMgmtInsights.DeviceCompliancePolicyStates },
+    { "DeviceConfigurationProfiles", SecMgmtInsights.DeviceConfigurationProfiles },
     { "DeviceConfigurationProfileSettingStates", SecMgmtInsights.DeviceConfigurationProfileSettingStates }, 
     { "DeviceConfigurationProfileStates", SecMgmtInsights.DeviceConfigurationProfileStates },
     { "DeviceManagement", SecMgmtInsights.DeviceManagement },
@@ -466,12 +480,20 @@ SecMgmtInsights.Controls = (tenants as list, schemaOnly as logical, optional que
 
 SecMgmtInsights.DeviceActions = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
+
+        /*
+         * So, with the new design if there are not device compliance/configuration setting states this function will fail to execute 
+         * as expected. The reason behind this is due to the fact the request to the API will only return data that was used to seed
+         * the request. In this circumstance there are no policies, therefore, the policyId column will be missing from the table.
+         */
+
         GetActions = (func as function, expectedValue as text, id as text, resource as text, tenantId as text) => 
             let
-                source = Table.SelectColumns(func(tenants, false), {"tenantId", "deviceId", "policyId", "setting", "state", "currentValue"}),
+                source = func(tenants, false),
+                // source = Table.SelectColumns(func(tenants, false), {"tenantId", "deviceId", "policyId", "setting", "state", "currentValue"}),
                 filterRows = Table.SelectRows(source, each ([setting] = id and [state] <> "compliant" and [tenantId] = tenantId))
             in
-                filterRows, 
+                source, 
 
         GetPortalLink = (resource as text, tenantId as text) =>
             let 
@@ -480,7 +502,7 @@ SecMgmtInsights.DeviceActions = (tenants as list, schemaOnly as logical, optiona
                 source,
 
         output = if(schemaOnly) then 
-            type table[tenantId = text, deviceId = text, #"type" = text, policyId = text, id = text, resource = text, expectedValue = text, currentValue = text, state = text, info = text, poratl = text]
+            type table[action = any, tenantId = text, deviceId = text, #"type" = text, policyId = text, id = text, resource = text, expectedValue = text, currentValue = text, state = text, info = text, portal = text]
         else 
             let
                 source = SecMgmtInsights.Controls(tenants, false),
@@ -492,10 +514,10 @@ SecMgmtInsights.DeviceActions = (tenants as list, schemaOnly as logical, optiona
                 deviceConfigurationActions = Table.AddColumn(deviceConfigurationRecords, "action", each GetActions(SecMgmtInsights.DeviceConfigurationProfileSettingStates, [expectedValue], [id], [resource], [tenantId])),
     
                 combineTables = Table.Combine({deviceComplianceActions, deviceConfigurationActions}),
-                expandTable = Table.ExpandTableColumn(combineTables, "action", {"deviceId", "policyId", "state", "currentValue"}, {"deviceId", "policyId", "state", "currentValue"}),
+                expandTable = Table.ExpandTableColumn(combineTables, "action", {"deviceId", "policyId", "state", "currentValue"}),
                 addPortalColumn = Table.AddColumn(expandTable, "portal", each GetPortalLink([resource], [tenantId]))
             in 
-                addPortalColumn
+                deviceComplianceActions
         in
             output;
 
@@ -945,16 +967,26 @@ SecMgmtInsights.YammerActivityUserDetail = (tenants as list, schemaOnly as logic
 
 SecMgmtInsights.ServiceCurrentStatus = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
-        // TODO - Need to handle the schema. Note the metdata does not appear to be availalble, so this will need to be hardcoded for now.
-        requests = ServiceCommunications.BuildRequests(tenants, "/ServiceComms/CurrentStatus"),
-        data = Rest.Feed(requests, true)
+        output = if(schemaOnly) then
+                type table [Id = text, Workload = text, StatusDate = datetime, WorkloadDisplayName = text, Status = text, IncidentIds = any, FeatureGroupStatusCollection = any]  
+            else 
+                let
+                    requests = ServiceCommunications.BuildRequests(tenants, "/ServiceComms/CurrentStatus"),
+                    data = Rest.Feed(requests, true)
+                in 
+                    data
     in
-        data;
+        output;
 
 SecMgmtInsights.ServiceHistoricalStatus = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
-        // TODO - Need to handle the schema. Note the metdata does not appear to be availalble, so this will need to be hardcoded for now.
-        requests = ServiceCommunications.BuildRequests(tenants, "/ServiceComms/HistoricalStatus"),
-        data = Rest.Feed(requests, true)
+        output = if(schemaOnly) then
+                type table [Id = text, Workload = text, StatusDate = datetime, WorkloadDisplayName = text, Status = text, IncidentIds = any, FeatureGroupStatusCollection = any]
+            else 
+                let
+                    requests = ServiceCommunications.BuildRequests(tenants, "/ServiceComms/HistoricalStatus"),
+                    data = Rest.Feed(requests, true)
+                in 
+                    data
     in
-        data;
+        output;
