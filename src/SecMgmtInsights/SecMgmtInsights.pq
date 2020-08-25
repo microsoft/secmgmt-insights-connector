@@ -958,7 +958,7 @@ ServiceCommunications.BuildRequests = (tenants as list, relativeUrl as text, opt
 SecMgmtInsights.ServiceCurrentStatus = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
         output = if(schemaOnly) then
-                type table [Id = text, Workload = text, StatusDate = datetime, WorkloadDisplayName = text, Status = text, IncidentIds = any, FeatureGroupStatusCollection = any]  
+                type table [tenantId = text, Id = text, Workload = text, StatusDate = datetime, WorkloadDisplayName = text, Status = text, IncidentIds = any, FeatureGroupStatusCollection = any]  
             else 
                 let
                     requests = ServiceCommunications.BuildRequests(tenants, "/ServiceComms/CurrentStatus"),
@@ -971,7 +971,7 @@ SecMgmtInsights.ServiceCurrentStatus = (tenants as list, schemaOnly as logical, 
 SecMgmtInsights.ServiceHistoricalStatus = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
         output = if(schemaOnly) then
-                type table [Id = text, Workload = text, StatusDate = datetime, WorkloadDisplayName = text, Status = text, IncidentIds = any, FeatureGroupStatusCollection = any]
+                type table [tenantId = text, Id = text, Workload = text, StatusDate = datetime, WorkloadDisplayName = text, Status = text, IncidentIds = any, FeatureGroupStatusCollection = any]
             else 
                 let
                     requests = ServiceCommunications.BuildRequests(tenants, "/ServiceComms/HistoricalStatus"),
