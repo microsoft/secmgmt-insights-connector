@@ -118,7 +118,7 @@ Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
 
 SecMgmtInsights.ConditionalAccessPolicies = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
-        result = Request.GetData("conditionalAccessPolicy", schemaOnly, tenants, "v1.0", true, "/v1.0/identity/conditionalAccess/policies", query, metadata)
+        result = Request.GetData("conditionalAccessPolicy", schemaOnly, tenants, "beta", true, "/beta/identity/conditionalAccess/policies", query, metadata)
     in 
         result;
 
@@ -137,6 +137,18 @@ SecMgmtInsights.CredentialUserRegistrationDetails = (tenants as list, schemaOnly
 SecMgmtInsights.Devices = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let 
         result = Request.GetData("device", schemaOnly, tenants, "v1.0", true, "/v1.0/devices", query, metadata)
+    in
+        result;
+
+SecMgmtInsights.LicenseDetails = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let 
+        result = Request.GetData("licenseDetails", schemaOnly, tenants, "v1.0", true, "/v1.0/users?$select=id", query, metadata, "tenantId = text, userId = text", (input as table) => 
+            let 
+                renamedColumns = Table.RenameColumns(input, {"id", "userId"}, MissingField.Ignore),
+                requests = Table.AddColumn(renamedColumns, "secMgmtInsightsRequest", each graph_endpoint & "/v1.0/users/" & [userId] & "/licenseDetails"),
+                output = Rest.Feed(requests, true)
+            in 
+                output)
     in
         result;
 
@@ -201,10 +213,10 @@ SecMgmtInsights.DeviceCompliancePolicySettingStates = (tenants as list, schemaOn
         result = Request.GetData("deviceCompliancePolicySettingState", schemaOnly, tenants, "beta", true, "/v1.0/deviceManagement/managedDevices?$select=id", query, metadata, "tenantId = text, deviceId = text, policyId = text", (input as table) => 
             let
                 renamedColumns = Table.RenameColumns(input, {"id", "deviceId"}, MissingField.Ignore),
-                requests = Table.AddColumn(renamedColumns, "secMgmtInsightsRequest", each "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceComplianceStates?$select=id"),
+                requests = Table.AddColumn(renamedColumns, "secMgmtInsightsRequest", each graph_endpoint & "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates?$select=id"),
                 policies = Rest.Feed(requests, true),
                 renamePolicyIdColumn = Table.RenameColumns(policies, {"id", "policyId"}, MissingField.Ignore),
-                stateRequests = Table.AddColumn(renamePolicyIdColumn, "secMgmtInsightsRequest", each graph_endpoint & "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceComplianceStates/" & [policyId] & "/settingStates"),
+                stateRequests = Table.AddColumn(renamePolicyIdColumn, "secMgmtInsightsRequest", each graph_endpoint & "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates/" & [policyId] & "/settingStates"),
                 output = Rest.Feed(stateRequests, true)
             in 
                 output)
@@ -216,7 +228,7 @@ SecMgmtInsights.DeviceCompliancePolicyStates = (tenants as list, schemaOnly as l
         result = Request.GetData("deviceCompliancePolicyState", schemaOnly, tenants, "v1.0", true, "/v1.0/deviceManagement/managedDevices?$select=id", query, metadata, "tenantId = text, deviceId = text", (input as table) => 
             let 
                 renamedColumns = Table.RenameColumns(input, {"id", "deviceId"}, MissingField.Ignore),
-                requests = Table.AddColumn(renamedColumns, "secMgmtInsightsRequest", each graph_endpoint & "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceComplianceStates"),
+                requests = Table.AddColumn(renamedColumns, "secMgmtInsightsRequest", each graph_endpoint & "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceCompliancePolicyStates"),
                 output = Rest.Feed(requests, true)
             in 
                 output)
@@ -234,7 +246,7 @@ SecMgmtInsights.DeviceConfigurationProfileSettingStates = (tenants as list, sche
         result = Request.GetData("deviceConfigurationSettingState", schemaOnly, tenants, "beta", true, "/v1.0/deviceManagement/managedDevices?$select=id", query, metadata, "tenantId = text, deviceId = text, policyId = text", (input as table) => 
             let
                 renamedColumns = Table.RenameColumns(input, {"id", "deviceId"}, MissingField.Ignore),
-                requests = Table.AddColumn(renamedColumns, "secMgmtInsightsRequest", each "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates?$select=id"),
+                requests = Table.AddColumn(renamedColumns, "secMgmtInsightsRequest", each graph_endpoint & "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates?$select=id"),
                 policies = Rest.Feed(requests, true),
                 renamePolicyIdColumn = Table.RenameColumns(policies, {"id", "policyId"}, MissingField.Ignore),
                 stateRequests = Table.AddColumn(renamePolicyIdColumn, "secMgmtInsightsRequest", each graph_endpoint & "/beta/deviceManagement/managedDevices/" & [deviceId] & "/deviceConfigurationStates/" & [policyId] & "/settingStates"),
@@ -276,7 +288,7 @@ SecMgmtInsights.ManagedDevices = (tenants as list, schemaOnly as logical, option
 
 SecMgmtInsights.MobileAppDeviceStatuses = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
-        result = Request.GetData("mobileAppInstallStatus", schemaOnly, tenants, "beta", true, "beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true", query, metadata, "tenantId = text, mobileAppId = text", (input as table) => 
+        result = Request.GetData("mobileAppInstallStatus", schemaOnly, tenants, "beta", true, "/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true", query, metadata, "tenantId = text, mobileAppId = text", (input as table) => 
             let 
                 renamedColumns = Table.RenameColumns(input, {"id", "mobileAppId"}, MissingField.Ignore),
                 requests = Table.AddColumn(renamedColumns, "secMgmtInsightsRequest", each graph_endpoint & "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/deviceStatuses"),
@@ -288,7 +300,7 @@ SecMgmtInsights.MobileAppDeviceStatuses = (tenants as list, schemaOnly as logica
 
 SecMgmtInsights.MobileAppUserStatuses = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
-        result = Request.GetData("userAppInstallStatus", schemaOnly, tenants, "beta", true, "beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true", query, metadata, "tenantId = text, mobileAppId = text", (input as table) => 
+        result = Request.GetData("userAppInstallStatus", schemaOnly, tenants, "beta", true, "/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true", query, metadata, "tenantId = text, mobileAppId = text", (input as table) => 
             let 
                 renamedColumns = Table.RenameColumns(input, {"id", "mobileAppId"}, MissingField.Ignore),
                 requests = Table.AddColumn(renamedColumns, "secMgmtInsightsRequest", each graph_endpoint & "/beta/deviceAppManagement/mobileApps/" & [mobileAppId] & "/userStatuses"),
@@ -309,7 +321,7 @@ SecMgmtInsights.SecurityBaselineSettingStates = (tenants as list, schemaOnly as 
         result = Request.GetData("deviceConfigurationSettingState", schemaOnly, tenants, "beta", true, "/v1.0/deviceManagement/managedDevices?$select=id", query, metadata, "tenantId = text, deviceId = text, templateId = text", (input as table) => 
             let
                 renamedColumns = Table.RenameColumns(input, {"id", "deviceId"}, MissingField.Ignore),
-                requests = Table.AddColumn(renamedColumns, "secMgmtInsightsRequest", each "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates?$select=id"),
+                requests = Table.AddColumn(renamedColumns, "secMgmtInsightsRequest", each graph_endpoint & "/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates?$select=id"),
                 policies = Rest.Feed(requests, true),
                 renamePolicyIdColumn = Table.RenameColumns(policies, {"id", "templateId"}, MissingField.Ignore),
                 stateRequests = Table.AddColumn(renamePolicyIdColumn, "secMgmtInsightsRequest", each graph_endpoint & "/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates/" & [templateId] & "/settingStates"),
@@ -324,7 +336,7 @@ SecMgmtInsights.SecurityBaselineStates = (tenants as list, schemaOnly as logical
         result = Request.GetData("securityBaselineState", schemaOnly, tenants, "beta", true, "/v1.0/deviceManagement/managedDevices?$select=id", query, metadata, "tenantId = text, deviceId = text", (input as table) => 
             let 
                 renamedColumns = Table.RenameColumns(input, {"id", "deviceId"}, MissingField.Ignore),
-                requests = Table.AddColumn(renamedColumns, "secMgmtInsightsRequest", each graph_endpoint & "/v1.0/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates"),
+                requests = Table.AddColumn(renamedColumns, "secMgmtInsightsRequest", each graph_endpoint & "/beta/deviceManagement/managedDevices/" & [deviceId] & "/securityBaselineStates"),
                 output = Rest.Feed(requests, true)
             in 
                 output)
@@ -352,6 +364,12 @@ SecMgmtInsights.WindowsAutopilotDeviceIdentities = (tenants as list, schemaOnly 
 SecMgmtInsights.WindowsAutopilotProfiles = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let 
         result = Request.GetData("windowsAutopilotDeploymentProfile", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/windowsAutopilotDeploymentProfiles", query, metadata)
+    in 
+        result;
+
+SecMgmtInsights.WindowsAutopilotSettings = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let 
+        result = Request.GetData("windowsAutopilotSettings", schemaOnly, tenants, "beta", false, "/beta/deviceManagement/windowsAutopilotSettings", query, metadata)
     in 
         result;
 
@@ -394,7 +412,7 @@ EntityTable = #table({"Entity", "Action"}, {
     { "Devices", SecMgmtInsights.Devices },
     { "IdentitySecurityDefaultsEnforcementPolicy", SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy },
     { "Intents", SecMgmtInsights.Intents },
-    { "M365AppUserDetail", SecMgmtInsights.M365AppUserDetail },
+    { "LicenseDetails", SecMgmtInsights.LicenseDetails },
     { "MailboxUsageDetail", SecMgmtInsights.MailboxUsageDetail }, 
     { "ManagedDevices", SecMgmtInsights.ManagedDevices },
     { "MobileAppDeviceStatuses", SecMgmtInsights.MobileAppDeviceStatuses },
@@ -404,6 +422,7 @@ EntityTable = #table({"Entity", "Action"}, {
     { "Office365ActiveUserDetails", SecMgmtInsights.Office365ActiveUserDetails },
     { "Office365ServicesUserCounts", SecMgmtInsights.Office365ServicesUserCounts },
     { "OneDriveUsageAccountDetail", SecMgmtInsights.OneDriveUsageAccountDetail },
+    { "RiskDetections", SecMgmtInsights.RiskDetections },
     { "SecureScore", SecMgmtInsights.SecureScore },
     { "SecureScoreControlProfiles", SecMgmtInsights.SecureScoreControlProfiles },
     { "SecurityBaselineSettingStates", SecMgmtInsights.SecurityBaselineSettingStates },
@@ -419,6 +438,7 @@ EntityTable = #table({"Entity", "Action"}, {
     { "Users", SecMgmtInsights.Users },
     { "WindowsAutopilotDeviceIdentities", SecMgmtInsights.WindowsAutopilotDeviceIdentities }, 
     { "WindowsAutopilotProfiles", SecMgmtInsights.WindowsAutopilotProfiles }, 
+    { "WindowsAutopilotSettings", SecMgmtInsights.WindowsAutopilotSettings },
     { "WindowsMalwareInformation", SecMgmtInsights.WindowsMalwareInformation },
     { "WindowsProtectionState", SecMgmtInsights.WindowsProtectionState },
     { "YammerActivityUserDetail", SecMgmtInsights.YammerActivityUserDetail }
@@ -504,7 +524,7 @@ SecMgmtInsights.DeviceActions = (tenants as list, schemaOnly as logical, optiona
                 source,
 
         output = if(schemaOnly) then 
-                type table[action = any, tenantId = text, deviceId = text, #"type" = text, policyId = text, id = text, resource = text, expectedValue = text, currentValue = text, state = text, info = text, portal = text]
+                type table[tenantId = text, deviceId = text, #"type" = text, policyId = text, id = text, resource = text, expectedValue = text, currentValue = text, state = text, info = text, portal = text]
             else 
                 let 
                     controls = SecMgmtInsights.Controls(tenants, false),
@@ -545,6 +565,14 @@ Request.GetData = (resource as text, schemaOnly as logical, tenants as list, ver
                     output = if(func <> null) then func(data) else data
                 in 
                     output
+    in 
+        result;
+
+// Identity Protection 
+
+SecMgmtInsights.RiskDetections = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let 
+        result = Request.GetData("riskDetection", schemaOnly, tenants, "beta", true, "/beta/identityProtection/riskDetections", query, metadata)
     in 
         result;
 
@@ -954,12 +982,6 @@ SecMgmtInsights.ServiceHistoricalStatus = (tenants as list, schemaOnly as logica
         output;
 
 // Reporting
-
-SecMgmtInsights.M365AppUserDetail = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
-    let 
-        result = Request.GetData("report", schemaOnly, tenants, "beta", true, "/beta/reports/getM365AppUserDetail(period='D30')?$format=application/json", query, metadata)
-    in 
-        result;
 
 SecMgmtInsights.MailboxUsageDetail = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let 
