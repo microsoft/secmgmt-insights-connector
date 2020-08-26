@@ -8,7 +8,7 @@ graph_endpoint = "https://graph.microsoft.com";
 logout_uri = "https://login.microsoftonline.com/logout.srf";
 redirect_uri = "https://oauth.powerbi.com/views/oauthredirect.html";
 token_uri = "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
-version = "2.0-preview-2";
+version = "2.0-preview-3";
 
 // Data Source Kind description
 
@@ -395,6 +395,11 @@ SecMgmtInsights.WindowsProtectionState = (tenants as list, schemaOnly as logical
 
 EntityTable = #table({"Entity", "Action"}, {
     { "Alerts", SecMgmtInsights.Alerts },
+    { "AuditAzureActiveDirectory", SecMgmtInsights.AuditAzureActiveDirectory },
+    { "AuditExchange", SecMgmtInsights.AuditExchange},
+    { "AuditGeneral", SecMgmtInsights.AuditGeneral },
+    { "AuditSharePoint", SecMgmtInsights.AuditSharePoint },
+    { "AuditSubscriptions", SecMgmtInsights.AuditSubscriptions },
     { "ConditionalAccessPolicies", SecMgmtInsights.ConditionalAccessPolicies },
     { "Contracts", SecMgmtInsights.Contracts },
     { "Controls", SecMgmtInsights.Controls },
@@ -952,6 +957,73 @@ ServiceCommunications.BuildRequests = (tenants as list, relativeUrl as text, opt
                 "https://manage.office.com/api/v1.0/" & [tenantId] & relativeUrl & queryString)
     in 
         data;
+
+// Office 365 Management Activity
+
+SecMgmtInsights.AuditAzureActiveDirectory = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [tenantId = text, contentType = text, contentId = text, contentUri = text, contentCreated = datetimezone, contentExpiration = datetimezone]  
+            else 
+                let
+                    requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/content?contentType=audit.azureactivedirectory"),
+                    data = Rest.Feed(requests, true)
+                in 
+                    data
+    in
+        output;
+
+SecMgmtInsights.AuditExchange = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [tenantId = text, contentType = text, contentId = text, contentUri = text, contentCreated = datetimezone, contentExpiration = datetimezone]  
+            else 
+                let
+                    requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/content?contentType=audit.exchange"),
+                    data = Rest.Feed(requests, true)
+                in 
+                    data
+    in
+        output;
+
+SecMgmtInsights.AuditGeneral = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [tenantId = text, contentType = text, contentId = text, contentUri = text, contentCreated = datetimezone, contentExpiration = datetimezone]  
+            else 
+                let
+                    requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/content?contentType=audit.general"),
+                    data = Rest.Feed(requests, true)
+                in 
+                    data
+    in
+        output;
+
+SecMgmtInsights.AuditSharePoint = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [tenantId = text, contentType = text, contentId = text, contentUri = text, contentCreated = datetimezone, contentExpiration = datetimezone]  
+            else 
+                let
+                    requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/content?contentType=audit.sharepoint"),
+                    data = Rest.Feed(requests, true)
+                in 
+                    data
+    in
+        output;
+
+SecMgmtInsights.AuditSubscriptions = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [tenantId = text, contentType = text, status = text, webhook = any]  
+            else 
+                let
+                    requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/list"),
+                    data = Rest.Feed(requests, false)
+                in 
+                    data
+    in
+        output;
 
 // Office 365 Service Communication
 
