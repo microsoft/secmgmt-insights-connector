@@ -963,11 +963,13 @@ ServiceCommunications.BuildRequests = (tenants as list, relativeUrl as text, opt
 SecMgmtInsights.AuditAzureActiveDirectory = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
         output = if(schemaOnly) then
-                type table [tenantId = text, contentType = text, contentId = text, contentUri = text, contentCreated = datetimezone, contentExpiration = datetimezone]  
+                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, ResultStatus = text, UserKey = text, Version = text, Workload = text, ClientIP = text, ObjectId = text, UserId = text, AzureActiveDirectoryEventType = text, ExtendedProperties = any, ModifiedProperties = any, Actor = any, ActorContextId = text, ActorIpAddress = text, InterSystemsId = text, IntraSystemId = text, SupportTicketId = text, Target = any, TargetContextId = text, ApplicationId = text]  
             else 
                 let
                     requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/content?contentType=audit.azureactivedirectory"),
-                    data = Rest.Feed(requests, false)
+                    availableContent = Rest.Feed(requests, false),
+                    renamedColumns = Table.RenameColumns(availableContent, {"contentUri", "secMgmtInsightsRequest"}, MissingField.Ignore),
+                    data = Rest.Feed(renamedColumns, false)
                 in 
                     data
     in
@@ -980,7 +982,9 @@ SecMgmtInsights.AuditExchange = (tenants as list, schemaOnly as logical, optiona
             else 
                 let
                     requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/content?contentType=audit.exchange"),
-                    data = Rest.Feed(requests, false)
+                    availableContent = Rest.Feed(requests, false),
+                    renamedColumns = Table.RenameColumns(availableContent, {"contentUri", "secMgmtInsightsRequest"}, MissingField.Ignore),
+                    data = Rest.Feed(renamedColumns, false)
                 in 
                     data
     in
@@ -989,11 +993,13 @@ SecMgmtInsights.AuditExchange = (tenants as list, schemaOnly as logical, optiona
 SecMgmtInsights.AuditGeneral = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
         output = if(schemaOnly) then
-                type table [tenantId = text, contentType = text, contentId = text, contentUri = text, contentCreated = datetimezone, contentExpiration = datetimezone]  
+                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, UserKey = text, UserType = text, Version = text, Workload = text, UserId = text, DataType = text] 
             else 
                 let
                     requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/content?contentType=audit.general"),
-                    data = Rest.Feed(requests, false)
+                    availableContent = Rest.Feed(requests, false),
+                    renamedColumns = Table.RenameColumns(availableContent, {"contentUri", "secMgmtInsightsRequest"}, MissingField.Ignore),
+                    data = Rest.Feed(renamedColumns, false)
                 in 
                     data
     in
@@ -1006,7 +1012,9 @@ SecMgmtInsights.AuditSharePoint = (tenants as list, schemaOnly as logical, optio
             else 
                 let
                     requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/content?contentType=audit.sharepoint"),
-                    data = Rest.Feed(requests, false)
+                    availableContent = Rest.Feed(requests, false),
+                    renamedColumns = Table.RenameColumns(availableContent, {"contentUri", "secMgmtInsightsRequest"}, MissingField.Ignore),
+                    data = Rest.Feed(renamedColumns, false)
                 in 
                     data
     in
