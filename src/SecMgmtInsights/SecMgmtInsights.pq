@@ -25,7 +25,6 @@ SecMgmtInsights = [
     TestConnection = (dataSourcePath) => {"SecMgmtInsights.Contents"}
 ];
 
-
 // Data Source UI publishing description
 
 SecMgmtInsights.Publish = [
@@ -885,6 +884,7 @@ Rest.GetContents = (url as text, token as text, isPaged as logical, optional sch
             [
                 Headers = [
                     #"Accept" = "application/json;odata.metadata=minimal;odata.streaming=false;IEEE754Compatible=false",
+                    #"Accept-encoding" = "gzip, deflate",
                     #"Authorization" = "Bearer " & token,
                     #"User-Agent" = "secmgmt-insights-connector" 
                 ],
@@ -902,7 +902,7 @@ Rest.GetContents = (url as text, token as text, isPaged as logical, optional sch
                 )
             else
                 let
-                    contents = Table.FromList({body}, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+                    contents = Table.FromList(if(Type.Is(Value.Type(body), List.Type)) then body else {body}, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
                     firstRow = contents{0}?,
                     value = if(firstRow = null) then Table.FromRows({}) else Table.ExpandRecordColumn(contents, "Column1", Record.FieldNames(firstRow[Column1]))
                 in
@@ -967,7 +967,7 @@ SecMgmtInsights.AuditAzureActiveDirectory = (tenants as list, schemaOnly as logi
             else 
                 let
                     requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/content?contentType=audit.azureactivedirectory"),
-                    data = Rest.Feed(requests, true)
+                    data = Rest.Feed(requests, false)
                 in 
                     data
     in
@@ -980,7 +980,7 @@ SecMgmtInsights.AuditExchange = (tenants as list, schemaOnly as logical, optiona
             else 
                 let
                     requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/content?contentType=audit.exchange"),
-                    data = Rest.Feed(requests, true)
+                    data = Rest.Feed(requests, false)
                 in 
                     data
     in
@@ -993,7 +993,7 @@ SecMgmtInsights.AuditGeneral = (tenants as list, schemaOnly as logical, optional
             else 
                 let
                     requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/content?contentType=audit.general"),
-                    data = Rest.Feed(requests, true)
+                    data = Rest.Feed(requests, false)
                 in 
                     data
     in
@@ -1006,7 +1006,7 @@ SecMgmtInsights.AuditSharePoint = (tenants as list, schemaOnly as logical, optio
             else 
                 let
                     requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/content?contentType=audit.sharepoint"),
-                    data = Rest.Feed(requests, true)
+                    data = Rest.Feed(requests, false)
                 in 
                     data
     in
