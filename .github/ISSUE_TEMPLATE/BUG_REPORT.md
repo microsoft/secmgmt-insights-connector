@@ -4,7 +4,7 @@ about: Create a report to help us improve
 
 ---
 
-# Steps to reproduce
+## Steps to reproduce
 
 > What steps can reproduce the defect?
 > Please share the setup, sample project, target, etc.
