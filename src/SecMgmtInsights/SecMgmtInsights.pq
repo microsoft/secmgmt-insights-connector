@@ -395,9 +395,11 @@ SecMgmtInsights.WindowsProtectionState = (tenants as list, schemaOnly as logical
 EntityTable = #table({"Entity", "Action"}, {
     { "Alerts", SecMgmtInsights.Alerts },
     { "AuditAzureActiveDirectory", SecMgmtInsights.AuditAzureActiveDirectory },
+    { "AuditDlp", SecMgmtInsights.AuditDlp },
     { "AuditExchange", SecMgmtInsights.AuditExchange},
     { "AuditGeneral", SecMgmtInsights.AuditGeneral },
     { "AuditSharePoint", SecMgmtInsights.AuditSharePoint },
+    { "AuditSecurityComplianceAlerts", SecMgmtInsights.AuditSecurityComplianceAlerts },
     { "AuditSubscriptions", SecMgmtInsights.AuditSubscriptions },
     { "ConditionalAccessPolicies", SecMgmtInsights.ConditionalAccessPolicies },
     { "Contracts", SecMgmtInsights.Contracts },
@@ -902,9 +904,13 @@ Rest.GetContents = (url as text, token as text, isPaged as logical, optional sch
                 )
             else
                 let
-                    contents = Table.FromList(if(Type.Is(Value.Type(body), List.Type)) then body else {body}, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+                    abstract = if(Type.Is(Value.Type(body), List.Type)) then body else {body}, 
+                    contents = Table.FromList(abstract, Splitter.SplitByNothing(), null, null, ExtraValues.Error),
+                  
                     firstRow = contents{0}?,
-                    value = if(firstRow = null) then Table.FromRows({}) else Table.ExpandRecordColumn(contents, "Column1", Record.FieldNames(firstRow[Column1]))
+                    listOfColumns =  List.Union(List.Transform(abstract, each Record.FieldNames(_))),
+
+                    value = if(firstRow = null) then Table.FromRows({}) else Table.ExpandRecordColumn(contents, "Column1", listOfColumns)
                 in
                     value
     in 
@@ -975,6 +981,21 @@ SecMgmtInsights.AuditAzureActiveDirectory = (tenants as list, schemaOnly as logi
     in
         output;
 
+SecMgmtInsights.AuditDlp = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, UserKey = text, UserType = text, Version = text, Workload = text, ObjectId = text, UserId = text, IncidentId = text, PolicyDetails = any, SensitiveInfoDetectionIsIncluded = logical, ExchangeMetaData = any, SharePointMetaData = any, ExceptionInfo = text]  
+            else 
+                let
+                    requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/content?contentType=dlp.all"),
+                    availableContent = Rest.Feed(requests, false),
+                    renamedColumns = Table.RenameColumns(availableContent, {"contentUri", "secMgmtInsightsRequest"}, MissingField.Ignore),
+                    data = Rest.Feed(renamedColumns, false)
+                in 
+                    data
+    in
+        output;
+
 SecMgmtInsights.AuditExchange = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
         output = if(schemaOnly) then
@@ -988,6 +1009,22 @@ SecMgmtInsights.AuditExchange = (tenants as list, schemaOnly as logical, optiona
                 in 
                     data
     in
+        output;
+
+SecMgmtInsights.AuditSecurityComplianceAlerts = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let 
+        output = if(schemaOnly) then
+                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, ResultStatus = text, UserKey = text, UserType = text, Version = text, Workload = text, ObjectId = text, UserId = text, AlertId = text, AlertLinks = any, AlertType = text, Category = text, Comments = text, Data = any, Name = text, PolicyId = text, Severity = text, Source = text, Status = text] 
+            else
+                let
+                    requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/content?contentType=audit.general"),
+                    availableContent = Rest.Feed(requests, false),
+                    renamedColumns = Table.RenameColumns(availableContent, {"contentUri", "secMgmtInsightsRequest"}, MissingField.Ignore),
+                    data = Rest.Feed(renamedColumns, false),
+                    filtered = Table.SelectRows(data, each try [UserKey] = "SecurityComplianceAlerts" otherwise null)
+                in 
+                    filtered
+    in 
         output;
 
 SecMgmtInsights.AuditGeneral = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
