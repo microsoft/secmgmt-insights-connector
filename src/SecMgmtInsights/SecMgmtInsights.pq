@@ -8,7 +8,7 @@ graph_endpoint = "https://graph.microsoft.com";
 logout_uri = "https://login.microsoftonline.com/logout.srf";
 redirect_uri = "https://oauth.powerbi.com/views/oauthredirect.html";
 token_uri = "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
-version = "2.0";
+version = "2.0-preview-3";
 
 // Data Source Kind description
 
@@ -1064,7 +1064,7 @@ SecMgmtInsights.SecurityComplianceAlerts = (tenants as list, schemaOnly as logic
 SecMgmtInsights.SharePointEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
         output = if(schemaOnly) then
-                type table [tenantId = text, contentType = text, contentId = text, contentUri = text, contentCreated = datetimezone, contentExpiration = datetimezone]  
+                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, UserKey = text, UserType = text, Version = text, Workload = text, ClientIP = text, ObjectId = text, UserId = text, CorrelationId = text, EventSource = text, ItemType = text, ListId = text, ListItemUniqueId = text, Site = text, UserAgent = text, WebId = text, SourceFileExtension = text, SiteUrl = text, SourceFileName = text, SourceRelativeUrl = text]  
             else 
                 ManagementActivity.GetEvents(tenants, "audit.sharepoint")
     in
