@@ -41,6 +41,19 @@ SecMgmtInsights.Icons = [
     Icon32 = { Extension.Contents("SecMgmtInsights32.png"), Extension.Contents("SecMgmtInsights40.png"), Extension.Contents("SecMgmtInsights48.png"), Extension.Contents("SecMgmtInsights64.png") }
 ];
 
+// Data Source type
+
+SecMgmtInsightsType = type function (
+    optional tenants as (type list meta [
+        Documentation.FieldCaption = "List of tenants",
+        Documentation.FieldDescription = "List of tenant identifiers if left blank the list of tenants will be obtained using contracts feature of Microsoft Graph"
+    ])) 
+    as table meta [
+        Documentation.Name = "Security and Management Insights",
+        Documentation.LongDescription = "Security and Management Insights",
+        Documentation.Icon = Extension.Contents("SecMgmtInsights32.png")
+    ];
+
 // Authentication
 
 FinishLogin = (context, callbackUri, state) =>
@@ -413,6 +426,7 @@ EntityTable = #table({"Entity", "Action"}, {
     { "Devices", SecMgmtInsights.Devices },
     { "DlpEvents", SecMgmtInsights.DlpEvents },
     { "ExchangeEvents", SecMgmtInsights.ExchangeEvents},
+    { "HygieneTenantEvents", SecMgmtInsights.HygieneTenantEvents },
     { "IdentitySecurityDefaultsEnforcementPolicy", SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy },
     { "Intents", SecMgmtInsights.Intents },
     { "LicenseDetails", SecMgmtInsights.LicenseDetails },
@@ -609,7 +623,7 @@ SecMgmtInsights.SecureScoreControlProfiles = (tenants as list, schemaOnly as log
 // Navigation 
         
 [DataSource.Kind="SecMgmtInsights", Publish="SecMgmtInsights.Publish"]
-shared SecMgmtInsights.Contents = (optional tenants as list) => SecMgmtInsights.NavigationTable(tenants) as table;
+shared SecMgmtInsights.Contents =  Value.ReplaceType(SecMgmtInsights.NavigationTable, SecMgmtInsightsType);
 
 SecMgmtInsights.NavigationTable = (optional tenants as list) as table =>
     let
@@ -621,7 +635,12 @@ SecMgmtInsights.NavigationTable = (optional tenants as list) as table =>
             in 
                 metadata,
 
-        tenantIdValues = if(tenants <> null) then tenants else Rest.GetPages(graph_endpoint & "/v1.0/contracts", Token.GetAccessToken())[customerId],
+        listOfTenants = if(tenants <> null and not List.IsEmpty(tenants)) then 
+                tenants
+            else if(List.IsEmpty(tenants)) then 
+                Graph.GetTenant()[tenantId]
+            else 
+                Rest.GetPages(graph_endpoint & "/v1.0/contracts", Token.GetAccessToken())[customerId],
 
         metadata = #table({"Version", "Value"}, {
             { "beta", GetMetadata("beta") },
@@ -632,7 +651,7 @@ SecMgmtInsights.NavigationTable = (optional tenants as list) as table =>
         entities = Table.SelectColumns(EntityTable, {"Entity"}),
         rename = Table.RenameColumns(entities, {{"Entity", "Name"}}),
         // Add Data as a calculated column
-        withData = Table.AddColumn(rename, "Data", each SecMgmtInsights.View([Name], metadata, tenantIdValues), type table),
+        withData = Table.AddColumn(rename, "Data", each SecMgmtInsights.View([Name], metadata, listOfTenants), type table),
         // Add ItemKind and ItemName as fixed text values
         withItemKind = Table.AddColumn(withData, "ItemKind", each "Table", type text),
         withItemName = Table.AddColumn(withItemKind, "ItemName", each "Table", type text),
@@ -842,6 +861,13 @@ Graph.BuildRequests = (tenants as list, relativeUrl as text, optional query as t
     in 
         expandedList;
 
+Graph.GetTenant = () =>
+    let
+        data = Rest.GetPages(graph_endpoint & "/v1.0/organization", Extension.CurrentCredential()[access_token]),
+        renamedColumns = Table.RenameColumns(data, {"id", "tenantId"}, MissingField.Ignore)
+    in
+        renamedColumns;
+
 Rest.Feed = (requests as table, isPaged as logical, optional schema as type) => 
     let
         GetData = (input as record) =>
@@ -1018,6 +1044,19 @@ SecMgmtInsights.ExchangeEvents = (tenants as list, schemaOnly as logical, option
                     events = ManagementActivity.GetEvents(tenants, "audit.exchange"),
                     filtered = Table.SelectRows(events, each try [Operation] <> "DlpRuleMatch" otherwise null)
                 in 
+                    filtered
+    in
+        output;
+
+SecMgmtInsights.HygieneTenantEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, ResultStatus = text, UserKey = text, UserType = text, Version = text, Workload = text, UserId = text, Audit = text, Event = text, EventId = text, EventValue = text, Reason = text]  
+            else 
+                let 
+                    events = ManagementActivity.GetEvents(tenants, "audit.general"),
+                    filtered = Table.SelectRows(events, each try [Operation] = "HygieneTenantEvents" otherwise null)
+                in
                     filtered
     in
         output;
