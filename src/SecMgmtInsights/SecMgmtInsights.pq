@@ -393,14 +393,9 @@ SecMgmtInsights.WindowsProtectionState = (tenants as list, schemaOnly as logical
 // Entities
 
 EntityTable = #table({"Entity", "Action"}, {
+    { "ActivitySubscriptions", SecMgmtInsights.ActivitySubscriptions },
     { "Alerts", SecMgmtInsights.Alerts },
-    { "AuditAzureActiveDirectory", SecMgmtInsights.AuditAzureActiveDirectory },
-    { "AuditDlp", SecMgmtInsights.AuditDlp },
-    { "AuditExchange", SecMgmtInsights.AuditExchange},
-    { "AuditGeneral", SecMgmtInsights.AuditGeneral },
-    { "AuditSharePoint", SecMgmtInsights.AuditSharePoint },
-    { "AuditSecurityComplianceAlerts", SecMgmtInsights.AuditSecurityComplianceAlerts },
-    { "AuditSubscriptions", SecMgmtInsights.AuditSubscriptions },
+    { "AzureActiveDirectoryEvents", SecMgmtInsights.AzureActiveDirectoryEvents },
     { "ConditionalAccessPolicies", SecMgmtInsights.ConditionalAccessPolicies },
     { "Contracts", SecMgmtInsights.Contracts },
     { "Controls", SecMgmtInsights.Controls },
@@ -416,6 +411,8 @@ EntityTable = #table({"Entity", "Action"}, {
     { "DeviceConfigurationProfileStates", SecMgmtInsights.DeviceConfigurationProfileStates },
     { "DeviceManagement", SecMgmtInsights.DeviceManagement },
     { "Devices", SecMgmtInsights.Devices },
+    { "DlpEvents", SecMgmtInsights.DlpEvents },
+    { "ExchangeEvents", SecMgmtInsights.ExchangeEvents},
     { "IdentitySecurityDefaultsEnforcementPolicy", SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy },
     { "Intents", SecMgmtInsights.Intents },
     { "LicenseDetails", SecMgmtInsights.LicenseDetails },
@@ -429,12 +426,17 @@ EntityTable = #table({"Entity", "Action"}, {
     { "Office365ServicesUserCounts", SecMgmtInsights.Office365ServicesUserCounts },
     { "OneDriveUsageAccountDetail", SecMgmtInsights.OneDriveUsageAccountDetail },
     { "RiskDetections", SecMgmtInsights.RiskDetections },
+    { "SafeAttachmentEvents", SecMgmtInsights.SafeAttachmentEvents }, 
+    { "SafeLinksEvents", SecMgmtInsights.SafeLinksEvents },
     { "SecureScore", SecMgmtInsights.SecureScore },
     { "SecureScoreControlProfiles", SecMgmtInsights.SecureScoreControlProfiles },
     { "SecurityBaselineSettingStates", SecMgmtInsights.SecurityBaselineSettingStates },
     { "SecurityBaselineStates", SecMgmtInsights.SecurityBaselineStates },
+    { "SecurityComplianceAlerts", SecMgmtInsights.SecurityComplianceAlerts },
     { "ServiceCurrentStatus", SecMgmtInsights.ServiceCurrentStatus },
     { "ServiceHistoricalStatus", SecMgmtInsights.ServiceHistoricalStatus },
+    { "ServiceMessages", SecMgmtInsights.ServiceMessages },
+    { "SharePointEvents", SecMgmtInsights.SharePointEvents },
     { "SharePointSiteUsageDetail", SecMgmtInsights.SharePointSiteUsageDetail },
     { "SignIns", SecMgmtInsights.SignIns },
     { "SoftwareUpdateStatusSummary", SecMgmtInsights.SoftwareUpdateStatusSummary },
@@ -442,6 +444,7 @@ EntityTable = #table({"Entity", "Action"}, {
     { "SubscriptionState", SecMgmtInsights.SubscriptionState },
     { "TeamsUserActivityUserDetail", SecMgmtInsights.TeamsUserActivityUserDetail },
     { "Users", SecMgmtInsights.Users },
+    { "UserSubmissionEvents", SecMgmtInsights.UserSubmissionEvents },
     { "WindowsAutopilotDeviceIdentities", SecMgmtInsights.WindowsAutopilotDeviceIdentities }, 
     { "WindowsAutopilotProfiles", SecMgmtInsights.WindowsAutopilotProfiles }, 
     { "WindowsAutopilotSettings", SecMgmtInsights.WindowsAutopilotSettings },
@@ -606,9 +609,9 @@ SecMgmtInsights.SecureScoreControlProfiles = (tenants as list, schemaOnly as log
 // Navigation 
         
 [DataSource.Kind="SecMgmtInsights", Publish="SecMgmtInsights.Publish"]
-shared SecMgmtInsights.Contents = () => SecMgmtInsights.NavigationTable() as table;
+shared SecMgmtInsights.Contents = (optional tenants as list) => SecMgmtInsights.NavigationTable(tenants) as table;
 
-SecMgmtInsights.NavigationTable = () as table =>
+SecMgmtInsights.NavigationTable = (optional tenants as list) as table =>
     let
         GetMetadata = (version as text) =>
             let
@@ -618,7 +621,7 @@ SecMgmtInsights.NavigationTable = () as table =>
             in 
                 metadata,
 
-        contracts = Rest.GetPages(graph_endpoint & "/v1.0/contracts", Token.GetAccessToken()),
+        tenantIdValues = if(tenants <> null) then tenants else Rest.GetPages(graph_endpoint & "/v1.0/contracts", Token.GetAccessToken())[customerId],
 
         metadata = #table({"Version", "Value"}, {
             { "beta", GetMetadata("beta") },
@@ -629,7 +632,7 @@ SecMgmtInsights.NavigationTable = () as table =>
         entities = Table.SelectColumns(EntityTable, {"Entity"}),
         rename = Table.RenameColumns(entities, {{"Entity", "Name"}}),
         // Add Data as a calculated column
-        withData = Table.AddColumn(rename, "Data", each SecMgmtInsights.View([Name], metadata, contracts[customerId]), type table),
+        withData = Table.AddColumn(rename, "Data", each SecMgmtInsights.View([Name], metadata, tenantIdValues), type table),
         // Add ItemKind and ItemName as fixed text values
         withItemKind = Table.AddColumn(withData, "ItemKind", each "Table", type text),
         withItemName = Table.AddColumn(withItemKind, "ItemName", each "Table", type text),
@@ -966,98 +969,16 @@ ServiceCommunications.BuildRequests = (tenants as list, relativeUrl as text, opt
 
 // Office 365 Management Activity
 
-SecMgmtInsights.AuditAzureActiveDirectory = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
-    let
-        output = if(schemaOnly) then
-                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, ResultStatus = text, UserKey = text, Version = text, Workload = text, ClientIP = text, ObjectId = text, UserId = text, AzureActiveDirectoryEventType = text, ExtendedProperties = any, ModifiedProperties = any, Actor = any, ActorContextId = text, ActorIpAddress = text, InterSystemsId = text, IntraSystemId = text, SupportTicketId = text, Target = any, TargetContextId = text, ApplicationId = text]  
-            else 
-                let
-                    requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/content?contentType=audit.azureactivedirectory"),
-                    availableContent = Rest.Feed(requests, false),
-                    renamedColumns = Table.RenameColumns(availableContent, {"contentUri", "secMgmtInsightsRequest"}, MissingField.Ignore),
-                    data = Rest.Feed(renamedColumns, false)
-                in 
-                    data
+ ManagementActivity.GetEvents = (tenants as list, contentType as text) =>
+     let
+        requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/content?contentType=" & contentType),
+        availableContent = Rest.Feed(requests, false),
+        renamedColumns = Table.RenameColumns(availableContent, {"contentUri", "secMgmtInsightsRequest"}, MissingField.Ignore),
+        data = Rest.Feed(renamedColumns, false)
     in
-        output;
+        data;
 
-SecMgmtInsights.AuditDlp = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
-    let
-        output = if(schemaOnly) then
-                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, UserKey = text, UserType = text, Version = text, Workload = text, ObjectId = text, UserId = text, IncidentId = text, PolicyDetails = any, SensitiveInfoDetectionIsIncluded = logical, ExchangeMetaData = any, SharePointMetaData = any, ExceptionInfo = text]  
-            else 
-                let
-                    requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/content?contentType=dlp.all"),
-                    availableContent = Rest.Feed(requests, false),
-                    renamedColumns = Table.RenameColumns(availableContent, {"contentUri", "secMgmtInsightsRequest"}, MissingField.Ignore),
-                    data = Rest.Feed(renamedColumns, false)
-                in 
-                    data
-    in
-        output;
-
-SecMgmtInsights.AuditExchange = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
-    let
-        output = if(schemaOnly) then
-                type table [tenantId = text, contentType = text, contentId = text, contentUri = text, contentCreated = datetimezone, contentExpiration = datetimezone]  
-            else 
-                let
-                    requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/content?contentType=audit.exchange"),
-                    availableContent = Rest.Feed(requests, false),
-                    renamedColumns = Table.RenameColumns(availableContent, {"contentUri", "secMgmtInsightsRequest"}, MissingField.Ignore),
-                    data = Rest.Feed(renamedColumns, false)
-                in 
-                    data
-    in
-        output;
-
-SecMgmtInsights.AuditSecurityComplianceAlerts = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
-    let 
-        output = if(schemaOnly) then
-                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, ResultStatus = text, UserKey = text, UserType = text, Version = text, Workload = text, ObjectId = text, UserId = text, AlertId = text, AlertLinks = any, AlertType = text, Category = text, Comments = text, Data = any, Name = text, PolicyId = text, Severity = text, Source = text, Status = text] 
-            else
-                let
-                    requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/content?contentType=audit.general"),
-                    availableContent = Rest.Feed(requests, false),
-                    renamedColumns = Table.RenameColumns(availableContent, {"contentUri", "secMgmtInsightsRequest"}, MissingField.Ignore),
-                    data = Rest.Feed(renamedColumns, false),
-                    filtered = Table.SelectRows(data, each try [UserKey] = "SecurityComplianceAlerts" otherwise null)
-                in 
-                    filtered
-    in 
-        output;
-
-SecMgmtInsights.AuditGeneral = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
-    let
-        output = if(schemaOnly) then
-                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, UserKey = text, UserType = text, Version = text, Workload = text, UserId = text, DataType = text] 
-            else 
-                let
-                    requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/content?contentType=audit.general"),
-                    availableContent = Rest.Feed(requests, false),
-                    renamedColumns = Table.RenameColumns(availableContent, {"contentUri", "secMgmtInsightsRequest"}, MissingField.Ignore),
-                    data = Rest.Feed(renamedColumns, false)
-                in 
-                    data
-    in
-        output;
-
-SecMgmtInsights.AuditSharePoint = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
-    let
-        output = if(schemaOnly) then
-                type table [tenantId = text, contentType = text, contentId = text, contentUri = text, contentCreated = datetimezone, contentExpiration = datetimezone]  
-            else 
-                let
-                    requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/content?contentType=audit.sharepoint"),
-                    availableContent = Rest.Feed(requests, false),
-                    renamedColumns = Table.RenameColumns(availableContent, {"contentUri", "secMgmtInsightsRequest"}, MissingField.Ignore),
-                    data = Rest.Feed(renamedColumns, false)
-                in 
-                    data
-    in
-        output;
-
-SecMgmtInsights.AuditSubscriptions = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.ActivitySubscriptions = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
         output = if(schemaOnly) then
                 type table [tenantId = text, contentType = text, status = text, webhook = any]  
@@ -1067,6 +988,98 @@ SecMgmtInsights.AuditSubscriptions = (tenants as list, schemaOnly as logical, op
                     data = Rest.Feed(requests, false)
                 in 
                     data
+    in
+        output;
+
+SecMgmtInsights.AzureActiveDirectoryEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, ResultStatus = text, UserKey = text, Version = text, Workload = text, ClientIP = text, ObjectId = text, UserId = text, AzureActiveDirectoryEventType = text, ExtendedProperties = any, ModifiedProperties = any, Actor = any, ActorContextId = text, ActorIpAddress = text, InterSystemsId = text, IntraSystemId = text, SupportTicketId = text, Target = any, TargetContextId = text, ApplicationId = text]  
+            else 
+                ManagementActivity.GetEvents(tenants, "audit.azureactivedirectory")
+    in
+        output;
+
+SecMgmtInsights.DlpEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, UserKey = text, UserType = text, Version = text, Workload = text, ObjectId = text, UserId = text, IncidentId = text, PolicyDetails = any, SensitiveInfoDetectionIsIncluded = logical, ExchangeMetaData = any, SharePointMetaData = any, ExceptionInfo = text]  
+            else 
+                ManagementActivity.GetEvents(tenants, "dlp.all")
+    in
+        output;
+
+SecMgmtInsights.ExchangeEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, ResultStatus = logical, UserKey = text, UserType = text, Version = text, Workload = text, ClientIP = any, ObjectId = text, UserId = text, AppId = text, ClientAppId = text, ExternalAccess = logical, OrganizationName = text, OriginatingServer = text, Parameters = any, SessionId = text]  
+            else 
+                let 
+                    events = ManagementActivity.GetEvents(tenants, "audit.exchange"),
+                    filtered = Table.SelectRows(events, each try [Operation] <> "DlpRuleMatch" otherwise null)
+                in 
+                    filtered
+    in
+        output;
+
+SecMgmtInsights.SafeAttachmentEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, UserKey = text, UserType = text, Version = text, Workload = text, ObjectId = text, UserId = text, AttachmentData = any, DetectionMethod = text, DetectionType = text, EventDeepLink = text, InternetMessageId = text, MessageTime = datetime, NetworkMessageId = text, P1Sender = text, P2Sender = text, Policy = text, PolicyAction = text, Recipients = any, SenderIp = text, Subject = text, Verdict = text]  
+            else 
+                let 
+                    events = ManagementActivity.GetEvents(tenants, "audit.general"),
+                    filtered = Table.SelectRows(events, each try [Operation] = "TIMailData" otherwise null)
+                in
+                    filtered
+    in
+        output;
+
+SecMgmtInsights.SafeLinksEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, UserKey = text, UserType = text, Version = text, Workload = text, AppName = text, AppVersion = text, EventDeepLink = text, OS = text, SourceId = text, TimeOfClick = datetime, Url = text, UrlClickAction = text]
+            else 
+                let 
+                    events = ManagementActivity.GetEvents(tenants, "audit.general"),
+                    filtered = Table.SelectRows(events, each try [Operation] = "TIUrlClickData" otherwise null)
+                in
+                    filtered
+    in
+        output;
+
+SecMgmtInsights.SecurityComplianceAlerts = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let 
+        output = if(schemaOnly) then
+                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, ResultStatus = text, UserKey = text, UserType = text, Version = text, Workload = text, ObjectId = text, UserId = text, AlertId = text, AlertLinks = any, AlertType = text, Category = text, Comments = text, Data = any, Name = text, PolicyId = text, Severity = text, Source = text, Status = text] 
+            else
+                let
+                    events = ManagementActivity.GetEvents(tenants, "audit.general"),
+                    filtered = Table.SelectRows(events, each try [UserKey] = "SecurityComplianceAlerts" otherwise null)
+                in 
+                    filtered
+    in 
+        output;
+
+SecMgmtInsights.SharePointEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, UserKey = text, UserType = text, Version = text, Workload = text, ClientIP = text, ObjectId = text, UserId = text, CorrelationId = text, EventSource = text, ItemType = text, ListId = text, ListItemUniqueId = text, Site = text, UserAgent = text, WebId = text, SourceFileExtension = text, SiteUrl = text, SourceFileName = text, SourceRelativeUrl = text]  
+            else 
+                ManagementActivity.GetEvents(tenants, "audit.sharepoint")
+    in
+        output;
+
+SecMgmtInsights.UserSubmissionEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, UserKey = text, UserType = text, Version = text, Workload = text, ObjectId = text, UserId = text, BCLValue = text, ExtendedProperties = any, FilteringDate = datetime, KesMailId = text, Language = text, MessageDate = datetime, P1Sender = text, P1SenderDomain = text, P2Sender = text, P2SenderDomain = text, Recipients = any, RescanResult = any, SenderIP = text, Subject = text, SubmissionId = text, SubmissionState = text, SubmissionType = text]
+            else 
+                let 
+                    events = ManagementActivity.GetEvents(tenants, "audit.general"),
+                    filtered = Table.SelectRows(events, each try [Operation] = "UserSubmission" otherwise null)
+                in
+                    filtered
     in
         output;
 
@@ -1092,6 +1105,19 @@ SecMgmtInsights.ServiceHistoricalStatus = (tenants as list, schemaOnly as logica
             else 
                 let
                     requests = ServiceCommunications.BuildRequests(tenants, "/ServiceComms/HistoricalStatus"),
+                    data = Rest.Feed(requests, true)
+                in 
+                    data
+    in
+        output;
+
+SecMgmtInsights.ServiceMessages = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [tenantId = text, Id = text, Name = text, Title = text, StartTime = datetimezone, EndTime = datetimezone, Status = text, Messages = any, LastUpdatedTime = datetimezone, Workload = text, WorkloadDisplayName = text, Feature = text, FeatureDisplayName = text]
+            else 
+                let
+                    requests = ServiceCommunications.BuildRequests(tenants, "/ServiceComms/Messages"),
                     data = Rest.Feed(requests, true)
                 in 
                     data
