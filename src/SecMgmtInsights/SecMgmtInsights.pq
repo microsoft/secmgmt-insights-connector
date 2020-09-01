@@ -393,18 +393,9 @@ SecMgmtInsights.WindowsProtectionState = (tenants as list, schemaOnly as logical
 // Entities
 
 EntityTable = #table({"Entity", "Action"}, {
+    { "ActivitySubscriptions", SecMgmtInsights.ActivitySubscriptions },
     { "Alerts", SecMgmtInsights.Alerts },
     { "AzureActiveDirectoryEvents", SecMgmtInsights.AzureActiveDirectoryEvents },
-    { "DlpEvents", SecMgmtInsights.DlpEvents },
-    { "ExchangeEvents", SecMgmtInsights.ExchangeEvents},
-    { "SafeAttachmentEvents", SecMgmtInsights.SafeAttachmentEvents }, 
-    { "SafeLinksEvents", SecMgmtInsights.SafeLinksEvents },
-    { "SecurityComplianceAlerts", SecMgmtInsights.SecurityComplianceAlerts },
-    { "SharePointEvents", SecMgmtInsights.SharePointEvents },
-    { "UserSubmissionEvents", SecMgmtInsights.UserSubmissionEvents },
-
-    { "AuditSubscriptions", SecMgmtInsights.AuditSubscriptions },
-
     { "ConditionalAccessPolicies", SecMgmtInsights.ConditionalAccessPolicies },
     { "Contracts", SecMgmtInsights.Contracts },
     { "Controls", SecMgmtInsights.Controls },
@@ -420,6 +411,8 @@ EntityTable = #table({"Entity", "Action"}, {
     { "DeviceConfigurationProfileStates", SecMgmtInsights.DeviceConfigurationProfileStates },
     { "DeviceManagement", SecMgmtInsights.DeviceManagement },
     { "Devices", SecMgmtInsights.Devices },
+    { "DlpEvents", SecMgmtInsights.DlpEvents },
+    { "ExchangeEvents", SecMgmtInsights.ExchangeEvents},
     { "IdentitySecurityDefaultsEnforcementPolicy", SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy },
     { "Intents", SecMgmtInsights.Intents },
     { "LicenseDetails", SecMgmtInsights.LicenseDetails },
@@ -433,12 +426,16 @@ EntityTable = #table({"Entity", "Action"}, {
     { "Office365ServicesUserCounts", SecMgmtInsights.Office365ServicesUserCounts },
     { "OneDriveUsageAccountDetail", SecMgmtInsights.OneDriveUsageAccountDetail },
     { "RiskDetections", SecMgmtInsights.RiskDetections },
+    { "SafeAttachmentEvents", SecMgmtInsights.SafeAttachmentEvents }, 
+    { "SafeLinksEvents", SecMgmtInsights.SafeLinksEvents },
     { "SecureScore", SecMgmtInsights.SecureScore },
     { "SecureScoreControlProfiles", SecMgmtInsights.SecureScoreControlProfiles },
     { "SecurityBaselineSettingStates", SecMgmtInsights.SecurityBaselineSettingStates },
     { "SecurityBaselineStates", SecMgmtInsights.SecurityBaselineStates },
+    { "SecurityComplianceAlerts", SecMgmtInsights.SecurityComplianceAlerts },
     { "ServiceCurrentStatus", SecMgmtInsights.ServiceCurrentStatus },
     { "ServiceHistoricalStatus", SecMgmtInsights.ServiceHistoricalStatus },
+    { "SharePointEvents", SecMgmtInsights.SharePointEvents },
     { "SharePointSiteUsageDetail", SecMgmtInsights.SharePointSiteUsageDetail },
     { "SignIns", SecMgmtInsights.SignIns },
     { "SoftwareUpdateStatusSummary", SecMgmtInsights.SoftwareUpdateStatusSummary },
@@ -446,6 +443,7 @@ EntityTable = #table({"Entity", "Action"}, {
     { "SubscriptionState", SecMgmtInsights.SubscriptionState },
     { "TeamsUserActivityUserDetail", SecMgmtInsights.TeamsUserActivityUserDetail },
     { "Users", SecMgmtInsights.Users },
+    { "UserSubmissionEvents", SecMgmtInsights.UserSubmissionEvents },
     { "WindowsAutopilotDeviceIdentities", SecMgmtInsights.WindowsAutopilotDeviceIdentities }, 
     { "WindowsAutopilotProfiles", SecMgmtInsights.WindowsAutopilotProfiles }, 
     { "WindowsAutopilotSettings", SecMgmtInsights.WindowsAutopilotSettings },
@@ -979,6 +977,19 @@ ServiceCommunications.BuildRequests = (tenants as list, relativeUrl as text, opt
     in
         data;
 
+SecMgmtInsights.ActivitySubscriptions = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [tenantId = text, contentType = text, status = text, webhook = any]  
+            else 
+                let
+                    requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/list"),
+                    data = Rest.Feed(requests, false)
+                in 
+                    data
+    in
+        output;
+
 SecMgmtInsights.AzureActiveDirectoryEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
         output = if(schemaOnly) then
@@ -1066,23 +1077,6 @@ SecMgmtInsights.UserSubmissionEvents = (tenants as list, schemaOnly as logical, 
                     filtered
     in
         output;
-
-
-
-
-SecMgmtInsights.AuditSubscriptions = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
-    let
-        output = if(schemaOnly) then
-                type table [tenantId = text, contentType = text, status = text, webhook = any]  
-            else 
-                let
-                    requests = ServiceCommunications.BuildRequests(tenants, "/activity/feed/subscriptions/list"),
-                    data = Rest.Feed(requests, false)
-                in 
-                    data
-    in
-        output;
-
 
 // Office 365 Service Communication
 
