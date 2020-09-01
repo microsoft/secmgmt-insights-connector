@@ -1012,9 +1012,13 @@ SecMgmtInsights.DlpEvents = (tenants as list, schemaOnly as logical, optional qu
 SecMgmtInsights.ExchangeEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
         output = if(schemaOnly) then
-                type table [tenantId = text, contentType = text, contentId = text, contentUri = text, contentCreated = datetimezone, contentExpiration = datetimezone]  
+                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, ResultStatus = logical, UserKey = text, UserType = text, Version = text, Workload = text, ClientIP = any, ObjectId = text, UserId = text, AppId = text, ClientAppId = text, ExternalAccess = logical, OrganizationName = text, OriginatingServer = text, Parameters = any, SessionId = text]  
             else 
-                ManagementActivity.GetEvents(tenants, "audit.exchange")
+                let 
+                    events = ManagementActivity.GetEvents(tenants, "audit.exchange"),
+                    filtered = Table.SelectRows(events, each try [Operation] <> "DlpRuleMatch" otherwise null)
+                in 
+                    filtered
     in
         output;
 
