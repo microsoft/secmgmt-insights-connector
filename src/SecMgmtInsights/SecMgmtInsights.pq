@@ -435,6 +435,7 @@ EntityTable = #table({"Entity", "Action"}, {
     { "SecurityComplianceAlerts", SecMgmtInsights.SecurityComplianceAlerts },
     { "ServiceCurrentStatus", SecMgmtInsights.ServiceCurrentStatus },
     { "ServiceHistoricalStatus", SecMgmtInsights.ServiceHistoricalStatus },
+    { "ServiceMessages", SecMgmtInsights.ServiceMessages },
     { "SharePointEvents", SecMgmtInsights.SharePointEvents },
     { "SharePointSiteUsageDetail", SecMgmtInsights.SharePointSiteUsageDetail },
     { "SignIns", SecMgmtInsights.SignIns },
@@ -608,9 +609,9 @@ SecMgmtInsights.SecureScoreControlProfiles = (tenants as list, schemaOnly as log
 // Navigation 
         
 [DataSource.Kind="SecMgmtInsights", Publish="SecMgmtInsights.Publish"]
-shared SecMgmtInsights.Contents = () => SecMgmtInsights.NavigationTable() as table;
+shared SecMgmtInsights.Contents = (optional tenants as list) => SecMgmtInsights.NavigationTable(tenants) as table;
 
-SecMgmtInsights.NavigationTable = () as table =>
+SecMgmtInsights.NavigationTable = (optional tenants as list) as table =>
     let
         GetMetadata = (version as text) =>
             let
@@ -620,7 +621,7 @@ SecMgmtInsights.NavigationTable = () as table =>
             in 
                 metadata,
 
-        contracts = Rest.GetPages(graph_endpoint & "/v1.0/contracts", Token.GetAccessToken()),
+        tenantIdValues = if(tenants <> null) then tenants else Rest.GetPages(graph_endpoint & "/v1.0/contracts", Token.GetAccessToken())[customerId],
 
         metadata = #table({"Version", "Value"}, {
             { "beta", GetMetadata("beta") },
@@ -631,7 +632,7 @@ SecMgmtInsights.NavigationTable = () as table =>
         entities = Table.SelectColumns(EntityTable, {"Entity"}),
         rename = Table.RenameColumns(entities, {{"Entity", "Name"}}),
         // Add Data as a calculated column
-        withData = Table.AddColumn(rename, "Data", each SecMgmtInsights.View([Name], metadata, contracts[customerId]), type table),
+        withData = Table.AddColumn(rename, "Data", each SecMgmtInsights.View([Name], metadata, tenantIdValues), type table),
         // Add ItemKind and ItemName as fixed text values
         withItemKind = Table.AddColumn(withData, "ItemKind", each "Table", type text),
         withItemName = Table.AddColumn(withItemKind, "ItemName", each "Table", type text),
@@ -1100,6 +1101,19 @@ SecMgmtInsights.ServiceHistoricalStatus = (tenants as list, schemaOnly as logica
             else 
                 let
                     requests = ServiceCommunications.BuildRequests(tenants, "/ServiceComms/HistoricalStatus"),
+                    data = Rest.Feed(requests, true)
+                in 
+                    data
+    in
+        output;
+
+SecMgmtInsights.ServiceMessages = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [tenantId = text, Id = text, Name = text, Title = text, StartTime = datetimezone, EndTime = datetimezone, Status = text, Messages = any, LastUpdatedTime = datetimezone, Workload = text, WorkloadDisplayName = text, Feature = text, FeatureDisplayName = text]
+            else 
+                let
+                    requests = ServiceCommunications.BuildRequests(tenants, "/ServiceComms/Messages"),
                     data = Rest.Feed(requests, true)
                 in 
                     data
