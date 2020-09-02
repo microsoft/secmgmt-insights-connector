@@ -426,6 +426,7 @@ EntityTable = #table({"Entity", "Action"}, {
     { "Devices", SecMgmtInsights.Devices },
     { "DlpEvents", SecMgmtInsights.DlpEvents },
     { "ExchangeEvents", SecMgmtInsights.ExchangeEvents},
+    { "GeneralEvents", SecMgmtInsights.GeneralEvents },
     { "HygieneTenantEvents", SecMgmtInsights.HygieneTenantEvents },
     { "IdentitySecurityDefaultsEnforcementPolicy", SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy },
     { "Intents", SecMgmtInsights.Intents },
@@ -439,6 +440,7 @@ EntityTable = #table({"Entity", "Action"}, {
     { "Office365ActiveUserDetails", SecMgmtInsights.Office365ActiveUserDetails },
     { "Office365ServicesUserCounts", SecMgmtInsights.Office365ServicesUserCounts },
     { "OneDriveUsageAccountDetail", SecMgmtInsights.OneDriveUsageAccountDetail },
+    { "QuarantineReleaseMessage", SecMgmtInsights.QuarantineReleaseMessage },
     { "RiskDetections", SecMgmtInsights.RiskDetections },
     { "SafeAttachmentEvents", SecMgmtInsights.SafeAttachmentEvents }, 
     { "SafeLinksEvents", SecMgmtInsights.SafeLinksEvents },
@@ -454,11 +456,11 @@ EntityTable = #table({"Entity", "Action"}, {
     { "SharePointSiteUsageDetail", SecMgmtInsights.SharePointSiteUsageDetail },
     { "SignIns", SecMgmtInsights.SignIns },
     { "SoftwareUpdateStatusSummary", SecMgmtInsights.SoftwareUpdateStatusSummary },
+    { "SubmissionEvents", SecMgmtInsights.SubmissionEvents },
     { "SubscribedSkus", SecMgmtInsights.SubscribedSkus },
     { "SubscriptionState", SecMgmtInsights.SubscriptionState },
     { "TeamsUserActivityUserDetail", SecMgmtInsights.TeamsUserActivityUserDetail },
     { "Users", SecMgmtInsights.Users },
-    { "UserSubmissionEvents", SecMgmtInsights.UserSubmissionEvents },
     { "WindowsAutopilotDeviceIdentities", SecMgmtInsights.WindowsAutopilotDeviceIdentities }, 
     { "WindowsAutopilotProfiles", SecMgmtInsights.WindowsAutopilotProfiles }, 
     { "WindowsAutopilotSettings", SecMgmtInsights.WindowsAutopilotSettings },
@@ -637,7 +639,7 @@ SecMgmtInsights.NavigationTable = (optional tenants as list) as table =>
 
         listOfTenants = if(tenants <> null and not List.IsEmpty(tenants)) then 
                 tenants
-            else if(List.IsEmpty(tenants)) then 
+            else if(tenants <> null and List.IsEmpty(tenants)) then 
                 Graph.GetTenant()[tenantId]
             else 
                 Rest.GetPages(graph_endpoint & "/v1.0/contracts", Token.GetAccessToken())[customerId],
@@ -1061,6 +1063,28 @@ SecMgmtInsights.HygieneTenantEvents = (tenants as list, schemaOnly as logical, o
     in
         output;
 
+SecMgmtInsights.GeneralEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, ResultStatus = text,Version = text, Workload = text, UserId = text]  
+            else 
+                ManagementActivity.GetEvents(tenants, "audit.general")
+    in
+        output;
+
+SecMgmtInsights.QuarantineReleaseMessage = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, ResultStatus = text, UserKey = text, UserType = text, Version = number, Worload = text, UserId = text, NetworkMessageId = text, ReleaseTo = text, RequestSource = text, RequestType = text]  
+            else 
+                let 
+                    events = ManagementActivity.GetEvents(tenants, "audit.general"),
+                    filtered = Table.SelectRows(events, each try [Operation] = "QuarantineReleaseMessage" otherwise null)
+                in
+                    filtered
+    in
+        output;
+
 SecMgmtInsights.SafeAttachmentEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
         output = if(schemaOnly) then
@@ -1109,14 +1133,14 @@ SecMgmtInsights.SharePointEvents = (tenants as list, schemaOnly as logical, opti
     in
         output;
 
-SecMgmtInsights.UserSubmissionEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.SubmissionEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
         output = if(schemaOnly) then
                 type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, UserKey = text, UserType = text, Version = text, Workload = text, ObjectId = text, UserId = text, BCLValue = text, ExtendedProperties = any, FilteringDate = datetime, KesMailId = text, Language = text, MessageDate = datetime, P1Sender = text, P1SenderDomain = text, P2Sender = text, P2SenderDomain = text, Recipients = any, RescanResult = any, SenderIP = text, Subject = text, SubmissionId = text, SubmissionState = text, SubmissionType = text]
             else 
                 let 
                     events = ManagementActivity.GetEvents(tenants, "audit.general"),
-                    filtered = Table.SelectRows(events, each try [Operation] = "UserSubmission" otherwise null)
+                    filtered = Table.SelectRows(events, each try [Operation] = "AdminSubmission"  or [Operation] = "UserSubmission" otherwise null)
                 in
                     filtered
     in
