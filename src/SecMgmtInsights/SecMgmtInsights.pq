@@ -190,6 +190,18 @@ SecMgmtInsights.Users = (tenants as list, schemaOnly as logical, optional query 
 
 // Device Management
 
+SecMgmtInsights.AndroidManagedStoreAccountEnterpriseSettings = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) => 
+    let
+        result = Request.GetData("androidManagedStoreAccountEnterpriseSettings", schemaOnly, tenants, "beta", false, "/beta/deviceManagement/androidManagedStoreAccountEnterpriseSettings", query, metadata)
+    in 
+        result;
+
+SecMgmtInsights.AppleMDMPushCertificate = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) => 
+    let
+        result = Request.GetData("dataSharingConsent", schemaOnly, tenants, "beta", false, "/beta/deviceManagement/appleMDMPushCertificate", query, metadata)
+    in 
+        result;
+
 SecMgmtInsights.DetectedApps = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let 
         result = Request.GetData("detectedApp", schemaOnly, tenants, "beta", true, "/v1.0/deviceManagement/managedDevices?$select=id", query, metadata, "tenantId = text, deviceId = text", (input as table) => 
@@ -292,6 +304,12 @@ SecMgmtInsights.Intents = (tenants as list, schemaOnly as logical, optional quer
     in
         result;
 
+SecMgmtInsights.ManagedDeviceOverview = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let 
+        result = Request.GetData("managedDeviceOverview", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/managedDeviceOverview", query, metadata)
+    in
+        result;
+
 SecMgmtInsights.ManagedDevices = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let 
         result = Request.GetData("managedDevice", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/managedDevices", query, metadata)
@@ -325,6 +343,12 @@ SecMgmtInsights.MobileAppUserStatuses = (tenants as list, schemaOnly as logical,
 SecMgmtInsights.MobileApps = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let 
         result = Request.GetData("mobileApp", schemaOnly, tenants, "beta", true, "/beta/deviceAppManagement/mobileApps?$select=id,displayName,lastModifiedDateTime,roleScopeTagIds", query, metadata)
+    in 
+        result;
+
+SecMgmtInsights.RemoteActionAudits = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let 
+        result = Request.GetData("remoteActionAudit", schemaOnly, tenants, "beta", true, "/beta/deviceAppManagement/remoteActionAudits", query, metadata)
     in 
         result;
 
@@ -420,6 +444,8 @@ SecMgmtInsights.WindowsProtectionState = (tenants as list, schemaOnly as logical
 EntityTable = #table({"Entity", "Action"}, {
     { "ActivitySubscriptions", SecMgmtInsights.ActivitySubscriptions },
     { "Alerts", SecMgmtInsights.Alerts },
+    { "AndroidManagedStoreAccountEnterpriseSettings", SecMgmtInsights.AndroidManagedStoreAccountEnterpriseSettings },
+    { "AppleMDMPushCertificate", SecMgmtInsights.AppleMDMPushCertificate },
     { "AzureActiveDirectoryEvents", SecMgmtInsights.AzureActiveDirectoryEvents },
     { "ConditionalAccessPolicies", SecMgmtInsights.ConditionalAccessPolicies },
     { "Contracts", SecMgmtInsights.Contracts },
@@ -444,6 +470,7 @@ EntityTable = #table({"Entity", "Action"}, {
     { "Intents", SecMgmtInsights.Intents },
     { "LicenseDetails", SecMgmtInsights.LicenseDetails },
     { "MailboxUsageDetail", SecMgmtInsights.MailboxUsageDetail }, 
+    { "ManagedDeviceOverview", SecMgmtInsights.ManagedDeviceOverview },
     { "ManagedDevices", SecMgmtInsights.ManagedDevices },
     { "MobileAppDeviceStatuses", SecMgmtInsights.MobileAppDeviceStatuses },
     { "MobileAppUserStatuses", SecMgmtInsights.MobileAppUserStatuses },
@@ -453,6 +480,7 @@ EntityTable = #table({"Entity", "Action"}, {
     { "Office365ServicesUserCounts", SecMgmtInsights.Office365ServicesUserCounts },
     { "OneDriveUsageAccountDetail", SecMgmtInsights.OneDriveUsageAccountDetail },
     { "QuarantineReleaseMessage", SecMgmtInsights.QuarantineReleaseMessage },
+    { "RemoteActionAudits", SecMgmtInsights.RemoteActionAudits },
     { "RiskDetections", SecMgmtInsights.RiskDetections },
     { "SafeAttachmentEvents", SecMgmtInsights.SafeAttachmentEvents }, 
     { "SafeLinksEvents", SecMgmtInsights.SafeLinksEvents },
