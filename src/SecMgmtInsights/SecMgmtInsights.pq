@@ -367,6 +367,18 @@ SecMgmtInsights.SubscriptionState = (tenants as list, schemaOnly as logical, opt
     in
         result;
 
+SecMgmtInsights.UserExperienceAnalyticsDevicePerformance = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let 
+        result = Request.GetData("userExperienceAnalyticsDevicePerformance", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/userExperienceAnalyticsDevicePerformance", query, metadata)
+    in
+        result;
+
+SecMgmtInsights.UserExperienceAnalyticsDeviceStartupProcessPerformance = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+    let 
+        result = Request.GetData("userExperienceAnalyticsDeviceStartupProcessPerformance", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/userExperienceAnalyticsDeviceStartupProcessPerformance", query, metadata)
+    in
+        result;
+
 SecMgmtInsights.WindowsAutopilotDeviceIdentities = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
     let
         result = Request.GetData("windowsAutopilotDeviceIdentity", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/windowsAutopilotDeviceIdentities", query, metadata)
@@ -460,6 +472,8 @@ EntityTable = #table({"Entity", "Action"}, {
     { "SubscribedSkus", SecMgmtInsights.SubscribedSkus },
     { "SubscriptionState", SecMgmtInsights.SubscriptionState },
     { "TeamsUserActivityUserDetail", SecMgmtInsights.TeamsUserActivityUserDetail },
+    { "UserExperienceAnalyticsDevicePerformance", SecMgmtInsights.UserExperienceAnalyticsDevicePerformance },
+    { "UserExperienceAnalyticsDeviceStartupProcessPerformance", SecMgmtInsights.UserExperienceAnalyticsDeviceStartupProcessPerformance },
     { "Users", SecMgmtInsights.Users },
     { "WindowsAutopilotDeviceIdentities", SecMgmtInsights.WindowsAutopilotDeviceIdentities }, 
     { "WindowsAutopilotProfiles", SecMgmtInsights.WindowsAutopilotProfiles }, 
