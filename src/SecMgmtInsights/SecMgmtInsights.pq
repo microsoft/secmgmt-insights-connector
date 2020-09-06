@@ -8,7 +8,7 @@ graph_endpoint = "https://graph.microsoft.com";
 logout_uri = "https://login.microsoftonline.com/logout.srf";
 redirect_uri = "https://oauth.powerbi.com/views/oauthredirect.html";
 token_uri = "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
-version = "2.0-preview-3";
+version = "2.0";
 
 // Data Source Kind description
 
@@ -868,7 +868,7 @@ SecMgmtInsights.View = (entity as text, metadata as table, tenants as list) as t
                     encodedQueryString = Uri.BuildQueryString(qsWithOrderBy),
                     finalUrl = urlWithRowCount & "?" & encodedQueryString
                 in
-                    urlWithRowCount
+                    finalUrl
         ]))
     in
         View([Entity = entity]);
