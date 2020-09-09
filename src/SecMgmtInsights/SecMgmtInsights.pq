@@ -128,31 +128,31 @@ Token.GetAccessToken = (optional tenantId as text, optional scope as text) =>
 
 // Azure Active Directory
 
-SecMgmtInsights.ConditionalAccessPolicies = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.ConditionalAccessPolicies = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
-        result = Request.GetData("conditionalAccessPolicy", schemaOnly, tenants, "beta", true, "/beta/identity/conditionalAccess/policies", query, metadata)
+        result = Request.GetData("conditionalAccessPolicy", schemaOnly, tenants, "beta", true, "/beta/identity/conditionalAccess/policies", query, schema, metadata)
     in 
         result;
 
-SecMgmtInsights.Contracts = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.Contracts = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
-        result = Request.GetData("contract", schemaOnly, {}, "v1.0", true, "/v1.0/contracts", query, metadata)
+        result = Request.GetData("contract", schemaOnly, {}, "v1.0", true, "/v1.0/contracts", query, schema, metadata)
     in
         result;
 
-SecMgmtInsights.CredentialUserRegistrationDetails = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.CredentialUserRegistrationDetails = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("credentialUserRegistrationDetails", schemaOnly, tenants, "beta", true, "/beta/reports/credentialUserRegistrationDetails", query, metadata)
+        result = Request.GetData("credentialUserRegistrationDetails", schemaOnly, tenants, "beta", true, "/beta/reports/credentialUserRegistrationDetails", query, schema, metadata)
     in
         result;
 
-SecMgmtInsights.Devices = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.Devices = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("device", schemaOnly, tenants, "v1.0", true, "/v1.0/devices", query, metadata)
+        result = Request.GetData("device", schemaOnly, tenants, "v1.0", true, "/v1.0/devices", query, schema, metadata)
     in
         result;
 
-SecMgmtInsights.LicenseDetails = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.LicenseDetails = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
         result = Request.GetData("licenseDetails", schemaOnly, tenants, "v1.0", true, "/v1.0/users?$select=id", query, metadata, "tenantId = text, userId = text", (input as table) => 
             let 
@@ -164,45 +164,46 @@ SecMgmtInsights.LicenseDetails = (tenants as list, schemaOnly as logical, option
     in
         result;
 
-SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
-        result = Request.GetData("identitySecurityDefaultsEnforcementPolicy", schemaOnly, tenants, "v1.0", false, "/v1.0/policies/identitySecurityDefaultsEnforcementPolicy", query, metadata)
+        result = Request.GetData("identitySecurityDefaultsEnforcementPolicy", schemaOnly, tenants, "v1.0", false, "/v1.0/policies/identitySecurityDefaultsEnforcementPolicy", query, schema, metadata)
     in 
         result;
 
-SecMgmtInsights.SignIns = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.SignIns = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
-        result = Request.GetData("signIn", schemaOnly, tenants, "beta", true, "/beta/auditLogs/signIns", query, metadata)
+        result = Request.GetData("signIn", schemaOnly, tenants, "beta", true, "/beta/auditLogs/signIns", query, schema, metadata)
     in 
         result;
 
- SecMgmtInsights.SubscribedSkus = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+ SecMgmtInsights.SubscribedSkus = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
-        result = Request.GetData("subscribedSku", schemaOnly, tenants, "v1.0", true, "/v1.0/subscribedSkus", query, metadata)
+        removedTopParameter = if (query <> null and Text.Contains(query, "top")) then null else query,
+        result = Request.GetData("subscribedSku", schemaOnly, tenants, "v1.0", true, "/v1.0/subscribedSkus", removedTopParameter, metadata)
     in
         result;
 
-SecMgmtInsights.Users = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) => 
+SecMgmtInsights.Users = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) => 
     let
-        result = Request.GetData("user", schemaOnly, tenants, "v1.0", true, "/v1.0/users", query, metadata)
+        result = Request.GetData("user", schemaOnly, tenants, "beta", true, "/beta/users", query, schema, metadata)
     in 
         result;
 
 // Device Management
 
-SecMgmtInsights.AndroidManagedStoreAccountEnterpriseSettings = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) => 
+SecMgmtInsights.AndroidManagedStoreAccountEnterpriseSettings = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) => 
     let
-        result = Request.GetData("androidManagedStoreAccountEnterpriseSettings", schemaOnly, tenants, "beta", false, "/beta/deviceManagement/androidManagedStoreAccountEnterpriseSettings", query, metadata)
+        result = Request.GetData("androidManagedStoreAccountEnterpriseSettings", schemaOnly, tenants, "beta", false, "/beta/deviceManagement/androidManagedStoreAccountEnterpriseSettings", query, schema, metadata)
     in 
         result;
 
-SecMgmtInsights.AppleMDMPushCertificate = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) => 
+SecMgmtInsights.AppleMDMPushCertificate = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) => 
     let
-        result = Request.GetData("dataSharingConsent", schemaOnly, tenants, "beta", false, "/beta/deviceManagement/appleMDMPushCertificate", query, metadata)
+        result = Request.GetData("dataSharingConsent", schemaOnly, tenants, "beta", false, "/beta/deviceManagement/appleMDMPushCertificate", query, schema, metadata)
     in 
         result;
 
-SecMgmtInsights.DetectedApps = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.DetectedApps = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
         result = Request.GetData("detectedApp", schemaOnly, tenants, "beta", true, "/v1.0/deviceManagement/managedDevices?$select=id", query, metadata, "tenantId = text, deviceId = text", (input as table) => 
             let 
@@ -214,7 +215,7 @@ SecMgmtInsights.DetectedApps = (tenants as list, schemaOnly as logical, optional
     in
         result;
 
-SecMgmtInsights.DetectedMalwareState = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.DetectedMalwareState = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
         result = Request.GetData("windowsDeviceMalwareState", schemaOnly, tenants, "beta", true, "/v1.0/deviceManagement/managedDevices?$select=id", query, metadata, "tenantId = text, deviceId = text", (input as table) => 
             let 
@@ -226,13 +227,13 @@ SecMgmtInsights.DetectedMalwareState = (tenants as list, schemaOnly as logical, 
     in 
         result;
 
-SecMgmtInsights.DeviceCompliancePolicies = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.DeviceCompliancePolicies = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("deviceCompliancePolicy", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/deviceCompliancePolicies?$select=id,displayName,createdDateTime,description,lastModifiedDateTime,roleScopeTagIds,version", query, metadata)
+        result = Request.GetData("deviceCompliancePolicy", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/deviceCompliancePolicies?$select=id,displayName,createdDateTime,description,lastModifiedDateTime,roleScopeTagIds,version", query, schema, metadata)
     in
         result;
 
-SecMgmtInsights.DeviceCompliancePolicySettingStates = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.DeviceCompliancePolicySettingStates = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         result = Request.GetData("deviceCompliancePolicySettingState", schemaOnly, tenants, "beta", true, "/v1.0/deviceManagement/managedDevices?$select=id", query, metadata, "tenantId = text, deviceId = text, policyId = text", (input as table) => 
             let
@@ -247,7 +248,7 @@ SecMgmtInsights.DeviceCompliancePolicySettingStates = (tenants as list, schemaOn
     in 
         result;
 
-SecMgmtInsights.DeviceCompliancePolicyStates = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.DeviceCompliancePolicyStates = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let        
         result = Request.GetData("deviceCompliancePolicyState", schemaOnly, tenants, "v1.0", true, "/v1.0/deviceManagement/managedDevices?$select=id", query, metadata, "tenantId = text, deviceId = text", (input as table) => 
             let 
@@ -259,13 +260,13 @@ SecMgmtInsights.DeviceCompliancePolicyStates = (tenants as list, schemaOnly as l
     in 
         result;
 
-SecMgmtInsights.DeviceConfigurationProfiles = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.DeviceConfigurationProfiles = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("deviceConfiguration", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/deviceConfigurations?$select=id,displayName,createdDateTime,description,lastModifiedDateTime,roleScopeTagIds,supportsScopeTags,deviceManagementApplicabilityRuleOsEdition,deviceManagementApplicabilityRuleOsVersion,deviceManagementApplicabilityRuleDeviceMode,version", query, metadata)
+        result = Request.GetData("deviceConfiguration", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/deviceConfigurations?$select=id,displayName,createdDateTime,description,lastModifiedDateTime,roleScopeTagIds,supportsScopeTags,deviceManagementApplicabilityRuleOsEdition,deviceManagementApplicabilityRuleOsVersion,deviceManagementApplicabilityRuleDeviceMode,version", query, schema, metadata)
     in
         result;
 
-SecMgmtInsights.DeviceConfigurationProfileSettingStates = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.DeviceConfigurationProfileSettingStates = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         result = Request.GetData("deviceConfigurationSettingState", schemaOnly, tenants, "beta", true, "/v1.0/deviceManagement/managedDevices?$select=id", query, metadata, "tenantId = text, deviceId = text, policyId = text", (input as table) => 
             let
@@ -280,7 +281,7 @@ SecMgmtInsights.DeviceConfigurationProfileSettingStates = (tenants as list, sche
     in 
         result;
 
-SecMgmtInsights.DeviceConfigurationProfileStates = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.DeviceConfigurationProfileStates = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let        
         result = Request.GetData("deviceConfigurationState", schemaOnly, tenants, "v1.0", true, "/v1.0/deviceManagement/managedDevices?$select=id", query, metadata, "tenantId = text, deviceId = text", (input as table) => 
             let 
@@ -292,31 +293,31 @@ SecMgmtInsights.DeviceConfigurationProfileStates = (tenants as list, schemaOnly 
     in 
         result;
 
-SecMgmtInsights.DeviceManagement = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.DeviceManagement = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("deviceManagement", schemaOnly, tenants, "beta", false, "/beta/deviceManagement", query, metadata)
+        result = Request.GetData("deviceManagement", schemaOnly, tenants, "beta", false, "/beta/deviceManagement", query, schema, metadata)
     in
         result;
 
-SecMgmtInsights.Intents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.Intents = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("deviceManagementIntent", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/intents", query, metadata)
+        result = Request.GetData("deviceManagementIntent", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/intents", query, schema, metadata)
     in
         result;
 
-SecMgmtInsights.ManagedDeviceOverview = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.ManagedDeviceOverview = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("managedDeviceOverview", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/managedDeviceOverview", query, metadata)
+        result = Request.GetData("managedDeviceOverview", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/managedDeviceOverview", query, schema, metadata)
     in
         result;
 
-SecMgmtInsights.ManagedDevices = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.ManagedDevices = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("managedDevice", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/managedDevices", query, metadata)
+        result = Request.GetData("managedDevice", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/managedDevices", query, schema, metadata)
     in
         result;
 
-SecMgmtInsights.MobileAppDeviceStatuses = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.MobileAppDeviceStatuses = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         result = Request.GetData("mobileAppInstallStatus", schemaOnly, tenants, "beta", true, "/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true", query, metadata, "tenantId = text, mobileAppId = text", (input as table) => 
             let 
@@ -328,7 +329,7 @@ SecMgmtInsights.MobileAppDeviceStatuses = (tenants as list, schemaOnly as logica
     in 
         result;
 
-SecMgmtInsights.MobileAppUserStatuses = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.MobileAppUserStatuses = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         result = Request.GetData("userAppInstallStatus", schemaOnly, tenants, "beta", true, "/beta/deviceAppManagement/mobileApps?$select=id&filter=isAssigned+eq+true", query, metadata, "tenantId = text, mobileAppId = text", (input as table) => 
             let 
@@ -340,19 +341,19 @@ SecMgmtInsights.MobileAppUserStatuses = (tenants as list, schemaOnly as logical,
     in 
         result;
 
-SecMgmtInsights.MobileApps = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.MobileApps = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("mobileApp", schemaOnly, tenants, "beta", true, "/beta/deviceAppManagement/mobileApps?$select=id,displayName,lastModifiedDateTime,roleScopeTagIds", query, metadata)
+        result = Request.GetData("mobileApp", schemaOnly, tenants, "beta", true, "/beta/deviceAppManagement/mobileApps?$select=id,displayName,lastModifiedDateTime,roleScopeTagIds", query, schema, metadata)
     in 
         result;
 
-SecMgmtInsights.RemoteActionAudits = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.RemoteActionAudits = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("remoteActionAudit", schemaOnly, tenants, "beta", true, "/beta/deviceAppManagement/remoteActionAudits", query, metadata)
+        result = Request.GetData("remoteActionAudit", schemaOnly, tenants, "beta", true, "/beta/deviceAppManagement/remoteActionAudits", query, schema, metadata)
     in 
         result;
 
-SecMgmtInsights.SecurityBaselineSettingStates = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.SecurityBaselineSettingStates = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         result = Request.GetData("deviceConfigurationSettingState", schemaOnly, tenants, "beta", true, "/v1.0/deviceManagement/managedDevices?$select=id", query, metadata, "tenantId = text, deviceId = text, templateId = text", (input as table) => 
             let
@@ -367,7 +368,7 @@ SecMgmtInsights.SecurityBaselineSettingStates = (tenants as list, schemaOnly as 
     in 
         result;
 
-SecMgmtInsights.SecurityBaselineStates = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.SecurityBaselineStates = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let     
         result = Request.GetData("securityBaselineState", schemaOnly, tenants, "beta", true, "/v1.0/deviceManagement/managedDevices?$select=id", query, metadata, "tenantId = text, deviceId = text", (input as table) => 
             let 
@@ -379,55 +380,55 @@ SecMgmtInsights.SecurityBaselineStates = (tenants as list, schemaOnly as logical
     in 
         result; 
 
-SecMgmtInsights.SoftwareUpdateStatusSummary = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.SoftwareUpdateStatusSummary = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
-        result = Request.GetData("softwareUpdateStatusSummary", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/softwareUpdateStatusSummary", query, metadata)
+        result = Request.GetData("softwareUpdateStatusSummary", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/softwareUpdateStatusSummary", query, schema, metadata)
     in 
         result;
 
-SecMgmtInsights.SubscriptionState = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.SubscriptionState = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("deviceManagementSubscriptionState", schemaOnly, tenants, "beta", false, "/beta/deviceManagement/subscriptionState", query, metadata)
+        result = Request.GetData("deviceManagementSubscriptionState", schemaOnly, tenants, "beta", false, "/beta/deviceManagement/subscriptionState", query, schema, metadata)
     in
         result;
 
-SecMgmtInsights.UserExperienceAnalyticsDevicePerformance = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.UserExperienceAnalyticsDevicePerformance = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("userExperienceAnalyticsDevicePerformance", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/userExperienceAnalyticsDevicePerformance", query, metadata)
+        result = Request.GetData("userExperienceAnalyticsDevicePerformance", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/userExperienceAnalyticsDevicePerformance", query, schema, metadata)
     in
         result;
 
-SecMgmtInsights.UserExperienceAnalyticsDeviceStartupProcessPerformance = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.UserExperienceAnalyticsDeviceStartupProcessPerformance = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("userExperienceAnalyticsDeviceStartupProcessPerformance", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/userExperienceAnalyticsDeviceStartupProcessPerformance", query, metadata)
+        result = Request.GetData("userExperienceAnalyticsDeviceStartupProcessPerformance", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/userExperienceAnalyticsDeviceStartupProcessPerformance", query, schema, metadata)
     in
         result;
 
-SecMgmtInsights.WindowsAutopilotDeviceIdentities = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.WindowsAutopilotDeviceIdentities = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
-        result = Request.GetData("windowsAutopilotDeviceIdentity", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/windowsAutopilotDeviceIdentities", query, metadata)
+        result = Request.GetData("windowsAutopilotDeviceIdentity", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/windowsAutopilotDeviceIdentities", query, schema, metadata)
     in 
         result;
 
-SecMgmtInsights.WindowsAutopilotProfiles = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.WindowsAutopilotProfiles = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("windowsAutopilotDeploymentProfile", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/windowsAutopilotDeploymentProfiles", query, metadata)
+        result = Request.GetData("windowsAutopilotDeploymentProfile", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/windowsAutopilotDeploymentProfiles", query, schema, metadata)
     in 
         result;
 
-SecMgmtInsights.WindowsAutopilotSettings = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.WindowsAutopilotSettings = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("windowsAutopilotSettings", schemaOnly, tenants, "beta", false, "/beta/deviceManagement/windowsAutopilotSettings", query, metadata)
+        result = Request.GetData("windowsAutopilotSettings", schemaOnly, tenants, "beta", false, "/beta/deviceManagement/windowsAutopilotSettings", query, schema, metadata)
     in 
         result;
 
-SecMgmtInsights.WindowsMalwareInformation = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.WindowsMalwareInformation = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("windowsMalwareInformation", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/windowsMalwareInformation", query, metadata)
+        result = Request.GetData("windowsMalwareInformation", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/windowsMalwareInformation", query, schema, metadata)
     in
         result;
 
-SecMgmtInsights.WindowsProtectionState = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.WindowsProtectionState = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
         result = Request.GetData("windowsProtectionState", schemaOnly, tenants, "beta", true, "/v1.0/deviceManagement/managedDevices?$select=id", query, metadata, "tenantId = text, deviceId = text", (input as table) => 
             let 
@@ -545,7 +546,7 @@ Table.ToNavigationTable = Extension.LoadFunction("Table.ToNavigationTable.pqm");
 
 // GitHub
 
-SecMgmtInsights.Controls = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.Controls = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         output = if(schemaOnly) then type table[tenantId = text, expectedValue = text, id = text, info = text, resource = text, #"type" = text] else 
             let 
@@ -567,7 +568,7 @@ SecMgmtInsights.Controls = (tenants as list, schemaOnly as logical, optional que
     in 
         output;
 
-SecMgmtInsights.DeviceActions = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.DeviceActions = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         GetActions = (input as table, expectedValue as text, id as text, resource as text, tenantId as text) => 
             let
@@ -616,7 +617,7 @@ SecMgmtInsights.DeviceActions = (tenants as list, schemaOnly as logical, optiona
 
 // Helper
 
-Request.GetData = (resource as text, schemaOnly as logical, tenants as list, version as text, isPaged as logical, relativeUrl as text, optional query, optional metadata, optional additionalSchema as text, optional func as function) =>
+Request.GetData = (resource as text, schemaOnly as logical, tenants as list, version as text, isPaged as logical, relativeUrl as text, optional query, optional schema as type, optional metadata, optional additionalSchema as text, optional func as function) =>
     let
         _additionalSchema = Diagnostics.LogValue("Request.Get additionalSchema", additionalSchema),
         _relativeUrl = Diagnostics.LogValue("Request.GetData relativeUrl", relativeUrl),
@@ -628,7 +629,7 @@ Request.GetData = (resource as text, schemaOnly as logical, tenants as list, ver
             else 
                 let
                     requests = Graph.BuildRequests(tenants, relativeUrl, query),
-                    data = Rest.Feed(requests, isPaged),
+                    data = Rest.Feed(requests, isPaged, schema),
                     output = if(func <> null) then func(data) else data
                 in 
                     output
@@ -637,32 +638,31 @@ Request.GetData = (resource as text, schemaOnly as logical, tenants as list, ver
 
 // Identity Protection 
 
-SecMgmtInsights.RiskDetections = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.RiskDetections = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("riskDetection", schemaOnly, tenants, "beta", true, "/beta/identityProtection/riskDetections", query, metadata)
+        result = Request.GetData("riskDetection", schemaOnly, tenants, "beta", true, "/beta/identityProtection/riskDetections", query, schema, metadata)
     in 
         result;
 
 // Intelligent Security Graph
 
-SecMgmtInsights.Alerts = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.Alerts = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("alert", schemaOnly, tenants, "v1.0", true, "/v1.0/security/alerts", query, metadata)
+        result = Request.GetData("alert", schemaOnly, tenants, "v1.0", true, "/v1.0/security/alerts", query, schema, metadata)
     in 
         result;
 
-SecMgmtInsights.SecureScore = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.SecureScore = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("secureScore", schemaOnly, tenants, "v1.0", true, "/v1.0/security/secureScores", query, metadata)
+        result = Request.GetData("secureScore", schemaOnly, tenants, "v1.0", true, "/v1.0/security/secureScores", query, schema, metadata)
     in 
         result;
 
-SecMgmtInsights.SecureScoreControlProfiles = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.SecureScoreControlProfiles = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("secureScoreControlProfile", schemaOnly, tenants, "v1.0", true, "/v1.0/security/secureScoreControlProfiles", query, metadata)
+        result = Request.GetData("secureScoreControlProfile", schemaOnly, tenants, "v1.0", true, "/v1.0/security/secureScoreControlProfiles", query, schema, metadata)
     in
         result;
-
 
 // Navigation 
         
@@ -723,7 +723,8 @@ SecMgmtInsights.View = (entity as text, metadata as table, tenants as list) as t
                 let
                     finalSchema = CalculateSchema(state),
                     finalUrl = CalculateUrl(state),
-                    result = GetActionForEntity(entity)(tenants, false, finalUrl),
+                    // TODO - Need to change var finalUrl to query because the URL is calculated in another function downstream
+                    result = GetActionForEntity(entity)(tenants, false, finalUrl, finalSchema),
                     appliedType = Table.ChangeType(result, finalSchema)
                 in
                     appliedType,
@@ -817,7 +818,7 @@ SecMgmtInsights.View = (entity as text, metadata as table, tenants as list) as t
             // entity name that was passed into the function.
             CalculateSchema = (state) as type =>
                 if (state[Schema]? = null) then
-                    GetActionForEntity(entity)(tenants, true, null, metadata)
+                    GetActionForEntity(entity)(tenants, true, null, null, metadata)
                 else
                     state[Schema],
 
@@ -917,9 +918,9 @@ Rest.Feed = (requests as table, isPaged as logical, optional schema as type) =>
         GetData = (input as record) =>
             let
                 data = try if(isPaged) then 
-                        Rest.GetPages(input[secMgmtInsightsRequest], Token.GetAccessToken(input[tenantId], input[secMgmtInsightsScope]))
+                        Rest.GetPages(input[secMgmtInsightsRequest], Token.GetAccessToken(input[tenantId], input[secMgmtInsightsScope]), schema)
                     else
-                        Rest.GetContents(input[secMgmtInsightsRequest], Token.GetAccessToken(input[tenantId], input[secMgmtInsightsScope]), false),
+                        Rest.GetContents(input[secMgmtInsightsRequest], Token.GetAccessToken(input[tenantId], input[secMgmtInsightsScope]), false, schema),
 
                 response = if(data[HasError] or Table.IsEmpty(data[Value])) then 
                         let
@@ -970,11 +971,20 @@ Rest.GetContents = (url as text, token as text, isPaged as logical, optional sch
         body = Json.Document(buffered), 
         nextLink = Rest.GetNextLink(body),
 
-        data = if (isPaged) then 
+        data = if (isPaged and schema = null) then 
                 Diagnostics.LogFailure(
                     "Error converting response body. Are the records uniform?",
                     () => Table.FromRecords(body[value])
                 )
+            else if(isPaged and schema <> null) then 
+                let
+                    asTable = Table.FromList(body[value], Splitter.SplitByNothing(), {"Column1"}),
+                    fields = Record.FieldNames(Type.RecordFields(Type.TableRow(schema))),
+                    expanded = Table.ExpandRecordColumn(asTable, "Column1", fields),
+                    // TODO HACK
+                    test = Table.RemoveColumns(expanded, {"tenantId"}, MissingField.Ignore)
+                in
+                    test
             else
                 let
                     abstract = if(Type.Is(Value.Type(body), List.Type)) then body else {body}, 
@@ -991,14 +1001,14 @@ Rest.GetContents = (url as text, token as text, isPaged as logical, optional sch
 
 Rest.GetNextLink = (response) as nullable text => Record.FieldOrDefault(response, "@odata.nextLink");
 
- Rest.GetPages = (url as text, token as text) => Table.GenerateByPage((previous) => 
+ Rest.GetPages = (url as text, token as text, optional schema as type) => Table.GenerateByPage((previous) => 
     let
         // If previous is null, then this is our first page of data
         nextLink = if (previous = null) then url else Value.Metadata(previous)[nextLink]?,
         // If we have a next link, use it, otherwise use the original URL
         urlToUse = if (nextLink <> null) then nextLink else url,
         // If the next link was set to null by the previous call, we know we have no more data
-        page = if (nextLink <> null) then Rest.GetContents(urlToUse, token, true) else null
+        page = if (nextLink <> null) then Rest.GetContents(urlToUse, token, true, schema) else null
     in
         page);
 
@@ -1048,7 +1058,7 @@ ServiceCommunications.BuildRequests = (tenants as list, relativeUrl as text, opt
     in
         data;
 
-SecMgmtInsights.ActivitySubscriptions = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.ActivitySubscriptions = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         output = if(schemaOnly) then
                 type table [tenantId = text, contentType = text, status = text, webhook = any]  
@@ -1061,7 +1071,7 @@ SecMgmtInsights.ActivitySubscriptions = (tenants as list, schemaOnly as logical,
     in
         output;
 
-SecMgmtInsights.AzureActiveDirectoryEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.AzureActiveDirectoryEvents = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         output = if(schemaOnly) then
                 type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, ResultStatus = text, UserKey = text, Version = text, Workload = text, ClientIP = text, ObjectId = text, UserId = text, AzureActiveDirectoryEventType = text, ExtendedProperties = any, ModifiedProperties = any, Actor = any, ActorContextId = text, ActorIpAddress = text, InterSystemsId = text, IntraSystemId = text, SupportTicketId = text, Target = any, TargetContextId = text, ApplicationId = text]  
@@ -1070,7 +1080,7 @@ SecMgmtInsights.AzureActiveDirectoryEvents = (tenants as list, schemaOnly as log
     in
         output;
 
-SecMgmtInsights.DlpEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.DlpEvents = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         output = if(schemaOnly) then
                 type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, UserKey = text, UserType = text, Version = text, Workload = text, ObjectId = text, UserId = text, IncidentId = text, PolicyDetails = any, SensitiveInfoDetectionIsIncluded = logical, ExchangeMetaData = any, SharePointMetaData = any, ExceptionInfo = text]  
@@ -1079,7 +1089,7 @@ SecMgmtInsights.DlpEvents = (tenants as list, schemaOnly as logical, optional qu
     in
         output;
 
-SecMgmtInsights.ExchangeEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.ExchangeEvents = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         output = if(schemaOnly) then
                 type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, ResultStatus = logical, UserKey = text, UserType = text, Version = text, Workload = text, ClientIP = any, ObjectId = text, UserId = text, AppId = text, ClientAppId = text, ExternalAccess = logical, OrganizationName = text, OriginatingServer = text, Parameters = any, SessionId = text]  
@@ -1092,7 +1102,7 @@ SecMgmtInsights.ExchangeEvents = (tenants as list, schemaOnly as logical, option
     in
         output;
 
-SecMgmtInsights.HygieneTenantEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.HygieneTenantEvents = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         output = if(schemaOnly) then
                 type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, ResultStatus = text, UserKey = text, UserType = text, Version = text, Workload = text, UserId = text, Audit = text, Event = text, EventId = text, EventValue = text, Reason = text]  
@@ -1105,7 +1115,7 @@ SecMgmtInsights.HygieneTenantEvents = (tenants as list, schemaOnly as logical, o
     in
         output;
 
-SecMgmtInsights.GeneralEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.GeneralEvents = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         output = if(schemaOnly) then
                 type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, ResultStatus = text,Version = text, Workload = text, UserId = text]  
@@ -1114,7 +1124,7 @@ SecMgmtInsights.GeneralEvents = (tenants as list, schemaOnly as logical, optiona
     in
         output;
 
-SecMgmtInsights.QuarantineReleaseMessage = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.QuarantineReleaseMessage = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         output = if(schemaOnly) then
                 type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, ResultStatus = text, UserKey = text, UserType = text, Version = number, Worload = text, UserId = text, NetworkMessageId = text, ReleaseTo = text, RequestSource = text, RequestType = text]  
@@ -1127,7 +1137,7 @@ SecMgmtInsights.QuarantineReleaseMessage = (tenants as list, schemaOnly as logic
     in
         output;
 
-SecMgmtInsights.SafeAttachmentEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.SafeAttachmentEvents = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         output = if(schemaOnly) then
                 type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, UserKey = text, UserType = text, Version = text, Workload = text, ObjectId = text, UserId = text, AttachmentData = any, DetectionMethod = text, DetectionType = text, EventDeepLink = text, InternetMessageId = text, MessageTime = datetime, NetworkMessageId = text, P1Sender = text, P2Sender = text, Policy = text, PolicyAction = text, Recipients = any, SenderIp = text, Subject = text, Verdict = text]  
@@ -1140,7 +1150,7 @@ SecMgmtInsights.SafeAttachmentEvents = (tenants as list, schemaOnly as logical, 
     in
         output;
 
-SecMgmtInsights.SafeLinksEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.SafeLinksEvents = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         output = if(schemaOnly) then
                 type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, UserKey = text, UserType = text, Version = text, Workload = text, AppName = text, AppVersion = text, EventDeepLink = text, OS = text, SourceId = text, TimeOfClick = datetime, Url = text, UrlClickAction = text]
@@ -1153,7 +1163,7 @@ SecMgmtInsights.SafeLinksEvents = (tenants as list, schemaOnly as logical, optio
     in
         output;
 
-SecMgmtInsights.SecurityComplianceAlerts = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.SecurityComplianceAlerts = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
         output = if(schemaOnly) then
                 type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, ResultStatus = text, UserKey = text, UserType = text, Version = text, Workload = text, ObjectId = text, UserId = text, AlertId = text, AlertLinks = any, AlertType = text, Category = text, Comments = text, Data = any, Name = text, PolicyId = text, Severity = text, Source = text, Status = text] 
@@ -1166,7 +1176,7 @@ SecMgmtInsights.SecurityComplianceAlerts = (tenants as list, schemaOnly as logic
     in 
         output;
 
-SecMgmtInsights.SharePointEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.SharePointEvents = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         output = if(schemaOnly) then
                 type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, UserKey = text, UserType = text, Version = text, Workload = text, ClientIP = text, ObjectId = text, UserId = text, CorrelationId = text, EventSource = text, ItemType = text, ListId = text, ListItemUniqueId = text, Site = text, UserAgent = text, WebId = text, SourceFileExtension = text, SiteUrl = text, SourceFileName = text, SourceRelativeUrl = text]  
@@ -1175,7 +1185,7 @@ SecMgmtInsights.SharePointEvents = (tenants as list, schemaOnly as logical, opti
     in
         output;
 
-SecMgmtInsights.SubmissionEvents = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.SubmissionEvents = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         output = if(schemaOnly) then
                 type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, UserKey = text, UserType = text, Version = text, Workload = text, ObjectId = text, UserId = text, BCLValue = text, ExtendedProperties = any, FilteringDate = datetime, KesMailId = text, Language = text, MessageDate = datetime, P1Sender = text, P1SenderDomain = text, P2Sender = text, P2SenderDomain = text, Recipients = any, RescanResult = any, SenderIP = text, Subject = text, SubmissionId = text, SubmissionState = text, SubmissionType = text]
@@ -1190,7 +1200,7 @@ SecMgmtInsights.SubmissionEvents = (tenants as list, schemaOnly as logical, opti
 
 // Office 365 Service Communication
 
-SecMgmtInsights.ServiceCurrentStatus = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.ServiceCurrentStatus = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         output = if(schemaOnly) then
                 type table [tenantId = text, Id = text, Workload = text, StatusDate = datetime, WorkloadDisplayName = text, Status = text, IncidentIds = any, FeatureGroupStatusCollection = any]  
@@ -1203,7 +1213,7 @@ SecMgmtInsights.ServiceCurrentStatus = (tenants as list, schemaOnly as logical, 
     in
         output;
 
-SecMgmtInsights.ServiceHistoricalStatus = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.ServiceHistoricalStatus = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         output = if(schemaOnly) then
                 type table [tenantId = text, Id = text, Workload = text, StatusDate = datetime, WorkloadDisplayName = text, Status = text, IncidentIds = any, FeatureGroupStatusCollection = any]
@@ -1216,7 +1226,7 @@ SecMgmtInsights.ServiceHistoricalStatus = (tenants as list, schemaOnly as logica
     in
         output;
 
-SecMgmtInsights.ServiceMessages = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.ServiceMessages = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         output = if(schemaOnly) then
                 type table [tenantId = text, Id = text, Name = text, Title = text, StartTime = datetimezone, EndTime = datetimezone, Status = text, Messages = any, LastUpdatedTime = datetimezone, Workload = text, WorkloadDisplayName = text, Feature = text, FeatureDisplayName = text]
@@ -1231,50 +1241,50 @@ SecMgmtInsights.ServiceMessages = (tenants as list, schemaOnly as logical, optio
 
 // Reporting
 
-SecMgmtInsights.MailboxUsageDetail = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.MailboxUsageDetail = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("mailboxUsageDetail", schemaOnly, tenants, "beta", true, "/beta/reports/getMailboxUsageDetail(period='D30')?$format=application/json", query, metadata)
+        result = Request.GetData("mailboxUsageDetail", schemaOnly, tenants, "beta", true, "/beta/reports/getMailboxUsageDetail(period='D30')?$format=application/json", query, schema, metadata)
     in 
         result;
 
-SecMgmtInsights.Office365ActivationsUserDetail = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.Office365ActivationsUserDetail = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
-        result = Request.GetData("office365ActivationsUserDetail", schemaOnly, tenants, "beta", true, "/beta/reports/getOffice365ActivationsUserDetail?$format=application/json", query, metadata)
+        result = Request.GetData("office365ActivationsUserDetail", schemaOnly, tenants, "beta", true, "/beta/reports/getOffice365ActivationsUserDetail?$format=application/json", query, schema, metadata)
     in 
         result;
 
-SecMgmtInsights.Office365ActiveUserDetails = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.Office365ActiveUserDetails = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
-        result = Request.GetData("office365ActiveUserDetail", schemaOnly, tenants, "beta", true, "/beta/reports/getOffice365ActiveUserDetail(period='D30')?$format=application/json", query, metadata)
+        result = Request.GetData("office365ActiveUserDetail", schemaOnly, tenants, "beta", true, "/beta/reports/getOffice365ActiveUserDetail(period='D30')?$format=application/json", query, schema, metadata)
     in 
         result;
 
-SecMgmtInsights.Office365ServicesUserCounts = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.Office365ServicesUserCounts = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
-        result = Request.GetData("office365ServicesUserCounts", schemaOnly, tenants, "beta", true, "/beta/reports/getOffice365ServicesUserCounts(period='D30')?$format=application/json", query, metadata)
+        result = Request.GetData("office365ServicesUserCounts", schemaOnly, tenants, "beta", true, "/beta/reports/getOffice365ServicesUserCounts(period='D30')?$format=application/json", query, schema, metadata)
     in 
         result;
 
-SecMgmtInsights.OneDriveUsageAccountDetail = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.OneDriveUsageAccountDetail = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
-        result = Request.GetData("oneDriveUsageAccountDetail", schemaOnly, tenants, "beta", true, "/beta/reports/getOneDriveUsageAccountDetail(period='D30')?$format=application/json", query, metadata)
+        result = Request.GetData("oneDriveUsageAccountDetail", schemaOnly, tenants, "beta", true, "/beta/reports/getOneDriveUsageAccountDetail(period='D30')?$format=application/json", query, schema, metadata)
     in 
         result;
 
-SecMgmtInsights.SharePointSiteUsageDetail = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.SharePointSiteUsageDetail = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
-        result = Request.GetData("sharePointSiteUsageDetail", schemaOnly, tenants, "beta", true, "/beta/reports/getSharePointSiteUsageDetail(period='D30')?$format=application/json", query, metadata)
+        result = Request.GetData("sharePointSiteUsageDetail", schemaOnly, tenants, "beta", true, "/beta/reports/getSharePointSiteUsageDetail(period='D30')?$format=application/json", query, schema, metadata)
     in 
         result;
 
-SecMgmtInsights.TeamsUserActivityUserDetail = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.TeamsUserActivityUserDetail = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
-        result = Request.GetData("teamsUserActivityUserDetail", schemaOnly, tenants, "beta", true, "/beta/reports/getTeamsUserActivityUserDetail(period='D30')?$format=application/json", query, metadata)
+        result = Request.GetData("teamsUserActivityUserDetail", schemaOnly, tenants, "beta", true, "/beta/reports/getTeamsUserActivityUserDetail(period='D30')?$format=application/json", query, schema, metadata)
     in 
         result;
 
-SecMgmtInsights.YammerActivityUserDetail = (tenants as list, schemaOnly as logical, optional query as text, optional metadata as table) =>
+SecMgmtInsights.YammerActivityUserDetail = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
-        result = Request.GetData("yammerActivityUserDetail", schemaOnly, tenants, "beta", true, "/beta/reports/getYammerActivityUserDetail(period='D30')?$format=application/json", query, metadata)
+        result = Request.GetData("yammerActivityUserDetail", schemaOnly, tenants, "beta", true, "/beta/reports/getYammerActivityUserDetail(period='D30')?$format=application/json", query, schema, metadata)
     in 
         result;

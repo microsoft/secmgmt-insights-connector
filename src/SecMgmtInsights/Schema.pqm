@@ -97,7 +97,7 @@ let
 
             GetDataType = (value) as text =>
                 if (value = "Edm.Boolean") then "logical" else if (value = "Edm.DateTimeOffset") then "datetimezone"  
-                else if (value = "Edm.Int32") then "number" else if(value = "Edm.String") then "text" else "any",
+                else if (value = "Edm.Int32") then "number" else if (value = "Edm.Int64") then "number" else if(value = "Edm.String") then "text" else "any",
 
             output = if (isEnumType) then 
                 if(additionalTypes = null or additionalTypes = "") then Expression.Evaluate("type table [value = text]") else Expression.Evaluate("type table [" & additionalTypes & ", value = text]")
