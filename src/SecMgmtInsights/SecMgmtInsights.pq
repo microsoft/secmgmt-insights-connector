@@ -349,7 +349,7 @@ SecMgmtInsights.MobileApps = (tenants as list, schemaOnly as logical, optional q
 
 SecMgmtInsights.RemoteActionAudits = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("remoteActionAudit", schemaOnly, tenants, "beta", true, "/beta/deviceAppManagement/remoteActionAudits", query, schema, metadata)
+        result = Request.GetData("remoteActionAudit", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/remoteActionAudits", query, schema, metadata)
     in 
         result;
 
@@ -448,6 +448,7 @@ EntityTable = #table({"Entity", "Action"}, {
     { "AndroidManagedStoreAccountEnterpriseSettings", SecMgmtInsights.AndroidManagedStoreAccountEnterpriseSettings },
     { "AppleMDMPushCertificate", SecMgmtInsights.AppleMDMPushCertificate },
     { "AzureActiveDirectoryEvents", SecMgmtInsights.AzureActiveDirectoryEvents },
+    { "ComplianceCaseEvents", SecMgmtInsights.ComplianceCaseEvents },
     { "ConditionalAccessPolicies", SecMgmtInsights.ConditionalAccessPolicies },
     { "Contracts", SecMgmtInsights.Contracts },
     { "Controls", SecMgmtInsights.Controls },
@@ -1080,6 +1081,19 @@ SecMgmtInsights.AzureActiveDirectoryEvents = (tenants as list, schemaOnly as log
     in
         output;
 
+SecMgmtInsights.ComplianceCaseEvents = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
+    let
+        output = if(schemaOnly) then
+                type table [tenantId = text, CreationTime = datetimezone, Id = text, Operation = text, OrganizationId = text, RecordType = text, UserKey = text, UserType = text, Version = number, Workload = text, ObjectId = text, UserId = text, Case = text, ExchangeLocations = any, ExtendedProperties = any, ObjectType = text, Parameters = any, PublicFolderLocations = any, Query = any, SharepointLocations = any]  
+            else 
+                let 
+                    events = ManagementActivity.GetEvents(tenants, "audit.general"),
+                    filtered = Table.SelectRows(events, each try [Operation] = "CaseAdded" or [Operation] = "CaseViewed" otherwise null)
+                in
+                    filtered
+    in
+        output;
+
 SecMgmtInsights.DlpEvents = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
         output = if(schemaOnly) then
@@ -1192,7 +1206,7 @@ SecMgmtInsights.SubmissionEvents = (tenants as list, schemaOnly as logical, opti
             else 
                 let 
                     events = ManagementActivity.GetEvents(tenants, "audit.general"),
-                    filtered = Table.SelectRows(events, each try [Operation] = "AdminSubmission"  or [Operation] = "UserSubmission" otherwise null)
+                    filtered = Table.SelectRows(events, each try [Operation] = "AdminSubmission" or [Operation] = "UserSubmission" otherwise null)
                 in
                     filtered
     in
