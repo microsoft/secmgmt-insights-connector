@@ -8,7 +8,7 @@ graph_endpoint = "https://graph.microsoft.com";
 logout_uri = "https://login.microsoftonline.com/logout.srf";
 redirect_uri = "https://oauth.powerbi.com/views/oauthredirect.html";
 token_uri = "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
-version = "2.0";
+version = "2.1";
 
 // Data Source Kind description
 
@@ -1004,12 +1004,10 @@ Rest.GetNextLink = (response) as nullable text => Record.FieldOrDefault(response
 
  Rest.GetPages = (url as text, token as text, optional schema as type) => Table.GenerateByPage((previous) => 
     let
-        // If previous is null, then this is our first page of data
-        nextLink = if (previous = null) then url else Value.Metadata(previous)[nextLink]?,
-        // If we have a next link, use it, otherwise use the original URL
-        urlToUse = if (nextLink <> null) then nextLink else url,
-        // If the next link was set to null by the previous call, we know we have no more data
-        page = if (nextLink <> null) then Rest.GetContents(urlToUse, token, true, schema) else null
+        // if previous is null, then this is our first page of data
+        nextLink = if (previous = null) then url else Value.Metadata(previous)[NextLink]?,
+        // if NextLink was set to null by the previous call, we know we have no more data
+        page = if (nextLink <> null) then Rest.GetContents(nextLink, token, true, schema) else null
     in
         page);
 
