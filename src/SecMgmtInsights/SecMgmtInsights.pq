@@ -307,7 +307,8 @@ SecMgmtInsights.Intents = (tenants as list, schemaOnly as logical, optional quer
 
 SecMgmtInsights.ManagedDeviceOverview = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("managedDeviceOverview", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/managedDeviceOverview", query, schema, metadata)
+        removedTopParameter = if (query <> null and Text.Contains(query, "top")) then null else query,
+        result = Request.GetData("managedDeviceOverview", schemaOnly, tenants, "beta", false, "/beta/deviceManagement/managedDeviceOverview", removedTopParameter, schema, metadata)
     in
         result;
 
@@ -951,10 +952,7 @@ Rest.Feed = (requests as table, isPaged as logical, optional schema as type) =>
 
 Rest.GetContents = (url as text, token as text, isPaged as logical, optional schema as type) =>
     let 
-        _url = Diagnostics.LogValue("Rest.GetContents url", url),
-        _schema = Diagnostics.LogValue("Rest.GetContents schema", schema),
-
-        response = Web.Contents(_url,
+        response = Web.Contents(url,
             [
                 Headers = [
                     #"Accept" = "application/json;odata.metadata=minimal;odata.streaming=false;IEEE754Compatible=false",
@@ -1010,11 +1008,9 @@ Rest.GetNextLink = (response) as nullable text => Record.FieldOrDefault(response
 
 Rest.Scalar = (url as text) =>
     let
-        _url = Diagnostics.LogValue("Rest.Scalar url", url),
-
         token = Token.GetAccessToken(null, "https://graph.microsoft.com/.default"),
 
-        response = Web.Contents(_url,
+        response = Web.Contents(url,
             [
                 Headers = [
                     #"Accept" = "text/plain",
