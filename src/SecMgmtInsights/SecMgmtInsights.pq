@@ -620,11 +620,6 @@ SecMgmtInsights.DeviceActions = (tenants as list, schemaOnly as logical, optiona
 
 Request.GetData = (resource as text, schemaOnly as logical, tenants as list, version as text, isPaged as logical, relativeUrl as text, optional query, optional schema as type, optional metadata, optional additionalSchema as text, optional func as function) =>
     let
-        _additionalSchema = Diagnostics.LogValue("Request.Get additionalSchema", additionalSchema),
-        _relativeUrl = Diagnostics.LogValue("Request.GetData relativeUrl", relativeUrl),
-        _resource = Diagnostics.LogValue("Request.GetData resource", resource),
-        _version = Diagnostics.LogValue("Request.GetData version", version),
-    
         result = if(schemaOnly) then 
                 Schema.GetKnownType(metadata{[Version = version]}[Value], resource, if(additionalSchema <> null) then additionalSchema else "tenantId = text")
             else 
@@ -918,10 +913,12 @@ Rest.Feed = (requests as table, isPaged as logical, optional schema as type) =>
     let
         GetData = (input as record) =>
             let
-                data = try if(isPaged) then 
+                requestContainsTopQuery = Text.Contains(input[secMgmtInsightsRequest], "top="),
+
+                data = try if(isPaged and not requestContainsTopQuery) then 
                         Rest.GetPages(input[secMgmtInsightsRequest], Token.GetAccessToken(input[tenantId], input[secMgmtInsightsScope]), schema)
                     else
-                        Rest.GetContents(input[secMgmtInsightsRequest], Token.GetAccessToken(input[tenantId], input[secMgmtInsightsScope]), false, schema),
+                        Rest.GetContents(input[secMgmtInsightsRequest], Token.GetAccessToken(input[tenantId], input[secMgmtInsightsScope]), isPaged and requestContainsTopQuery, schema),
 
                 response = if(data[HasError] or Table.IsEmpty(data[Value])) then 
                         let
