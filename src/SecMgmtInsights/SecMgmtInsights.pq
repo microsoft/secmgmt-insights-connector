@@ -295,7 +295,8 @@ SecMgmtInsights.DeviceConfigurationProfileStates = (tenants as list, schemaOnly 
 
 SecMgmtInsights.DeviceManagement = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("deviceManagement", schemaOnly, tenants, "beta", false, "/beta/deviceManagement", query, schema, metadata)
+        removedTopParameter = if (query <> null and Text.Contains(query, "top")) then null else query,
+        result = Request.GetData("deviceManagement", schemaOnly, tenants, "beta", false, "/beta/deviceManagement", removedTopParameter, schema, metadata)
     in
         result;
 
@@ -307,7 +308,8 @@ SecMgmtInsights.Intents = (tenants as list, schemaOnly as logical, optional quer
 
 SecMgmtInsights.ManagedDeviceOverview = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("managedDeviceOverview", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/managedDeviceOverview", query, schema, metadata)
+        removedTopParameter = if (query <> null and Text.Contains(query, "top")) then null else query,
+        result = Request.GetData("managedDeviceOverview", schemaOnly, tenants, "beta", false, "/beta/deviceManagement/managedDeviceOverview", removedTopParameter, schema, metadata)
     in
         result;
 
@@ -574,11 +576,11 @@ SecMgmtInsights.DeviceActions = (tenants as list, schemaOnly as logical, optiona
         GetActions = (input as table, expectedValue as text, id as text, resource as text, tenantId as text) => 
             let
                 value = if(Table.HasColumns(input, "policyId")) then 
-                        Table.SelectColumns(input, {"tenantId", "deviceId", "policyId", "setting", "state", "currentValue"})
+                        Table.SelectColumns(input, {"tenantId", "deviceId", "policyId", "setting", "state", "currentValue", "errorCode", "errorDescription" })
                     else 
                           let
-                            appended = Table.AddColumn(input, "Column1", each [policyId = null, setting = null, state = null, currentValue = null]),
-                            expanded = Table.ExpandRecordColumn(appended, "Column1", {"policyId", "setting", "state", "currentValue"})
+                            appended = Table.AddColumn(input, "Column1", each [policyId = null, setting = null, state = null, currentValue = null, errorCode = null, errorDescription = null]),
+                            expanded = Table.ExpandRecordColumn(appended, "Column1", {"policyId", "setting", "state", "currentValue", "errorCode", "errorDescription"})
                         in 
                             expanded,
 
@@ -593,21 +595,21 @@ SecMgmtInsights.DeviceActions = (tenants as list, schemaOnly as logical, optiona
                 source,
 
         output = if(schemaOnly) then 
-                type table[tenantId = text, deviceId = text, #"type" = text, policyId = text, id = text, resource = text, expectedValue = text, currentValue = text, state = text, info = text, portal = text]
+                type table[tenantId = text, deviceId = text, #"type" = text, policyId = text, id = text, resource = text, expectedValue = text, currentValue = text, errorCode = number, errorDescription = text, state = text, info = text, portal = text]
             else 
                 let 
                     controls = SecMgmtInsights.Controls(tenants, false),
                     deviceComplianceControls =  Table.SelectRows(controls, each [resource] = "deviceCompliancePolicy"),
                     deviceConfigurationControls = Table.SelectRows(controls, each [resource] = "deviceConfigurationPolicy"),
 
-                    deviceCompliancePolicySettingStates = SecMgmtInsights.DeviceCompliancePolicySettingStates(tenants, false),
-                    deviceConfigurationProfileSettingStates = SecMgmtInsights.DeviceConfigurationProfileSettingStates(tenants, false),
+                    deviceCompliancePolicySettingStates = SecMgmtInsights.DeviceCompliancePolicySettingStates(tenants, false, "$select=setting,state,currentValue,errorCode,errorDescription"),
+                    deviceConfigurationProfileSettingStates = SecMgmtInsights.DeviceConfigurationProfileSettingStates(tenants, false, "$select=setting,state,currentValue,errorCode,errorDescription"),
 
                     deviceComplianceActions = Table.AddColumn(deviceComplianceControls, "action", each GetActions(deviceCompliancePolicySettingStates, [expectedValue], [id], [resource], [tenantId])),
                     deviceConfigurationActions = Table.AddColumn(deviceConfigurationControls, "action", each GetActions(deviceConfigurationProfileSettingStates, [expectedValue], [id], [resource], [tenantId])),
 
                     combined = Table.Combine({deviceComplianceActions, deviceConfigurationActions}),
-                    expanded = Table.ExpandTableColumn(combined, "action", {"deviceId", "policyId", "state", "currentValue"}),
+                    expanded = Table.ExpandTableColumn(combined, "action", {"deviceId", "policyId", "state", "currentValue", "errorCode", "errorDescription"}),
                     filtered = Table.SelectRows(expanded, each [deviceId] <> null and [policyId] <> null), 
                     
                     linkAdded = Table.AddColumn(filtered, "portal", each GetPortalLink([resource], [tenantId]))
@@ -680,7 +682,7 @@ SecMgmtInsights.NavigationTable = (optional tenants as list) as table =>
             else if(tenants <> null and List.IsEmpty(tenants)) then 
                 Graph.GetTenant()[tenantId]
             else 
-                Rest.GetPages(graph_endpoint & "/v1.0/contracts", Token.GetAccessToken())[customerId],
+                Rest.GetPages(graph_endpoint & "/v1.0/contracts?$select=customerId", Token.GetAccessToken())[customerId],
 
         metadata = #table({"Version", "Value"}, {
             { "beta", GetMetadata("beta") },
@@ -852,7 +854,7 @@ SecMgmtInsights.View = (entity as text, metadata as table, tenants as list) as t
                     // Check for explicitly selected columns
                     qsWithSelect =
                         if (state[SelectColumns]? <> null) then
-                            qsWithSkip & [ #"$select" = Text.Combine(state[SelectColumns], ",") ]
+                            qsWithSkip & [ #"$select" = Text.Combine(List.RemoveItems(state[SelectColumns], {"tenantId"}), ",") ]
                         else
                             qsWithSkip,
 
@@ -951,10 +953,7 @@ Rest.Feed = (requests as table, isPaged as logical, optional schema as type) =>
 
 Rest.GetContents = (url as text, token as text, isPaged as logical, optional schema as type) =>
     let 
-        _url = Diagnostics.LogValue("Rest.GetContents url", url),
-        _schema = Diagnostics.LogValue("Rest.GetContents schema", schema),
-
-        response = Web.Contents(_url,
+        response = Web.Contents(url,
             [
                 Headers = [
                     #"Accept" = "application/json;odata.metadata=minimal;odata.streaming=false;IEEE754Compatible=false",
@@ -1010,11 +1009,9 @@ Rest.GetNextLink = (response) as nullable text => Record.FieldOrDefault(response
 
 Rest.Scalar = (url as text) =>
     let
-        _url = Diagnostics.LogValue("Rest.Scalar url", url),
-
         token = Token.GetAccessToken(null, "https://graph.microsoft.com/.default"),
 
-        response = Web.Contents(_url,
+        response = Web.Contents(url,
             [
                 Headers = [
                     #"Accept" = "text/plain",
