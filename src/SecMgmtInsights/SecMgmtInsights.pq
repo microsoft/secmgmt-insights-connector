@@ -8,7 +8,7 @@ graph_endpoint = "https://graph.microsoft.com";
 logout_uri = "https://login.microsoftonline.com/logout.srf";
 redirect_uri = "https://oauth.powerbi.com/views/oauthredirect.html";
 token_uri = "https://login.microsoftonline.com/organizations/oauth2/v2.0/token";
-version = "2.1";
+version = "2.2-preview-1";
 
 // Data Source Kind description
 
@@ -679,7 +679,7 @@ SecMgmtInsights.NavigationTable = (optional tenants as list) as table =>
 
         listOfTenants = if(tenants <> null and not List.IsEmpty(tenants)) then 
                 tenants
-            else if(tenants <> null and List.IsEmpty(tenants)) then 
+            else if(tenants = null or List.IsEmpty(tenants)) then 
                 Graph.GetTenant()[tenantId]
             else 
                 Rest.GetPages(graph_endpoint & "/v1.0/contracts?$select=customerId", Token.GetAccessToken())[customerId],
