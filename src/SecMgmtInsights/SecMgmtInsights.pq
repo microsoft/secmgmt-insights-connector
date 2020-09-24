@@ -260,6 +260,24 @@ SecMgmtInsights.DeviceCompliancePolicyStates = (tenants as list, schemaOnly as l
     in 
         result;
 
+SecMgmtInsights.DeviceCompliancePolicySettingStateSummaries = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
+    let        
+        result = Request.GetData("deviceCompliancePolicySettingStateSummary", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/deviceCompliancePolicySettingStateSummaries", query, schema, metadata)
+    in
+        result;
+
+SecMgmtInsights.DeviceComplianceSettingStates = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
+    let        
+        result = Request.GetData("deviceComplianceSettingState", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/deviceCompliancePolicySettingStateSummaries?$select=id", query, null, metadata, "tenantId = text", (input as table) => 
+            let 
+                renamedColumns = Table.RenameColumns(input, {"id", "secMgmtSearchValue"}, MissingField.Ignore),
+                requests = Table.AddColumn(renamedColumns, "secMgmtInsightsRequest", each graph_endpoint & "/beta/deviceManagement/deviceCompliancePolicySettingStateSummaries/" & [secMgmtSearchValue] & "/deviceComplianceSettingStates"),
+                output = Rest.Feed(requests, true)
+            in 
+                output)
+    in 
+        result;
+
 SecMgmtInsights.DeviceConfigurationProfiles = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
         result = Request.GetData("deviceConfiguration", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/deviceConfigurations?$select=id,displayName,createdDateTime,description,lastModifiedDateTime,roleScopeTagIds,supportsScopeTags,deviceManagementApplicabilityRuleOsEdition,deviceManagementApplicabilityRuleOsVersion,deviceManagementApplicabilityRuleDeviceMode,version", query, schema, metadata)
@@ -459,8 +477,11 @@ EntityTable = #table({"Entity", "Action"}, {
     { "DetectedMalwareState", SecMgmtInsights.DetectedMalwareState },
     { "DeviceActions", SecMgmtInsights.DeviceActions },
     { "DeviceCompliancePolicies", SecMgmtInsights.DeviceCompliancePolicies },
+    // TODO - Determiner if the following function should be retried because of the new policy based (instead of device) approach due to efficency.
     { "DeviceCompliancePolicySettingStates", SecMgmtInsights.DeviceCompliancePolicySettingStates }, 
+    { "DeviceCompliancePolicySettingStateSummaries", SecMgmtInsights.DeviceCompliancePolicySettingStateSummaries },
     { "DeviceCompliancePolicyStates", SecMgmtInsights.DeviceCompliancePolicyStates },
+    { "DeviceComplianceSettingStates", SecMgmtInsights.DeviceComplianceSettingStates },
     { "DeviceConfigurationProfiles", SecMgmtInsights.DeviceConfigurationProfiles },
     { "DeviceConfigurationProfileSettingStates", SecMgmtInsights.DeviceConfigurationProfileSettingStates }, 
     { "DeviceConfigurationProfileStates", SecMgmtInsights.DeviceConfigurationProfileStates },
@@ -602,8 +623,8 @@ SecMgmtInsights.DeviceActions = (tenants as list, schemaOnly as logical, optiona
                     deviceComplianceControls =  Table.SelectRows(controls, each [resource] = "deviceCompliancePolicy"),
                     deviceConfigurationControls = Table.SelectRows(controls, each [resource] = "deviceConfigurationPolicy"),
 
-                    deviceCompliancePolicySettingStates = SecMgmtInsights.DeviceCompliancePolicySettingStates(tenants, false, "$select=setting,state,currentValue,errorCode,errorDescription"),
-                    deviceConfigurationProfileSettingStates = SecMgmtInsights.DeviceConfigurationProfileSettingStates(tenants, false, "$select=setting,state,currentValue,errorCode,errorDescription"),
+                    deviceCompliancePolicySettingStates = SecMgmtInsights.DeviceCompliancePolicySettingStates(tenants, false),
+                    deviceConfigurationProfileSettingStates = SecMgmtInsights.DeviceConfigurationProfileSettingStates(tenants, false),
 
                     deviceComplianceActions = Table.AddColumn(deviceComplianceControls, "action", each GetActions(deviceCompliancePolicySettingStates, [expectedValue], [id], [resource], [tenantId])),
                     deviceConfigurationActions = Table.AddColumn(deviceConfigurationControls, "action", each GetActions(deviceConfigurationProfileSettingStates, [expectedValue], [id], [resource], [tenantId])),
@@ -932,7 +953,7 @@ Rest.Feed = (requests as table, isPaged as logical, optional schema as type) =>
                 else 
                     let 
                         base = Table.AddColumn(data[Value], "secMgmtInsightsBase", each input),
-                        listOfFields = List.RemoveMatchingItems(Record.FieldNames(input), { "secMgmtInsightsRequest" }),
+                        listOfFields = List.RemoveMatchingItems(Record.FieldNames(input), { "secMgmtInsightsRequest", "secMgmtSearchValue" }),
                         expanded = Table.ExpandRecordColumn(base, "secMgmtInsightsBase", listOfFields), 
                         value = Table.ToRecords(expanded)
                     in
