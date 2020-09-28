@@ -166,7 +166,8 @@ SecMgmtInsights.LicenseDetails = (tenants as list, schemaOnly as logical, option
 
 SecMgmtInsights.IdentitySecurityDefaultsEnforcementPolicy = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
-        result = Request.GetData("identitySecurityDefaultsEnforcementPolicy", schemaOnly, tenants, "v1.0", false, "/v1.0/policies/identitySecurityDefaultsEnforcementPolicy", query, schema, metadata)
+        removedTopParameter = if (query <> null and Text.Contains(query, "top")) then null else query,
+        result = Request.GetData("identitySecurityDefaultsEnforcementPolicy", schemaOnly, tenants, "v1.0", false, "/v1.0/policies/identitySecurityDefaultsEnforcementPolicy", removedTopParameter, schema, metadata)
     in 
         result;
 
@@ -384,7 +385,8 @@ SecMgmtInsights.SecurityBaselineStates = (tenants as list, schemaOnly as logical
 
 SecMgmtInsights.SoftwareUpdateStatusSummary = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let
-        result = Request.GetData("softwareUpdateStatusSummary", schemaOnly, tenants, "beta", true, "/beta/deviceManagement/softwareUpdateStatusSummary", query, schema, metadata)
+        removedTopParameter = if (query <> null and Text.Contains(query, "top")) then null else query,
+        result = Request.GetData("softwareUpdateStatusSummary", schemaOnly, tenants, "beta", false, "/beta/deviceManagement/softwareUpdateStatusSummary", removedTopParameter, schema, metadata)
     in 
         result;
 
@@ -432,7 +434,7 @@ SecMgmtInsights.WindowsMalwareInformation = (tenants as list, schemaOnly as logi
 
 SecMgmtInsights.WindowsProtectionState = (tenants as list, schemaOnly as logical, optional query as text, optional schema as type, optional metadata as table) =>
     let 
-        result = Request.GetData("windowsProtectionState", schemaOnly, tenants, "beta", true, "/v1.0/deviceManagement/managedDevices?$select=id", query, null, metadata, "tenantId = text, deviceId = text", (input as table) => 
+        result = Request.GetData("windowsProtectionState", schemaOnly, tenants, "beta", true, "/v1.0/deviceManagement/managedDevices?$select=id&$filter=(((deviceType eq 'desktop') or (deviceType eq 'windowsRT') or (deviceType eq 'winEmbedded') or (deviceType eq 'surfaceHub') or (deviceType eq 'desktop') or (deviceType eq 'windowsRT') or (deviceType eq 'winEmbedded') or (deviceType eq 'surfaceHub') or (deviceType eq 'windowsPhone') or (deviceType eq 'holoLens')))", query, null, metadata, "tenantId = text, deviceId = text", (input as table) => 
             let 
                 renamedColumns = Table.RenameColumns(input, {"id", "deviceId"}, MissingField.Ignore),
                 requests = Table.AddColumn(renamedColumns, "secMgmtInsightsRequest", each graph_endpoint & "/beta/deviceManagement/managedDevices/" & [deviceId] & "/windowsProtectionState"),
